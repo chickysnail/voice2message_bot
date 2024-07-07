@@ -36,8 +36,21 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Echo the user message."""
     await update.message.reply_text(update.message.text)
 
+#function that gets the length of the audio file and returns if it is longer than threshold in config file
+def check_audio_length(seconds):
+    config = configparser.ConfigParser()
+    config.read("config.ini")
+    threshold = int(config["security"]["voice_threshold"])
+    return seconds > threshold
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    #check if the user has nickname "chickysnail"
+    if update.effective_user.username != "chickysnail":
+        # Check if the audio file is longer than the threshold
+        if check_audio_length(update.message.voice.duration):
+            await update.message.reply_text("The audio file is too long. Please upgrade the plan to process longer audio files.")
+            return
+
     """Handle voice messages."""
     # Load API key from config file
     config = configparser.ConfigParser()
@@ -59,7 +72,7 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     # Process the audio file
     rewritten_transcript = voice_to_message.process_audio(audio_path)
     if rewritten_transcript:
-        await update.message.reply_text(f"Processed Transcript:\n{rewritten_transcript}")
+        await update.message.reply_text(rewritten_transcript)
     else:
         await update.message.reply_text("Failed to process audio and rewrite transcript.")
 
