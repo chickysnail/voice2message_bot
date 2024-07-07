@@ -5,11 +5,14 @@ class VoiceToMessage:
         self.transcriber = AudioTranscriber(api_key)
         self.rewriter = TranscriptRewriter(api_key)
 
-    def process_audio(self, audio_path):
+    def process_audio(self, audio_path, is_summary=True):
         try:
             transcript = self.transcriber.transcribe_audio(audio_path)
             if not transcript:
                 raise ValueError("Transcription failed or returned empty.")
+            
+            if not is_summary:
+                return transcript
             
             rewritten_transcript = self.rewriter.rewrite_transcript(transcript)
             return rewritten_transcript
