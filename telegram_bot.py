@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import RotatingFileHandler
 import configparser
 import os
 import uuid
@@ -8,9 +9,17 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from voice2message import VoiceToMessage
 
 # Enable logging
+log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+log_handler = RotatingFileHandler("voice2message_bot.log", maxBytes=10*1024*1024, backupCount=5)
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+    format=log_format, 
+    level=logging.INFO,
+    handlers=[
+        log_handler,
+        logging.StreamHandler()
+    ]
 )
+
 # Set higher logging level for httpx to avoid all GET and POST requests being logged
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
@@ -94,6 +103,9 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     file_id = str(uuid.uuid4())  # Generate a unique file name
     audio_path = os.path.join('audios', f"{file_id}.ogg")
     await new_file.download_to_drive(custom_path=audio_path)
+
+    # Log the file download
+    logger.info(f"Downloaded audio file {audio_path} from user {update.effective_user.username}.")
 
     # Save the audio path in user data
     context.user_data['audio_path'] = audio_path
