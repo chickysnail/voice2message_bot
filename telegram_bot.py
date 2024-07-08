@@ -38,7 +38,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     formatted_greeting_message = greeting_message.format(user=user.mention_html())
 
     # Log the start command usage
-    logger.info(f"User {user.username} ({user.id}) started the bot. Language: {user_language}")
+    logger.info(f"User {user.username} ({user.id}) user /start. Language: {user_language}")
 
     await update.message.reply_text(
         formatted_greeting_message,
@@ -60,12 +60,15 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     user_language = update.effective_user.language_code
     help_message = help_messages.get(user_language, help_messages['en'])
 
+    # Log the help command usage
+    logger.info(f"User {update.effective_user.username} ({update.effective_user.id}) user /help.")
+
     await update.message.reply_text(help_message, parse_mode=ParseMode.MARKDOWN_V2)
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Echo the user message."""
     await update.message.reply_text(update.message.text)
-
+    
 def check_audio_length(seconds):
     """Check if the audio length exceeds the threshold."""
     config = configparser.ConfigParser()
