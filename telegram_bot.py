@@ -37,6 +37,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
     formatted_greeting_message = greeting_message.format(user=user.mention_html())
 
+    # Log the start command usage
+    logger.info(f"User {user.username} ({user.id}) started the bot. Language: {user_language}")
+
     await update.message.reply_text(
         formatted_greeting_message,
         reply_markup=ForceReply(selective=True),
