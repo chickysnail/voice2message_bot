@@ -3,6 +3,7 @@ import configparser
 import os
 import uuid
 from telegram import ForceReply, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ParseMode 
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
 from voice2message import VoiceToMessage
 
@@ -15,20 +16,48 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
+greeting_messages = {
+    'en': "Welcome {user}! I can help you if you were sent an audio message but you can't listen right now. I will listen and summarize it for you!\n<b>Just send me the audio message</b>",
+    'ru': "Добро пожаловать {user}! Я могу помочь вам, если вам было отправлено аудиосообщение, но вы не можете его прослушать прямо сейчас. Я послушаю и сделаю для вас краткое содержание!\n<b>Просто отправьте мне аудиосообщение</b>",
+    'es': "¡Bienvenido {user}! Puedo ayudarte si te enviaron un mensaje de audio pero no puedes escucharlo en este momento. ¡Lo escucharé y lo resumiré para ti!\n<b>Solo envíame el mensaje de audio</b>",
+    'de': "Willkommen {user}! Ich kann Ihnen helfen, wenn Ihnen eine Sprachnachricht gesendet wurde, Sie sie aber gerade nicht anhören können. Ich werde zuhören und sie für Sie zusammenfassen!\n<b>Schicken Sie mir einfach die Sprachnachricht</b>",
+    # Add more languages as needed
+}
+
 # Define a few command handlers. These usually take the two arguments update and context.
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
-    # Write a greeting message explaining how to use the bot
+    # Get the user's language code
+    user_language = update.effective_user.language_code
+
+    # Get the appropriate greeting message or default to English
+    greeting_message = greeting_messages.get(user_language, greeting_messages['en'])
+
+    # Format the greeting message with the user's mention
     user = update.effective_user
-    greeting_message = f"Welcome {user.mention_html()}! I can help you if you were sent an audio message but you can't listen right now. I will listen and summarize it for you!"
-    await update.message.reply_html(
-        greeting_message,
+    formatted_greeting_message = greeting_message.format(user=user.mention_html())
+
+    await update.message.reply_text(
+        formatted_greeting_message,
         reply_markup=ForceReply(selective=True),
+        parse_mode=ParseMode.HTML,
     )
+
+help_messages = {
+    'en': "*Just send me the audio message*",
+    'ru': "*Просто отправьте мне аудиосообщение*",
+    'es': "*Solo envíame el mensaje de audio*",
+    'de': "*Schicken Sie mir einfach die Sprachnachricht*",
+    # Add more languages as needed
+}
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /help is issued."""
-    await update.message.reply_text("Help!")
+    # Get the user's language code
+    user_language = update.effective_user.language_code
+    help_message = help_messages.get(user_language, help_messages['en'])
+
+    await update.message.reply_text(help_message, parse_mode=ParseMode.MARKDOWN_V2)
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Echo the user message."""
