@@ -154,6 +154,17 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         os.remove(audio_path)
         logger.info(f"Deleted audio file {audio_path} after processing.")
 
+async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send the log file to the admin."""
+    if update.effective_user.username != "chickysnail":
+        return
+
+    log_file_path = 'voice2message_bot.log'
+    if os.path.exists(log_file_path):
+        await context.bot.send_document(chat_id=update.effective_chat.id, document=open(log_file_path, 'rb'))
+    else:
+        await update.message.reply_text("Log file not found.")
+
 def main() -> None:
     """Start the bot."""
     config = configparser.ConfigParser()
@@ -165,6 +176,7 @@ def main() -> None:
     # On different commands - answer in Telegram
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("logs", logs_command))  
     application.add_handler(MessageHandler(filters.VOICE, handle_voice))
     application.add_handler(CallbackQueryHandler(button))
 
