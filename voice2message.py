@@ -60,7 +60,7 @@ class TranscriptRewriter:
                 prompt = self.default_prompt
             
             completion = openai.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": transcript}
