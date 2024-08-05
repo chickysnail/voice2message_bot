@@ -3,6 +3,7 @@ from logging.handlers import RotatingFileHandler
 import configparser
 import os
 import uuid
+from telegram import error
 from telegram import ForceReply, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode 
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
@@ -94,21 +95,9 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             await update.message.reply_text("The audio file is too long. Please upgrade the plan to process longer audio files.")
             return
 
-    # Create audios folder if it does not exist
-    if not os.path.exists('audios'):
-        os.makedirs('audios')
-
-    # Download the voice file
-    new_file = await context.bot.get_file(update.message.voice.file_id)
-    file_id = str(uuid.uuid4())  # Generate a unique file name
-    audio_path = os.path.join('audios', f"{file_id}.ogg")
-    await new_file.download_to_drive(custom_path=audio_path)
-
-    # Log the file download
-    logger.info(f"Downloaded audio file {audio_path} from user {update.effective_user.username}.")
-
-    # Save the audio path in user data
-    context.user_data['audio_path'] = audio_path
+    # Save the file ID in user data instead of downloading the file
+    file_id = update.message.voice.file_id
+    context.user_data['file_id'] = file_id
 
     # Ask the user if they want a summary or a transcript
     keyboard = [
@@ -120,12 +109,24 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text('What would you like to receive?', reply_markup=reply_markup)
 
+
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle button presses and process the audio file accordingly."""
     query = update.callback_query
     await query.answer()
     choice = query.data
     is_summary = choice == 'summary'
+
+    try:
+        # Disable the buttons to prevent further presses
+        await query.edit_message_reply_markup(reply_markup=None)
+
+        # Update the message to indicate that processing has started
+        await query.edit_message_text(text="Processing the audio...")
+
+    except error.BadRequest as e:
+        logger.warning(str(e))
+        return
 
     # Load API key from config file
     config = configparser.ConfigParser()
@@ -134,25 +135,36 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     voice_to_message = VoiceToMessage(api_key)
 
-    # Retrieve the audio path from user data
-    audio_path = context.user_data.get('audio_path')
+    # Retrieve the file ID from user data
+    file_id = context.user_data.get('file_id')
+
+    # Download the voice file
+    new_file = await context.bot.get_file(file_id)
+    audio_path = os.path.join('audios', f"{file_id}.ogg")
+    await new_file.download_to_drive(custom_path=audio_path)
 
     # Log the choice made by the user
     logger.info(f"Processing audio for {update.effective_user.username}. Choice: {choice}")
 
-    # Process the audio file
-    rewritten_transcript = voice_to_message.process_audio(audio_path, is_summary=is_summary)
-    if rewritten_transcript:
-        await query.edit_message_text(text=rewritten_transcript)
-        logger.info(f"Successfully processed audio for {update.effective_user.username}.")
-    else:
-        await query.edit_message_text(text="Failed to process audio and rewrite transcript.")
-        logger.error(f"Failed to process audio for {update.effective_user.username}.")
+    try:
+        # Process the audio file
+        rewritten_transcript = voice_to_message.process_audio(audio_path, is_summary=is_summary)
+        logger.debug(f"Transcription result: {rewritten_transcript}")
 
-    # Delete the audio file after processing
-    if os.path.exists(audio_path):
-        os.remove(audio_path)
-        logger.info(f"Deleted audio file {audio_path} after processing.")
+        if rewritten_transcript:
+            await query.edit_message_text(text=rewritten_transcript)
+            logger.info(f"Successfully processed audio for {update.effective_user.username}.")
+        else:
+            logger.error(f"No transcript returned for {update.effective_user.username}.")
+            await query.edit_message_text(text="Failed to process audio and rewrite transcript.")
+    except Exception as e:
+        logger.exception(f"An error occurred during audio processing for {update.effective_user.username}: {e}")
+        await query.edit_message_text(text="Failed to process audio and rewrite transcript.")
+    finally:
+        # Delete the audio file after processing
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
+            logger.info(f"Deleted audio file {audio_path} after processing.")
 
 async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send the log file to the admin."""
