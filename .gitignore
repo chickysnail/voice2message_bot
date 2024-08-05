@@ -3,3 +3,4 @@ config.ini
 audios
 voice2message_bot.log
 TODO.txt
+__pycache__
