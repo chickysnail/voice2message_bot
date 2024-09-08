@@ -141,6 +141,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Download the voice file
     new_file = await context.bot.get_file(file_id)
     audio_path = os.path.join('audios', f"{file_id}.ogg")
+    os.makedirs(os.path.dirname(audio_path), exist_ok=True) # ensure the directory exists
     await new_file.download_to_drive(custom_path=audio_path)
 
     # Log the choice made by the user
