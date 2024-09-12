@@ -8,6 +8,7 @@ from telegram import ForceReply, Update, InlineKeyboardButton, InlineKeyboardMar
 from telegram.constants import ParseMode 
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
 from voice2message import VoiceToMessage
+from video2audio import convert_video_to_audio
 
 # Enable logging
 log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -87,7 +88,7 @@ def check_audio_length(seconds):
     return seconds > threshold
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Handle voice messages."""
+    """Handle voice and video_note messages."""
     # Check if the user has the nickname "chickysnail"
     if update.effective_user.username != "chickysnail":
         # Check if the audio file is longer than the threshold
@@ -96,7 +97,13 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             return
 
     # Save the file ID in user data instead of downloading the file
-    file_id = update.message.voice.file_id
+    # Determine the type of the message
+    message_type = update.message.voice if update.message.voice else update.message.video_note
+
+    # Get the file ID based on the message type
+    file_id = message_type.file_id
+
+    # Save the file ID in user data instead of downloading the file
     context.user_data['file_id'] = file_id
 
     # Ask the user if they want a summary or a transcript
@@ -140,10 +147,16 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     # Download the voice file
     new_file = await context.bot.get_file(file_id)
-    audio_path = os.path.join('audios', f"{file_id}.ogg")
-    os.makedirs(os.path.dirname(audio_path), exist_ok=True) # ensure the directory exists
-    await new_file.download_to_drive(custom_path=audio_path)
+    file_type = new_file.file_path.split('.')[-1]
+    file_id = str(uuid.uuid4())
+    file_path = os.path.join('user_files', f"{file_id}.{file_type}")
+    os.makedirs(os.path.dirname(file_path), exist_ok=True) # ensure the directory exists
+    await new_file.download_to_drive(custom_path=file_path)
 
+    if file_type == 'mp4':
+        audio_path = convert_video_to_audio(file_path)
+    else:
+        audio_path = file_path
     # Log the choice made by the user
     logger.info(f"Processing audio for {update.effective_user.username}. Choice: {choice}")
 
@@ -190,7 +203,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("logs", logs_command))  
-    application.add_handler(MessageHandler(filters.VOICE, handle_voice))
+    application.add_handler(MessageHandler(filters.VOICE | filters.VIDEO_NOTE, handle_voice))
     application.add_handler(CallbackQueryHandler(button))
 
     # On non command i.e message - echo the message on Telegram
