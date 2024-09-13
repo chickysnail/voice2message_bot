@@ -201,6 +201,22 @@ async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     else:
         await update.message.reply_text("Log file not found.")
 
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send the user's statistics when the command /stats is issued."""
+    stats = db.get_statistics(update.effective_user.username)
+    message_count, total_duration = stats
+    await update.message.reply_text(
+        f"User: {update.effective_user.username}\nMessages Transcribed: {message_count}\nTotal Duration: {total_duration} seconds"
+    )
+
+    # admin stats
+    if update.effective_user.username == "chickysnail":
+        all_stats = db.get_all_statistics()
+        for username, message_count, total_duration in all_stats:
+            await update.message.reply_text(
+                f"{username} | {message_count} messages | {total_duration} seconds"
+            )
+
 def main() -> None:
     """Start the bot."""
     config = configparser.ConfigParser()
@@ -216,6 +232,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("logs", logs_command))  
+    application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(MessageHandler(filters.VOICE | filters.VIDEO_NOTE, handle_voice))
     application.add_handler(CallbackQueryHandler(button))
 

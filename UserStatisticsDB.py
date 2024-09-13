@@ -45,6 +45,16 @@ class UserStatisticsDB:
             
         return result if result else (0, 0)
 
+    def get_all_statistics(self):
+        """Retrieve the statistics for all users."""
+        with self.connection:
+            result = self.connection.execute('''
+                SELECT username, message_count, total_duration
+                FROM user_statistics
+            ''').fetchall()
+
+        return result
+
     def close(self):
         """Close the database connection."""
         self.connection.close()
