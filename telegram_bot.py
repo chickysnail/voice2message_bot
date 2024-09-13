@@ -9,6 +9,7 @@ from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
 from voice2message import VoiceToMessage
 from video2audio import convert_video_to_audio
+from UserStatisticsDB import UserStatisticsDB
 
 # Enable logging
 log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -38,6 +39,8 @@ greeting_messages = {
 # Define a few command handlers. These usually take the two arguments update and context.
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
+    
+
     # Get the user's language code
     user_language = update.effective_user.language_code
 
@@ -89,6 +92,9 @@ def check_audio_length(seconds):
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle voice and video_note messages."""
+    # Add user to the database (if not already added)
+    db.add_user(update.effective_user.username)
+
     # Check if the user has the nickname "chickysnail"
     if update.effective_user.username != "chickysnail":
         # Check if the audio file is longer than the threshold
@@ -105,6 +111,10 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     # Save the file ID in user data instead of downloading the file
     context.user_data['file_id'] = file_id
+
+    # Track the general statistics for the user
+    db.update_statistics(update.effective_user.username, update.message.voice.duration)
+
 
     # Ask the user if they want a summary or a transcript
     keyboard = [
@@ -199,6 +209,9 @@ def main() -> None:
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(tg_token).build()
 
+    global db
+    db = UserStatisticsDB('statistics.db')
+
     # On different commands - answer in Telegram
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
@@ -213,4 +226,7 @@ def main() -> None:
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        db.close()
