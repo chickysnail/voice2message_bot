@@ -95,10 +95,12 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     # Add user to the database (if not already added)
     db.add_user(update.effective_user.username)
 
-    if check_audio_length(update.message.voice.duration):
-        cost = round(0.006 * update.message.voice.duration / 60, 2)
-        await update.message.reply_text(f"The audio file is too long. \nProcessing audio file of this length costs me ${cost}\nPlease contact me (@chickysnail) to be added to unlimited users ")
-        return
+    audio_length = update.message.voice.duration if update.message.voice else update.message.video_note.duration
+    if update.message.voice:
+        if check_audio_length(audio_length):
+            cost = round(0.006 * audio_length / 60, 2)
+            await update.message.reply_text(f"The audio file is too long. \nProcessing audio file of this length costs me ${cost}\nPlease contact me (@chickysnail) to be added to unlimited users ")
+            return
 
     # Save the file ID in user data instead of downloading the file
     # Determine the type of the message
@@ -111,9 +113,13 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     context.user_data['file_id'] = file_id
 
     # Track the general statistics for the user
-    db.update_statistics(update.effective_user.username, update.message.voice.duration)
-    audio_length = update.message.voice.duration
-    logger.info(f"User {update.effective_user.username} sent an audio of length {audio_length} seconds")
+    db.update_statistics(update.effective_user.username, audio_length)
+
+    # Log the message length 
+    if update.message.voice:
+        logger.info(f"User {update.effective_user.username} sent an audio of length {audio_length} seconds")
+    elif update.message.video_note:
+        logger.info(f"User {update.effective_user.username} sent a video note of length {audio_length} seconds")
 
     # Ask the user if they want a summary or a transcript
     keyboard = [
