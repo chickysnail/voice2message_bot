@@ -95,12 +95,10 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     # Add user to the database (if not already added)
     db.add_user(update.effective_user.username)
 
-    # Check if the user has the nickname "chickysnail"
-    if update.effective_user.username != "chickysnail":
-        # Check if the audio file is longer than the threshold
-        if check_audio_length(update.message.voice.duration):
-            await update.message.reply_text("The audio file is too long. Please upgrade the plan to process longer audio files.")
-            return
+    if check_audio_length(update.message.voice.duration):
+        cost = round(0.006 * update.message.voice.duration / 60, 2)
+        await update.message.reply_text(f"The audio file is too long. \nProcessing audio file of this length costs me ${cost}\nPlease contact me (@chickysnail) to be added to unlimited users ")
+        return
 
     # Save the file ID in user data instead of downloading the file
     # Determine the type of the message
@@ -114,7 +112,8 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     # Track the general statistics for the user
     db.update_statistics(update.effective_user.username, update.message.voice.duration)
-
+    audio_length = update.message.voice.duration
+    logger.info(f"User {update.effective_user.username} sent an audio of length {audio_length} seconds")
 
     # Ask the user if they want a summary or a transcript
     keyboard = [
