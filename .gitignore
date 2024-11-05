@@ -7,3 +7,4 @@ __pycache__
 .vscode\settings.json
 user_files
 statistics.db
+utils/test_split_message.py

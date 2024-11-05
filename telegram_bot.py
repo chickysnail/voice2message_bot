@@ -10,6 +10,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 from voice2message import VoiceToMessage
 from video2audio import convert_video_to_audio
 from UserStatisticsDB import UserStatisticsDB
+from utils.text_helpers import split_message
 
 # Enable logging
 log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -181,11 +182,20 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.debug(f"Transcription result: {rewritten_transcript}")
 
         if rewritten_transcript:
-            await query.edit_message_text(text=rewritten_transcript)
+            for chunk in split_message(rewritten_transcript):
+                try:
+                    await query.message.delete()
+                except error.BadRequest as e:
+                    logger.warning(f"Failed to delete message: {e}")
+                    
+                await query.message.reply_text(text=chunk)
+            
             logger.info(f"Successfully processed audio for {update.effective_user.username}.")
+
         else:
             logger.error(f"No transcript returned for {update.effective_user.username}.")
             await query.edit_message_text(text="Failed to process audio and rewrite transcript.")
+
     except Exception as e:
         logger.exception(f"An error occurred during audio processing for {update.effective_user.username}: {e}")
         await query.edit_message_text(text="Failed to process audio and rewrite transcript.")
