@@ -8,3 +8,4 @@ __pycache__
 user_files
 statistics.db
 utils/test_split_message.py
+utils/users_notifier.py

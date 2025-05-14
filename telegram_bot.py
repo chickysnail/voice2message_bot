@@ -132,6 +132,47 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text('What would you like to receive?', reply_markup=reply_markup)
 
+async def handle_audio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle uploaded audio files."""
+    # Add user to the database (if not already added)
+    db.add_user(update.effective_user.username)
+
+    # Determine if it's a proper audio message or document
+    if update.message.audio:
+        audio_obj = update.message.audio
+        audio_length = audio_obj.duration
+        file_id = audio_obj.file_id
+    else:  # Document with audio MIME type
+        audio_obj = update.message.document
+        audio_length = 0  # Documents don't have duration info
+        file_id = audio_obj.file_id
+    
+    # Check audio length if available
+    if audio_length > 0 and check_audio_length(audio_length):
+        cost = round(0.006 * audio_length / 60, 2)
+        await update.message.reply_text(f"The audio file is too long. \nProcessing audio file of this length costs me ${cost}\nPlease contact me (@chickysnail) to be added to unlimited users ")
+        return
+
+    # Save the file ID in user data
+    context.user_data['file_id'] = file_id
+
+    # Track the general statistics for the user (if duration known)
+    if audio_length > 0:
+        db.update_statistics(update.effective_user.username, audio_length)
+
+    # Log the file receipt
+    file_name = audio_obj.file_name if hasattr(audio_obj, 'file_name') else "Unknown"
+    logger.info(f"User {update.effective_user.username} sent an audio file: {file_name}, length: {audio_length if audio_length > 0 else 'unknown'} seconds")
+
+    # Ask the user if they want a summary or a transcript
+    keyboard = [
+        [
+            InlineKeyboardButton("Summary", callback_data='summary'),
+            InlineKeyboardButton("Transcript", callback_data='transcript')
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text('What would you like to receive?', reply_markup=reply_markup)
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle button presses and process the audio file accordingly."""
@@ -161,18 +202,21 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Retrieve the file ID from user data
     file_id = context.user_data.get('file_id')
 
-    # Download the voice file
+    # Download the file
     new_file = await context.bot.get_file(file_id)
-    file_type = new_file.file_path.split('.')[-1]
+    file_type = new_file.file_path.split('.')[-1].lower()
     file_id = str(uuid.uuid4())
     file_path = os.path.join('user_files', f"{file_id}.{file_type}")
     os.makedirs(os.path.dirname(file_path), exist_ok=True) # ensure the directory exists
     await new_file.download_to_drive(custom_path=file_path)
 
-    if file_type == 'mp4':
+    # Handle different file types
+    if file_type in ['mp4', 'mpeg', 'mov', 'avi', 'wmv']:
         audio_path = convert_video_to_audio(file_path)
     else:
+        # For audio files we can use them directly
         audio_path = file_path
+
     # Log the choice made by the user
     logger.info(f"Processing audio for {update.effective_user.username}. Choice: {choice}")
 
@@ -249,6 +293,7 @@ def main() -> None:
     application.add_handler(CommandHandler("logs", logs_command))  
     application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(MessageHandler(filters.VOICE | filters.VIDEO_NOTE, handle_voice))
+    application.add_handler(MessageHandler(filters.AUDIO | filters.Document.AUDIO, handle_audio))
     application.add_handler(CallbackQueryHandler(button))
 
     # On non command i.e message - echo the message on Telegram
