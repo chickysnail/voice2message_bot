@@ -33,8 +33,8 @@ pub fn init_logger(log_level: &str, save_log_file: bool) -> Result<()> {
             .with(file_layer)
             .init();
 
-        // Keep guard alive by leaking it
-        std::mem::forget(_guard);
+        // Keep guard alive for the lifetime of the program by leaking it
+        Box::leak(Box::new(_guard));
     } else {
         tracing_subscriber::registry()
             .with(env_filter)

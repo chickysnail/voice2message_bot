@@ -22,6 +22,8 @@ struct TranscriptionResponse {
 pub struct OpenAITranscriber {
     client: Client,
     api_key: String,
+    // Timeout is configured on the client during construction and doesn't need to be
+    // accessed directly after that. We keep it here for potential future use.
     #[allow(dead_code)]
     timeout: Duration,
 }
