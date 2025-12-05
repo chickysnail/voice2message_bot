@@ -6,7 +6,11 @@ use teloxide::{
 use tokio::sync::Semaphore;
 use tracing::{error, info, warn};
 
-use crate::{config::Config, storage::FileStore, transcriber::Transcriber, utils::format_duration};
+use crate::{
+    admin_notifier::AdminNotifier, config::Config, errors::TranscribeError,
+    storage::FileStore, telegram_api::TelegramFileDownloader, transcriber::Transcriber,
+    utils::format_duration,
+};
 
 pub async fn handle_start(bot: Bot, msg: Message) -> ResponseResult<()> {
     let text = "Welcome to Voice Transcriber Bot! 🎤\n\n\
@@ -29,11 +33,12 @@ pub async fn handle_help(bot: Bot, msg: Message) -> ResponseResult<()> {
                 3. Receive the transcribed text\n\n\
                 Limitations:\n\
                 - Maximum audio duration: 1 hour (3600 seconds)\n\
-                - Audio files longer than this will be rejected\n\n\
+                - Maximum file size: 50 MB (Telegram's bot API limit)\n\
+                - Long audio files may take several minutes to process\n\n\
                 Features:\n\
                 - Automatic transcription of voice messages\n\
                 - Support for various audio formats\n\
-                - Retry logic for reliability\n\
+                - Automatic retry logic for reliability\n\
                 - Inline 'Summarize' button (coming soon)\n\n\
                 If you encounter any issues, please contact the bot administrator.";
 
@@ -45,12 +50,14 @@ pub async fn handle_settings(bot: Bot, msg: Message, config: Arc<Config>) -> Res
     let text = format!(
         "Current Settings ⚙️\n\n\
          Maximum audio duration: {} seconds ({})\n\
+         Maximum file size: 50 MB\n\
          Concurrent transcriptions: {}\n\
-         OpenAI timeout: {} seconds",
+         OpenAI timeout: {} seconds ({} minutes)",
         config.audio_max_seconds,
         format_duration(config.audio_max_seconds),
         config.concurrency_limit,
-        config.openai_timeout_seconds
+        config.openai_timeout_seconds,
+        config.openai_timeout_seconds / 60
     );
 
     bot.send_message(msg.chat.id, text).await?;
@@ -70,9 +77,17 @@ pub async fn handle_voice_message(
 
     // Extract voice or audio information
     let (file_id, duration, file_ext) = if let Some(voice) = msg.voice() {
-        (voice.file.id.clone(), voice.duration, "ogg")
+        (voice.file.id.clone(), voice.duration, "ogg".to_string())
     } else if let Some(audio) = msg.audio() {
-        (audio.file.id.clone(), audio.duration, "mp3")
+        let ext = audio
+            .file_name
+            .as_ref()
+            .and_then(|name| {
+                let name_str = name.as_str();
+                name_str.rsplit('.').next().map(|s| s.to_string())
+            })
+            .unwrap_or_else(|| "mp3".to_string());
+        (audio.file.id.clone(), audio.duration, ext)
     } else {
         return Ok(());
     };
@@ -81,8 +96,8 @@ pub async fn handle_voice_message(
     let username = msg
         .from()
         .and_then(|u| u.username.as_ref())
-        .map(|s| s.as_str())
-        .unwrap_or("unknown");
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
 
     info!(
         "Received audio from user {} (id: {}), duration: {}s, message_id: {}",
@@ -103,19 +118,10 @@ pub async fn handle_voice_message(
         bot.send_message(chat_id, text).await?;
 
         // Notify admins
-        let admin_text = format!(
-            "⚠️ User {} (id: {}) tried sending audio of {} seconds.\n\
-             Username: @{}\n\
-             Message ID: {}\n\
-             Max allowed: {} seconds",
-            user_id, user_id, duration, username, message_id, config.audio_max_seconds
-        );
-
-        for admin_id in &config.admin_ids {
-            if let Err(e) = bot.send_message(ChatId(*admin_id), &admin_text).await {
-                error!("Failed to notify admin {}: {}", admin_id, e);
-            }
-        }
+        let notifier = AdminNotifier::new(bot.clone(), config.clone());
+        notifier
+            .notify_duration_exceeded(user_id, &username, message_id.0, duration, config.audio_max_seconds)
+            .await;
 
         return Ok(());
     }
@@ -147,70 +153,133 @@ pub async fn handle_voice_message(
             error!("Failed to send typing action: {}", e);
         }
 
+        // Initialize file downloader
+        let downloader = match TelegramFileDownloader::new(config_clone.telegram_token.clone()) {
+            Ok(d) => d,
+            Err(e) => {
+                error!("Failed to create file downloader: {}", e);
+                let _ = bot_clone
+                    .send_message(chat_id, "Sorry, failed to initialize file downloader.")
+                    .await;
+                drop(permit);
+                return;
+            }
+        };
+
+        // Get file info to check size
+        let file_info = match downloader.get_file_info(&file_id).await {
+            Ok(info) => info,
+            Err(e) => {
+                error!("Failed to get file info: {}", e);
+                let notifier = AdminNotifier::new(bot_clone.clone(), config_clone.clone());
+                notifier
+                    .notify_telegram_error(
+                        user_id,
+                        &username,
+                        message_id.0,
+                        "FileInfoError",
+                        &e.to_string(),
+                    )
+                    .await;
+
+                let _ = bot_clone
+                    .send_message(
+                        chat_id,
+                        "Sorry, failed to get file information from Telegram.",
+                    )
+                    .await;
+                drop(permit);
+                return;
+            }
+        };
+
+        // Check file size
+        if downloader.is_file_too_large(file_info.file_size) {
+            let file_size = file_info.file_size.unwrap_or(0);
+            let max_size = TelegramFileDownloader::max_file_size();
+
+            warn!(
+                "File too large for user {}: {} bytes (max: {} bytes)",
+                user_id, file_size, max_size
+            );
+
+            let text = format!(
+                "⚠️ This audio file is too large for Telegram to deliver to bots.\n\
+                 File size: {:.2} MB\n\
+                 Maximum: {:.2} MB\n\n\
+                 Please send a shorter voice message.",
+                file_size as f64 / 1_000_000.0,
+                max_size as f64 / 1_000_000.0
+            );
+
+            let _ = bot_clone.send_message(chat_id, text).await;
+
+            // Notify admins
+            let notifier = AdminNotifier::new(bot_clone.clone(), config_clone.clone());
+            notifier
+                .notify_oversized_file(user_id, &username, message_id.0, file_size, max_size)
+                .await;
+
+            drop(permit);
+            return;
+        }
+
         // Download file
-        let file_result = bot_clone.get_file(&file_id).await;
-        if let Err(e) = file_result {
-            error!("Failed to get file info: {}", e);
-            let _ = bot_clone
-                .send_message(chat_id, "Sorry, failed to download the audio file.")
-                .await;
-            drop(permit);
-            return;
-        }
+        let file_path_str = match file_info.file_path {
+            Some(path) => path,
+            None => {
+                error!("No file path in Telegram response for file_id: {}", file_id);
+                let _ = bot_clone
+                    .send_message(chat_id, "Sorry, failed to get file path from Telegram.")
+                    .await;
+                drop(permit);
+                return;
+            }
+        };
 
-        let file = file_result.unwrap();
-        let file_path = file.path;
+        let file_bytes = match downloader.download_file(&file_path_str).await {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                error!("Failed to download file: {}", e);
+                let notifier = AdminNotifier::new(bot_clone.clone(), config_clone.clone());
+                notifier
+                    .notify_telegram_error(
+                        user_id,
+                        &username,
+                        message_id.0,
+                        "FileDownloadError",
+                        &e.to_string(),
+                    )
+                    .await;
 
-        // Download file content
-        let download_url = format!(
-            "https://api.telegram.org/file/bot{}/{}",
-            config_clone.telegram_token, file_path
-        );
-
-        let client = reqwest::Client::new();
-        let response = client.get(&download_url).send().await;
-
-        if let Err(e) = response {
-            error!("Failed to download file: {}", e);
-            let _ = bot_clone
-                .send_message(chat_id, "Sorry, failed to download the audio file.")
-                .await;
-            drop(permit);
-            return;
-        }
-
-        let response = response.unwrap();
-        let file_bytes = response.bytes().await;
-
-        if let Err(e) = file_bytes {
-            error!("Failed to read file bytes: {}", e);
-            let _ = bot_clone
-                .send_message(chat_id, "Sorry, failed to download the audio file.")
-                .await;
-            drop(permit);
-            return;
-        }
-
-        let file_bytes = file_bytes.unwrap();
+                let _ = bot_clone
+                    .send_message(chat_id, "Sorry, failed to download the audio file.")
+                    .await;
+                drop(permit);
+                return;
+            }
+        };
 
         // Save file
-        let saved_path = file_store_clone
-            .save_file(chat_id.0, message_id.0, file_ext, &file_bytes)
-            .await;
+        let saved_path = match file_store_clone
+            .save_file(chat_id.0, message_id.0, &file_ext, &file_bytes)
+            .await
+        {
+            Ok(path) => path,
+            Err(e) => {
+                error!("Failed to save file: {}", e);
+                let _ = bot_clone
+                    .send_message(chat_id, "Sorry, failed to save the audio file.")
+                    .await;
+                drop(permit);
+                return;
+            }
+        };
 
-        if let Err(e) = saved_path {
-            error!("Failed to save file: {}", e);
-            let _ = bot_clone
-                .send_message(chat_id, "Sorry, failed to save the audio file.")
-                .await;
-            drop(permit);
-            return;
-        }
-
-        let saved_path = saved_path.unwrap();
         info!("File saved to: {:?}", saved_path);
 
         // Transcribe
+        info!("Starting transcription for message {}", message_id);
         let transcription_result = transcriber_clone.transcribe(&saved_path).await;
 
         // Delete file
@@ -239,12 +308,52 @@ pub async fn handle_voice_message(
             }
             Err(e) => {
                 error!("Transcription failed for message {}: {}", message_id, e);
-                let _ = bot_clone
-                    .send_message(
-                        chat_id,
-                        "Sorry, something went wrong while transcribing your audio. Please try again later.",
-                    )
-                    .await;
+
+                // Determine error type and user message
+                let (user_message, error_type) = match &e {
+                    TranscribeError::Timeout => (
+                        "⏱️ Transcription took too long. Please try again later or send a shorter audio file.",
+                        "Timeout",
+                    ),
+                    TranscribeError::RateLimited(_) => (
+                        "⚠️ The transcription service is currently rate limited. Please try again in a few minutes.",
+                        "RateLimited",
+                    ),
+                    TranscribeError::ApiError(msg) if msg.contains("Invalid API key") => {
+                        (
+                            "❌ The transcription service failed due to a configuration issue. Please contact the administrator.",
+                            "InvalidApiKey",
+                        )
+                    }
+                    TranscribeError::ApiError(_) | TranscribeError::WhisperError(_) => (
+                        "❌ The transcription service failed. Please try again later.",
+                        "ApiError",
+                    ),
+                    _ => (
+                        "❌ Something went wrong while transcribing your audio. Please try again later.",
+                        "UnknownError",
+                    ),
+                };
+
+                let _ = bot_clone.send_message(chat_id, user_message).await;
+
+                // Notify admins for timeout or unexpected errors
+                let notifier = AdminNotifier::new(bot_clone.clone(), config_clone.clone());
+                if matches!(e, TranscribeError::Timeout) {
+                    notifier
+                        .notify_transcription_timeout(user_id, &username, message_id.0, duration)
+                        .await;
+                } else {
+                    notifier
+                        .notify_transcription_error(
+                            user_id,
+                            &username,
+                            message_id.0,
+                            error_type,
+                            &e.to_string(),
+                        )
+                        .await;
+                }
             }
         }
 

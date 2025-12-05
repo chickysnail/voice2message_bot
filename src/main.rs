@@ -3,18 +3,22 @@ use teloxide::prelude::*;
 use tokio::sync::Semaphore;
 use tracing::info;
 
+mod admin_notifier;
 mod bot;
 mod config;
 mod errors;
 mod http;
 mod logger;
 mod storage;
+mod telegram_api;
 mod transcriber;
 mod utils;
+mod whisper_api;
 
 use config::Config;
 use storage::FileStore;
-use transcriber::{OpenAITranscriber, Transcriber};
+use transcriber::Transcriber;
+use whisper_api::WhisperTranscriber;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -32,11 +36,11 @@ async fn main() -> anyhow::Result<()> {
     file_store.init().await?;
 
     // Initialize transcriber
-    let transcriber = Arc::new(OpenAITranscriber::new(
+    let transcriber = Arc::new(WhisperTranscriber::new(
         config.openai_key.clone(),
         config.openai_timeout_seconds,
     )?) as Arc<dyn Transcriber>;
-    info!("OpenAI transcriber initialized");
+    info!("Whisper transcriber initialized");
 
     // Initialize semaphore for concurrency control
     let semaphore = Arc::new(Semaphore::new(config.concurrency_limit));

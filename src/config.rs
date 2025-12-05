@@ -61,7 +61,7 @@ impl Config {
             .context("Failed to parse HTTP_PORT")?;
 
         let openai_timeout_seconds = std::env::var("OPENAI_TIMEOUT_SECONDS")
-            .unwrap_or_else(|_| "120".to_string())
+            .unwrap_or_else(|_| "600".to_string())
             .parse::<u64>()
             .context("Failed to parse OPENAI_TIMEOUT_SECONDS")?;
 
