@@ -14,6 +14,7 @@ pub fn format_duration(seconds: u32) -> String {
     }
 }
 
+#[allow(dead_code)]
 pub fn exponential_backoff(attempt: u32) -> Duration {
     let base_ms = 500;
     let delay_ms = base_ms * 2u64.pow(attempt);
@@ -24,14 +25,15 @@ pub fn exponential_backoff(attempt: u32) -> Duration {
 pub fn exponential_backoff_with_jitter(attempt: u32) -> Duration {
     let base_ms = 500;
     let delay_ms = base_ms * 2u64.pow(attempt);
-    
+
     // Add up to 50% jitter
     let jitter_range = delay_ms / 2;
     let jitter = (rand::random::<u64>() % jitter_range).max(1);
-    
+
     Duration::from_millis(delay_ms + jitter)
 }
 
+#[allow(dead_code)]
 fn rand_random<T>() -> T
 where
     T: From<u8>,
@@ -48,7 +50,7 @@ where
 // Use a simple random function to avoid adding a dependency
 mod rand {
     use std::time::SystemTime;
-    
+
     pub fn random<T>() -> T
     where
         T: From<u64>,

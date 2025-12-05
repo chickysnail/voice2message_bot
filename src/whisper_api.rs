@@ -22,6 +22,7 @@ struct TranscriptionResponse {
 pub struct WhisperTranscriber {
     client: Client,
     api_key: String,
+    #[allow(dead_code)]
     timeout: Duration,
 }
 
@@ -73,10 +74,8 @@ impl WhisperTranscriber {
             "audio/mpeg"
         } else if file_name.ends_with(".m4a") {
             "audio/mp4"
-        } else if file_name.ends_with(".ogg") {
-            "audio/ogg"
         } else {
-            "audio/ogg" // default
+            "audio/ogg" // default for .ogg and others
         };
 
         // Create multipart form
@@ -104,7 +103,10 @@ impl WhisperTranscriber {
             .await
             .map_err(|e| {
                 if e.is_timeout() {
-                    warn!("OpenAI Whisper request timed out on attempt {}", attempt + 1);
+                    warn!(
+                        "OpenAI Whisper request timed out on attempt {}",
+                        attempt + 1
+                    );
                     WhisperError::Timeout
                 } else if e.is_connect() {
                     warn!("Connection to OpenAI failed on attempt {}", attempt + 1);
@@ -163,7 +165,7 @@ impl WhisperTranscriber {
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".to_string());
-        
+
         // Check for invalid API key
         if status == 401 {
             return Err(WhisperError::InvalidApiKey);
@@ -195,11 +197,7 @@ impl Transcriber for WhisperTranscriber {
         for attempt in 0..MAX_RETRIES {
             if attempt > 0 {
                 let backoff = exponential_backoff_with_jitter(attempt - 1);
-                info!(
-                    "Waiting {:?} before retry attempt {}",
-                    backoff,
-                    attempt + 1
-                );
+                info!("Waiting {:?} before retry attempt {}", backoff, attempt + 1);
                 tokio::time::sleep(backoff).await;
             }
 
@@ -216,11 +214,7 @@ impl Transcriber for WhisperTranscriber {
                     last_error = Some(WhisperError::RateLimited(retry_after));
                 }
                 Err(e) if Self::should_retry(&e) => {
-                    warn!(
-                        "Retryable error on attempt {}: {}",
-                        attempt + 1,
-                        e
-                    );
+                    warn!("Retryable error on attempt {}: {}", attempt + 1, e);
                     last_error = Some(e);
                     continue;
                 }

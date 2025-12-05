@@ -10,6 +10,7 @@ const TELEGRAM_API_BASE: &str = "https://api.telegram.org";
 const MAX_FILE_SIZE_BYTES: u64 = 50_000_000; // 50 MB - Telegram's bot API limit
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct TelegramFile {
     pub file_id: String,
     pub file_unique_id: String,
@@ -43,9 +44,9 @@ impl TelegramFileDownloader {
     /// Get file information from Telegram, including size
     pub async fn get_file_info(&self, file_id: &str) -> Result<TelegramFile, TelegramError> {
         let url = format!("{}/bot{}/getFile", TELEGRAM_API_BASE, self.bot_token);
-        
+
         debug!("Getting file info for file_id: {}", file_id);
-        
+
         let response = self
             .client
             .post(&url)
@@ -123,11 +124,15 @@ impl TelegramFileDownloader {
             )));
         }
 
-        let file_bytes = response.bytes().await.map_err(|e| {
-            TelegramError::ApiError(format!("Failed to read file bytes: {}", e))
-        })?;
+        let file_bytes = response
+            .bytes()
+            .await
+            .map_err(|e| TelegramError::ApiError(format!("Failed to read file bytes: {}", e)))?;
 
-        info!("File downloaded successfully, size: {} bytes", file_bytes.len());
+        info!(
+            "File downloaded successfully, size: {} bytes",
+            file_bytes.len()
+        );
 
         Ok(file_bytes.to_vec())
     }

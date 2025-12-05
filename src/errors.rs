@@ -1,6 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
+#[allow(dead_code)]
 pub enum TranscribeError {
     #[error("HTTP request failed: {0}")]
     HttpError(#[from] reqwest::Error),
@@ -25,6 +26,7 @@ pub enum TranscribeError {
 }
 
 #[derive(Error, Debug)]
+#[allow(dead_code)]
 pub enum WhisperError {
     #[error("HTTP request failed: {0}")]
     HttpError(String),
@@ -58,6 +60,7 @@ pub enum WhisperError {
 }
 
 #[derive(Error, Debug)]
+#[allow(dead_code)]
 pub enum TelegramError {
     #[error("Telegram API error: {0}")]
     ApiError(String),
@@ -76,7 +79,7 @@ pub enum TelegramError {
 }
 
 #[derive(Error, Debug)]
-#[allow(dead_code)]
+#[allow(dead_code, clippy::enum_variant_names)]
 pub enum BotError {
     #[error("Telegram API error: {0}")]
     TelegramError(String),
