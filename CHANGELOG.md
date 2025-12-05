@@ -19,11 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Health check endpoint at `/health` for monitoring
 - Structured logging with tracing (stdout and file)
 - Temporary file management with automatic cleanup
-- Docker support with multi-stage builds
 - Inline keyboard with "Summarize" button (stub for future feature)
 - Commands: `/start`, `/help`, `/settings`
 - Comprehensive error handling and logging
-- Security: non-root Docker user, secure temp directory permissions
+- Security: secure temp directory permissions
 
 ### Technical Details
 - Written in Rust with async/await using Tokio
