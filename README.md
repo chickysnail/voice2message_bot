@@ -11,7 +11,6 @@ A minimal, robust Telegram bot written in Rust that transcribes voice messages u
 - ⚡ Concurrent transcription support (configurable limit)
 - 🏥 Health check endpoint for monitoring
 - 📝 Structured logging with file output option
-- 🐳 Docker support with multi-stage builds
 - 🔒 Secure file handling with automatic cleanup
 - 📊 Admin notifications for rejected audio files and errors
 - 🎯 Inline keyboard support for future features (Summarize button)
@@ -21,8 +20,7 @@ A minimal, robust Telegram bot written in Rust that transcribes voice messages u
 
 ### Prerequisites
 
-- Rust 1.71 or later (for local development)
-- Docker (for containerized deployment)
+- Rust 1.71 or later
 - Telegram Bot Token (from [@BotFather](https://t.me/botfather))
 - OpenAI API Key (from [OpenAI Platform](https://platform.openai.com))
 
@@ -54,33 +52,6 @@ Or use the provided script:
 ```bash
 chmod +x scripts/run_local.sh
 ./scripts/run_local.sh
-```
-
-### Docker Deployment
-
-1. **Build the Docker image**
-
-```bash
-docker build -t voice-transcriber-bot:latest .
-```
-
-2. **Run the container**
-
-```bash
-docker run --rm -d \
-  -p 8080:8080 \
-  -e TELEGRAM_BOT_TOKEN=your_token_here \
-  -e OPENAI_API_KEY=your_api_key_here \
-  -e ADMIN_IDS=123456789 \
-  --name voice-transcriber-bot \
-  voice-transcriber-bot:latest
-```
-
-3. **Check health**
-
-```bash
-curl http://localhost:8080/health
-# Should return: {"status":"ok"}
 ```
 
 ## Configuration
@@ -297,13 +268,6 @@ cargo build --release
 
 The binary will be at `target/release/voice-transcriber-bot`.
 
-### Docker Multi-stage Build
-
-The provided Dockerfile uses multi-stage builds for minimal image size:
-
-- Stage 1: Builds the Rust application
-- Stage 2: Creates a minimal runtime image with only the binary
-
 ## Monitoring
 
 ### Health Check
@@ -322,7 +286,7 @@ Response:
 ### Logs
 
 Logs are written to:
-- **stdout**: Always enabled (Docker-friendly)
+- **stdout**: Always enabled
 - **File**: `./logs/voicebot.log` (if `SAVE_LOG_FILE=true`)
 
 Log format includes timestamps, levels, and structured context.
@@ -332,7 +296,6 @@ Log format includes timestamps, levels, and structured context.
 - **Secrets**: Never commit `.env` files with actual credentials
 - **GitHub Secrets**: Use GitHub Secrets for CI/CD deployments
 - **File Permissions**: Temp directory created with `0700` permissions (Unix)
-- **Non-root User**: Docker container runs as non-root user `appuser`
 - **API Keys**: Not logged or exposed in error messages
 
 ## Development Tools
@@ -353,7 +316,6 @@ cargo fmt
 
 ```bash
 make build        # Build binary
-make docker-build # Build Docker image
 make test         # Run tests
 ```
 
@@ -399,7 +361,6 @@ Telegram's bot API has a 50 MB limit for file downloads:
 
 1. Ensure `TEMP_DIR` is writable
 2. Check file system permissions
-3. Verify Docker volume mounts (if using Docker)
 
 ## Contributing
 

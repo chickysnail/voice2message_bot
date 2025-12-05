@@ -1,4 +1,4 @@
-.PHONY: build docker-build run test clean clippy fmt help
+.PHONY: build run test clean clippy fmt help
 
 help:
 	@echo "Voice Transcriber Bot - Makefile"
@@ -6,7 +6,6 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  build         - Build release binary"
-	@echo "  docker-build  - Build Docker image"
 	@echo "  run          - Run the bot locally"
 	@echo "  test         - Run tests"
 	@echo "  clippy       - Run Clippy linter"
@@ -17,10 +16,6 @@ help:
 build:
 	@echo "Building release binary..."
 	cargo build --release
-
-docker-build:
-	@echo "Building Docker image..."
-	docker build -t voice-transcriber-bot:latest .
 
 run:
 	@echo "Running bot..."
