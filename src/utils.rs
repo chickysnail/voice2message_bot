@@ -28,23 +28,15 @@ pub fn exponential_backoff_with_jitter(attempt: u32) -> Duration {
 
     // Add up to 50% jitter
     let jitter_range = delay_ms / 2;
+    
+    // Avoid modulo by zero
+    if jitter_range == 0 {
+        return Duration::from_millis(delay_ms);
+    }
+    
     let jitter = (rand::random::<u64>() % jitter_range).max(1);
 
     Duration::from_millis(delay_ms + jitter)
-}
-
-#[allow(dead_code)]
-fn rand_random<T>() -> T
-where
-    T: From<u8>,
-{
-    // Simple pseudo-random using system time for jitter
-    use std::time::SystemTime;
-    let nanos = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .subsec_nanos();
-    T::from((nanos % 256) as u8)
 }
 
 // Use a simple random function to avoid adding a dependency
@@ -58,7 +50,15 @@ mod rand {
         let nanos = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
-            .as_nanos();
-        T::from((nanos % u64::MAX as u128) as u64)
+            .subsec_nanos() as u64;
+        
+        // Mix in some additional entropy from the full nanoseconds
+        let full_nanos = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64;
+        
+        // Simple mixing of high and low bits
+        T::from(nanos.wrapping_mul(31).wrapping_add(full_nanos))
     }
 }

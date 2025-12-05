@@ -25,13 +25,12 @@ fn chunk_text_by_sentence(text: &str) -> Vec<String> {
 
     // Split by sentences (on ".")
     for sentence in text.split('.') {
-        let sentence_with_period = if sentence.is_empty() {
+        if sentence.trim().is_empty() {
             continue;
-        } else if text.ends_with(sentence) {
-            sentence.to_string()
-        } else {
-            format!("{}.", sentence)
-        };
+        }
+        
+        // Always add the period back (split removes it)
+        let sentence_with_period = format!("{}.", sentence);
 
         // Check if adding this sentence would exceed the limit
         if current_chunk.len() + sentence_with_period.len() > TELEGRAM_MESSAGE_LIMIT {
