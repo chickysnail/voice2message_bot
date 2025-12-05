@@ -11,14 +11,18 @@ use crate::errors::TranscribeError;
 use crate::transcriber::Transcriber;
 use crate::utils::exponential_backoff;
 
+#[allow(dead_code)]
 const OPENAI_TRANSCRIPTION_URL: &str = "https://api.openai.com/v1/audio/transcriptions";
+#[allow(dead_code)]
 const MAX_RETRIES: u32 = 3;
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 struct TranscriptionResponse {
     text: String,
 }
 
+#[allow(dead_code)]
 pub struct OpenAITranscriber {
     client: Client,
     api_key: String,
@@ -28,6 +32,7 @@ pub struct OpenAITranscriber {
     timeout: Duration,
 }
 
+#[allow(dead_code)]
 impl OpenAITranscriber {
     pub fn new(api_key: String, timeout_seconds: u64) -> Result<Self, TranscribeError> {
         let timeout = Duration::from_secs(timeout_seconds);
