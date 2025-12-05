@@ -18,7 +18,7 @@ impl FileStore {
             fs::create_dir_all(&self.temp_dir)
                 .await
                 .context("Failed to create temp directory")?;
-            
+
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -27,7 +27,7 @@ impl FileStore {
                 permissions.set_mode(0o700);
                 fs::set_permissions(&self.temp_dir, permissions).await?;
             }
-            
+
             info!("Created temp directory: {:?}", self.temp_dir);
         }
         Ok(())

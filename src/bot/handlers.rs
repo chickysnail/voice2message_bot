@@ -6,12 +6,7 @@ use teloxide::{
 use tokio::sync::Semaphore;
 use tracing::{error, info, warn};
 
-use crate::{
-    config::Config,
-    storage::FileStore,
-    transcriber::Transcriber,
-    utils::format_duration,
-};
+use crate::{config::Config, storage::FileStore, transcriber::Transcriber, utils::format_duration};
 
 pub async fn handle_start(bot: Bot, msg: Message) -> ResponseResult<()> {
     let text = "Welcome to Voice Transcriber Bot! 🎤\n\n\
@@ -128,8 +123,11 @@ pub async fn handle_voice_message(
     // Acquire semaphore permit
     let permit = semaphore.clone().acquire_owned().await;
     if permit.is_err() {
-        bot.send_message(chat_id, "Sorry, the system is currently busy. Please try again later.")
-            .await?;
+        bot.send_message(
+            chat_id,
+            "Sorry, the system is currently busy. Please try again later.",
+        )
+        .await?;
         return Ok(());
     }
     let permit = permit.unwrap();
@@ -142,7 +140,10 @@ pub async fn handle_voice_message(
 
     tokio::spawn(async move {
         // Send typing action
-        if let Err(e) = bot_clone.send_chat_action(chat_id, ChatAction::Typing).await {
+        if let Err(e) = bot_clone
+            .send_chat_action(chat_id, ChatAction::Typing)
+            .await
+        {
             error!("Failed to send typing action: {}", e);
         }
 
@@ -222,12 +223,11 @@ pub async fn handle_voice_message(
                 info!("Transcription successful for message {}", message_id);
 
                 // Create inline keyboard with Summarize button
-                let keyboard = InlineKeyboardMarkup::new(vec![vec![
-                    InlineKeyboardButton::callback(
+                let keyboard =
+                    InlineKeyboardMarkup::new(vec![vec![InlineKeyboardButton::callback(
                         "📝 Summarize",
-                        format!("summarize:{}", message_id)
-                    ),
-                ]]);
+                        format!("summarize:{}", message_id),
+                    )]]);
 
                 if let Err(e) = bot_clone
                     .send_message(chat_id, text)

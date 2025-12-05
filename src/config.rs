@@ -1,6 +1,6 @@
+use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::PathBuf;
-use anyhow::{Context, Result};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
@@ -28,8 +28,8 @@ impl Config {
         let openai_key = std::env::var("OPENAI_API_KEY")
             .context("OPENAI_API_KEY environment variable not set")?;
 
-        let admin_ids_str = std::env::var("ADMIN_IDS")
-            .context("ADMIN_IDS environment variable not set")?;
+        let admin_ids_str =
+            std::env::var("ADMIN_IDS").context("ADMIN_IDS environment variable not set")?;
         let admin_ids: Vec<i64> = admin_ids_str
             .split(',')
             .filter(|s| !s.is_empty())
@@ -46,16 +46,14 @@ impl Config {
             .unwrap_or_else(|_| "/tmp/voicebot".to_string())
             .into();
 
-        let log_level = std::env::var("LOG_LEVEL")
-            .unwrap_or_else(|_| "info".to_string());
+        let log_level = std::env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
 
         let concurrency_limit = std::env::var("CONCURRENCY_LIMIT")
             .unwrap_or_else(|_| "4".to_string())
             .parse::<usize>()
             .context("Failed to parse CONCURRENCY_LIMIT")?;
 
-        let http_bind = std::env::var("HTTP_BIND")
-            .unwrap_or_else(|_| "0.0.0.0".to_string());
+        let http_bind = std::env::var("HTTP_BIND").unwrap_or_else(|_| "0.0.0.0".to_string());
 
         let http_port = std::env::var("HTTP_PORT")
             .unwrap_or_else(|_| "8080".to_string())

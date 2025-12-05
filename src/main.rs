@@ -40,10 +40,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize semaphore for concurrency control
     let semaphore = Arc::new(Semaphore::new(config.concurrency_limit));
-    info!(
-        "Concurrency limit set to {}",
-        config.concurrency_limit
-    );
+    info!("Concurrency limit set to {}", config.concurrency_limit);
 
     // Start health check server
     let health_bind = config.http_bind.clone();

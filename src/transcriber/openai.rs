@@ -32,7 +32,7 @@ impl OpenAITranscriber {
         let client = Client::builder()
             .timeout(timeout)
             .build()
-            .map_err(|e| TranscribeError::HttpError(e))?;
+            .map_err(TranscribeError::HttpError)?;
 
         Ok(Self {
             client,
@@ -49,12 +49,12 @@ impl OpenAITranscriber {
         // Read file contents
         let mut file = File::open(file_path)
             .await
-            .map_err(|e| TranscribeError::IoError(e))?;
+            .map_err(TranscribeError::IoError)?;
 
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)
             .await
-            .map_err(|e| TranscribeError::IoError(e))?;
+            .map_err(TranscribeError::IoError)?;
 
         let file_name = file_path
             .file_name()
@@ -71,7 +71,10 @@ impl OpenAITranscriber {
             .part("file", part)
             .text("model", "whisper-1");
 
-        debug!("Sending transcription request to OpenAI (attempt {})", attempt + 1);
+        debug!(
+            "Sending transcription request to OpenAI (attempt {})",
+            attempt + 1
+        );
 
         // Send request
         let response = self
@@ -81,16 +84,15 @@ impl OpenAITranscriber {
             .multipart(form)
             .send()
             .await
-            .map_err(|e| TranscribeError::HttpError(e))?;
+            .map_err(TranscribeError::HttpError)?;
 
         let status = response.status();
         debug!("OpenAI response status: {}", status);
 
         if status.is_success() {
-            let transcription: TranscriptionResponse = response
-                .json()
-                .await
-                .map_err(|e| TranscribeError::InvalidResponse(format!("Failed to parse JSON: {}", e)))?;
+            let transcription: TranscriptionResponse = response.json().await.map_err(|e| {
+                TranscribeError::InvalidResponse(format!("Failed to parse JSON: {}", e))
+            })?;
 
             info!("Transcription successful");
             return Ok(transcription.text);
@@ -106,19 +108,31 @@ impl OpenAITranscriber {
                 .and_then(|s| s.parse::<u64>().ok())
                 .unwrap_or(5);
 
-            warn!("Rate limited by OpenAI, retry after {} seconds", retry_after);
+            warn!(
+                "Rate limited by OpenAI, retry after {} seconds",
+                retry_after
+            );
             return Err(TranscribeError::RateLimited(retry_after));
         }
 
         if status.is_server_error() {
             // 5xx error - can retry
-            let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             warn!("OpenAI server error (5xx): {}", error_text);
-            return Err(TranscribeError::ApiError(format!("Server error: {}", error_text)));
+            return Err(TranscribeError::ApiError(format!(
+                "Server error: {}",
+                error_text
+            )));
         }
 
         // Client error (4xx) - don't retry
-        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        let error_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unknown error".to_string());
         Err(TranscribeError::ApiError(format!(
             "API error ({}): {}",
             status, error_text
@@ -163,8 +177,7 @@ impl Transcriber for OpenAITranscriber {
             }
         }
 
-        Err(last_error.unwrap_or_else(|| {
-            TranscribeError::ApiError("Max retries exceeded".to_string())
-        }))
+        Err(last_error
+            .unwrap_or_else(|| TranscribeError::ApiError("Max retries exceeded".to_string())))
     }
 }

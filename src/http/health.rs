@@ -1,8 +1,4 @@
-use axum::{
-    response::Json,
-    routing::get,
-    Router,
-};
+use axum::{response::Json, routing::get, Router};
 use serde_json::{json, Value};
 use std::net::SocketAddr;
 use tracing::info;

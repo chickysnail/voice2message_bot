@@ -1,9 +1,6 @@
 use std::sync::Arc;
 use teloxide::{
-    dispatching::UpdateFilterExt, 
-    prelude::*, 
-    types::Update,
-    utils::command::BotCommands,
+    dispatching::UpdateFilterExt, prelude::*, types::Update, utils::command::BotCommands,
 };
 use tokio::sync::Semaphore;
 use tracing::info;
@@ -40,12 +37,7 @@ pub async fn run_bot(
     let callback_handler = Update::filter_callback_query().endpoint(handle_callback_query);
 
     let mut dispatcher = Dispatcher::builder(bot, handler.chain(callback_handler))
-        .dependencies(dptree::deps![
-            config,
-            transcriber,
-            file_store,
-            semaphore
-        ])
+        .dependencies(dptree::deps![config, transcriber, file_store, semaphore])
         .enable_ctrlc_handler()
         .build();
 
