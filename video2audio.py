@@ -17,6 +17,14 @@ def convert_video_to_audio(video_path):
 
     # Convert the video to audio
     video = VideoFileClip(video_path)
+    
+    # Check if the video has an audio track
+    if video.audio is None:
+        logging.warning(f"Video file {video_path} has no audio track. Creating silent audio file may not work properly.")
+        video.close()
+        os.remove(video_path)
+        raise ValueError("Video has no audio track to extract")
+    
     video.audio.write_audiofile(audio_path)
     
     # Release the resources held by VideoFileClip

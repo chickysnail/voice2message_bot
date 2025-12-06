@@ -112,6 +112,8 @@ async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     # Save the file ID in user data instead of downloading the file
     context.user_data['file_id'] = file_id
+    # Store whether this is a video note for later processing
+    context.user_data['is_video_note'] = update.message.video_note is not None
 
     # Track the general statistics for the user
     db.update_statistics(update.effective_user.username, audio_length)
@@ -199,8 +201,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     voice_to_message = VoiceToMessage(api_key)
 
-    # Retrieve the file ID from user data
+    # Retrieve the file ID and video note flag from user data
     file_id = context.user_data.get('file_id')
+    is_video_note = context.user_data.get('is_video_note', False)
 
     # Download the file
     new_file = await context.bot.get_file(file_id)
@@ -211,8 +214,23 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await new_file.download_to_drive(custom_path=file_path)
 
     # Handle different file types
-    if file_type in ['mp4', 'mpeg', 'mov', 'avi', 'wmv']:
-        audio_path = convert_video_to_audio(file_path)
+    # Video notes and other video files need to be converted to audio
+    if is_video_note or file_type in ['mp4', 'mpeg', 'mov', 'avi', 'wmv']:
+        logger.info(f"Converting {'video note' if is_video_note else 'video file'} to audio for {update.effective_user.username}")
+        try:
+            audio_path = convert_video_to_audio(file_path)
+        except ValueError as e:
+            logger.error(f"Failed to convert video to audio: {e}")
+            await query.edit_message_text(text="Sorry, this video doesn't have an audio track to transcribe.")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            return
+        except Exception as e:
+            logger.error(f"Error during video to audio conversion: {e}")
+            await query.edit_message_text(text="Failed to process the video file.")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            return
     else:
         # For audio files we can use them directly
         audio_path = file_path
