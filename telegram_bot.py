@@ -216,7 +216,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Handle different file types
     # Video notes and other video files need to be converted to audio
     if is_video_note or file_type in ['mp4', 'mpeg', 'mov', 'avi', 'wmv']:
-        logger.info(f"Converting {'video note' if is_video_note else 'video file'} to audio for {update.effective_user.username}")
+        file_type_str = 'video note' if is_video_note else 'video file'
+        logger.info(f"Converting {file_type_str} to audio for user {update.effective_user.id}")
         try:
             audio_path = convert_video_to_audio(file_path)
         except ValueError as e:
