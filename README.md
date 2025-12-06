@@ -5,6 +5,7 @@ A minimal, robust Telegram bot written in Rust that transcribes voice messages u
 ## Features
 
 - 🎙️ Transcribes voice messages and audio files using OpenAI Whisper
+- 📝 **Summarize button** to get AI-generated summaries of transcriptions using GPT-4o-mini
 - 📊 Real-time progress messages showing transcription stages
 - ✂️ Automatic message chunking for long transcriptions (splits at sentence boundaries)
 - 🔄 Automatic retry logic with exponential backoff and jitter
@@ -13,7 +14,6 @@ A minimal, robust Telegram bot written in Rust that transcribes voice messages u
 - 📝 Structured logging with file output option
 - 🔒 Secure file handling with automatic cleanup
 - 📊 Admin notifications for rejected audio files and errors
-- 🎯 Inline keyboard support for future features (Summarize button)
 - ⏱️ Extended timeout support (10 minutes) for long audio processing
 
 ## Quick Start
@@ -63,7 +63,7 @@ All configuration is done through environment variables. You can use a `.env` fi
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `TELEGRAM_BOT_TOKEN` | Telegram Bot API token from BotFather | `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11` |
-| `OPENAI_API_KEY` | OpenAI API key for Whisper API | `sk-...` |
+| `OPENAI_API_KEY` | OpenAI API key for Whisper transcription and GPT summarization | `sk-...` |
 | `ADMIN_IDS` | Comma-separated list of admin Telegram user IDs | `123456789,987654321` |
 
 ### Optional Variables
@@ -98,8 +98,12 @@ All configuration is done through environment variables. You can use a `.env` fi
    - 🎤 Transcribing audio... (This may take several minutes for long recordings)
    - ✅ Transcription complete! Sending results...
 3. Receive the transcription text (split into multiple messages if longer than 4096 characters)
-4. The progress message will be automatically deleted after completion
-5. Long transcriptions are split at sentence boundaries (by ".") for better readability
+4. Click the **"📝 Summarize"** button to get an AI-generated summary of the transcription
+   - The bot will generate a concise, readable summary using GPT-4o-mini
+   - Summaries preserve the original language of the audio
+   - Transcriptions are stored in memory for 1 hour for summarization
+5. The progress message will be automatically deleted after completion
+6. Long transcriptions are split at sentence boundaries (by ".") for better readability
 
 ### Limitations
 
@@ -211,16 +215,17 @@ impl Transcriber for MyTranscriber {
 }
 ```
 
-### Adding Summarization
+### Summarization Feature
 
-The inline keyboard already includes a "Summarize" button. To implement summarization:
+The bot includes a "Summarize" button that appears after each transcription:
 
-1. Store transcriptions in memory or a database
-2. Implement the callback handler in `bot/handlers.rs`
-3. Call OpenAI Chat Completions API with the transcription text
-4. Return the summary to the user
+1. **Implementation**: Uses OpenAI's GPT-4o-mini model to generate summaries
+2. **Storage**: Transcriptions are stored in memory for 1 hour with automatic TTL cleanup
+3. **Preservation**: Summaries maintain the original language of the audio
+4. **Format**: Converts transcripts into readable text message format
+5. **Error Handling**: Includes retry logic and clear error messages
 
-Example stub is already present in `handle_callback_query`.
+The summarization feature is fully implemented and ready to use.
 
 ## Testing
 
@@ -379,7 +384,7 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE) for detai
 
 ## Roadmap
 
-- [ ] Summarization feature using OpenAI Chat Completions
+- [x] Summarization feature using OpenAI Chat Completions (GPT-4o-mini)
 - [ ] Support for local Whisper models
 - [ ] Database integration for transcript history
 - [ ] Multi-language support
