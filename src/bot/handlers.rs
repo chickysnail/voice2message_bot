@@ -597,7 +597,7 @@ pub async fn handle_callback_query(
                         bot.edit_message_text(
                             chat_id,
                             processing_msg.id,
-                            "❌ Transcription not found. It may have expired or been removed.",
+                            "❌ Transcription not found. Please request a new transcription.",
                         )
                         .await?;
                         return Ok(());

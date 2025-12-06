@@ -7,6 +7,13 @@ use crate::errors::TranscribeError;
 
 const OPENAI_CHAT_URL: &str = "https://api.openai.com/v1/chat/completions";
 
+/// System prompt for summarization that instructs the model to:
+/// - Rewrite as a text message format
+/// - Make text more readable
+/// - Keep the main point
+/// - Preserve the original language
+const SUMMARIZATION_PROMPT: &str = "Rewrite the following transcript as if it were a text message. Make the text more readable. Keep the main point of the message. The message will be read by the user. The user only speaks the language they recorded the audio in. Preserve user's language";
+
 #[derive(Serialize)]
 struct ChatCompletionRequest {
     model: String,
@@ -51,12 +58,10 @@ impl ChatCompletionClient {
     }
 
     pub async fn summarize(&self, transcript: &str) -> Result<String, TranscribeError> {
-        let system_prompt = "Rewrite the following transcript as if it were a text message. Make the text more readable. Keep the main point of the message. The message will be read by the user. The user only speaks the language they recorded the audio in. Preserve user's language";
-
         let messages = vec![
             ChatMessage {
                 role: "system".to_string(),
-                content: system_prompt.to_string(),
+                content: SUMMARIZATION_PROMPT.to_string(),
             },
             ChatMessage {
                 role: "user".to_string(),
