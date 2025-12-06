@@ -20,7 +20,7 @@ pub fn create_transcription_store() -> TranscriptionStore {
 pub async fn save_transcription(store: &TranscriptionStore, message_id: i32, text: String) {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_secs();
     
     let entry = TranscriptionEntry { text, timestamp };
