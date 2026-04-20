@@ -685,9 +685,14 @@ pub async fn handle_stats(
         } else {
             let mut lines = vec!["📊 Global statistics (all users):".to_string()];
             for s in &all_stats {
+                let display_name = if s.username.is_empty() {
+                    "Unknown User".to_string()
+                } else {
+                    format!("@{}", s.username)
+                };
                 lines.push(format!(
-                    "• @{} — {} messages, {}",
-                    s.username,
+                    "• {} — {} messages, {}",
+                    display_name,
                     s.message_count,
                     format_duration(s.total_duration_seconds as u32),
                 ));

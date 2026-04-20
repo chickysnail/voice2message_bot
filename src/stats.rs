@@ -22,11 +22,8 @@ pub fn create_stats_store() -> StatsStore {
 /// message count and adding the audio duration.
 pub async fn record_message(store: &StatsStore, user_id: i64, username: &str, duration_seconds: u32) {
     let mut map = store.write().await;
-    let entry = map.entry(user_id).or_insert_with(|| UserStats {
-        username: username.to_string(),
-        ..Default::default()
-    });
-    // Update the stored username in case it changed
+    let entry = map.entry(user_id).or_insert_with(UserStats::default);
+    // Always keep the latest username in case it changed
     entry.username = username.to_string();
     entry.message_count += 1;
     entry.total_duration_seconds += duration_seconds as u64;
