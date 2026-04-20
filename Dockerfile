@@ -15,10 +15,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Generate config.ini from environment variables at startup and run the bot
-CMD ["sh", "-c", "\
-    printf '[telegram]\nbot_token = %s\n\n[credentials]\napi_key = %s\n\n[security]\nvoice_threshold = %s\n' \
-        \"${TELEGRAM_BOT_TOKEN}\" \
-        \"${OPENAI_API_KEY}\" \
-        \"${VOICE_THRESHOLD:-300}\" \
-    > config.ini && \
-    python telegram_bot.py"]
+CMD ["sh", "-c", "python generate_config.py && python telegram_bot.py"]
