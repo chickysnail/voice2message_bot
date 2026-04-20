@@ -11,6 +11,7 @@ use crate::{
     chat_completion::ChatCompletionClient,
     config::Config, 
     errors::TranscribeError, 
+    stats::{self, StatsStore},
     storage::FileStore,
     telegram_api::TelegramFileDownloader, 
     transcriber::Transcriber, 
@@ -146,6 +147,7 @@ pub async fn handle_voice_message(
     file_store: Arc<FileStore>,
     semaphore: Arc<Semaphore>,
     transcription_store: TranscriptionStore,
+    stats_store: StatsStore,
 ) -> ResponseResult<()> {
     let chat_id = msg.chat.id;
     let message_id = msg.id;
@@ -225,6 +227,7 @@ pub async fn handle_voice_message(
     let transcriber_clone = transcriber.clone();
     let file_store_clone = file_store.clone();
     let transcription_store_clone = transcription_store.clone();
+    let stats_store_clone = stats_store.clone();
 
     tokio::spawn(async move {
         // Send initial progress message
@@ -441,6 +444,9 @@ pub async fn handle_voice_message(
             Ok(text) => {
                 info!("Transcription successful for message {}", message_id);
 
+                // Record usage statistics for the user
+                stats::record_message(&stats_store_clone, user_id, &username, duration).await;
+
                 // Store the transcription for potential summarization
                 transcription_store::save_transcription(&transcription_store_clone, message_id.0, text.clone()).await;
                 info!("Transcription stored for message {}", message_id);
@@ -640,6 +646,58 @@ pub async fn handle_callback_query(
                     }
                 }
             }
+        }
+    }
+
+    Ok(())
+}
+
+pub async fn handle_stats(
+    bot: Bot,
+    msg: Message,
+    stats_store: StatsStore,
+    config: Arc<Config>,
+) -> ResponseResult<()> {
+    let user_id = msg.from().map(|u| u.id.0 as i64).unwrap_or(0);
+
+    let user_stats = stats::get_user_stats(&stats_store, user_id).await;
+
+    let user_text = match user_stats {
+        Some(s) => format!(
+            "📊 Your usage statistics:\n\
+             • Messages transcribed: {}\n\
+             • Total audio duration: {}",
+            s.message_count,
+            format_duration(s.total_duration_seconds as u32),
+        ),
+        None => "📊 You haven't transcribed any messages yet.".to_string(),
+    };
+
+    bot.send_message(msg.chat.id, &user_text).await?;
+
+    // Admins also receive a global summary
+    if config.admin_ids.contains(&user_id) {
+        let all_stats = stats::get_all_stats(&stats_store).await;
+
+        if all_stats.is_empty() {
+            bot.send_message(msg.chat.id, "📊 No global statistics recorded yet.")
+                .await?;
+        } else {
+            let mut lines = vec!["📊 Global statistics (all users):".to_string()];
+            for s in &all_stats {
+                let display_name = if s.username.is_empty() {
+                    "Unknown User".to_string()
+                } else {
+                    format!("@{}", s.username)
+                };
+                lines.push(format!(
+                    "• {} — {} messages, {}",
+                    display_name,
+                    s.message_count,
+                    format_duration(s.total_duration_seconds as u32),
+                ));
+            }
+            bot.send_message(msg.chat.id, lines.join("\n")).await?;
         }
     }
 
