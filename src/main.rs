@@ -5,6 +5,7 @@ use tracing::info;
 
 mod admin_notifier;
 mod bot;
+mod chat_completion;
 mod config;
 mod errors;
 mod http;
@@ -12,12 +13,15 @@ mod logger;
 mod storage;
 mod telegram_api;
 mod transcriber;
+mod transcription_store;
 mod utils;
 mod whisper_api;
 
 use config::Config;
+use chat_completion::ChatCompletionClient;
 use storage::FileStore;
 use transcriber::Transcriber;
+use transcription_store::create_transcription_store;
 use whisper_api::WhisperTranscriber;
 
 #[tokio::main]
@@ -42,6 +46,17 @@ async fn main() -> anyhow::Result<()> {
     )?) as Arc<dyn Transcriber>;
     info!("Whisper transcriber initialized");
 
+    // Initialize chat completion client for summarization
+    let chat_client = Arc::new(ChatCompletionClient::new(
+        config.openai_key.clone(),
+        config.openai_timeout_seconds,
+    )?);
+    info!("Chat completion client initialized");
+
+    // Initialize transcription store
+    let transcription_store = create_transcription_store();
+    info!("Transcription store initialized");
+
     // Initialize semaphore for concurrency control
     let semaphore = Arc::new(Semaphore::new(config.concurrency_limit));
     info!("Concurrency limit set to {}", config.concurrency_limit);
@@ -60,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Telegram bot initialized");
 
     // Run bot
-    bot::run_bot(bot, config, transcriber, file_store, semaphore).await;
+    bot::run_bot(bot, config, transcriber, file_store, semaphore, chat_client, transcription_store).await;
 
     Ok(())
 }

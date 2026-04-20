@@ -7,8 +7,15 @@ use tokio::sync::Semaphore;
 use tracing::{error, info, warn};
 
 use crate::{
-    admin_notifier::AdminNotifier, config::Config, errors::TranscribeError, storage::FileStore,
-    telegram_api::TelegramFileDownloader, transcriber::Transcriber, utils::format_duration,
+    admin_notifier::AdminNotifier, 
+    chat_completion::ChatCompletionClient,
+    config::Config, 
+    errors::TranscribeError, 
+    storage::FileStore,
+    telegram_api::TelegramFileDownloader, 
+    transcriber::Transcriber, 
+    transcription_store::{self, TranscriptionStore},
+    utils::format_duration,
 };
 
 const TELEGRAM_MESSAGE_LIMIT: usize = 4096;
@@ -138,6 +145,7 @@ pub async fn handle_voice_message(
     transcriber: Arc<dyn Transcriber>,
     file_store: Arc<FileStore>,
     semaphore: Arc<Semaphore>,
+    transcription_store: TranscriptionStore,
 ) -> ResponseResult<()> {
     let chat_id = msg.chat.id;
     let message_id = msg.id;
@@ -216,6 +224,7 @@ pub async fn handle_voice_message(
     let config_clone = config.clone();
     let transcriber_clone = transcriber.clone();
     let file_store_clone = file_store.clone();
+    let transcription_store_clone = transcription_store.clone();
 
     tokio::spawn(async move {
         // Send initial progress message
@@ -432,6 +441,10 @@ pub async fn handle_voice_message(
             Ok(text) => {
                 info!("Transcription successful for message {}", message_id);
 
+                // Store the transcription for potential summarization
+                transcription_store::save_transcription(&transcription_store_clone, message_id.0, text.clone()).await;
+                info!("Transcription stored for message {}", message_id);
+
                 // Update progress: Sending results
                 update_progress!("✅ Transcription complete! Sending results...");
 
@@ -546,20 +559,86 @@ pub async fn handle_voice_message(
     Ok(())
 }
 
-pub async fn handle_callback_query(bot: Bot, q: CallbackQuery) -> ResponseResult<()> {
+pub async fn handle_callback_query(
+    bot: Bot,
+    q: CallbackQuery,
+    chat_client: Arc<ChatCompletionClient>,
+    transcription_store: TranscriptionStore,
+) -> ResponseResult<()> {
     if let Some(data) = q.data {
         if data.starts_with("summarize:") {
-            // Stub for future summarization feature
-            bot.answer_callback_query(&q.id)
-                .text("Summarization feature coming soon! 🚀")
-                .await?;
+            // Extract message_id from callback data
+            let message_id_str = data.strip_prefix("summarize:").unwrap_or("");
+            let message_id: i32 = match message_id_str.parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    bot.answer_callback_query(&q.id)
+                        .text("Invalid message ID")
+                        .await?;
+                    return Ok(());
+                }
+            };
+
+            // Acknowledge the callback query
+            bot.answer_callback_query(&q.id).await?;
 
             if let Some(msg) = q.message {
-                bot.send_message(
-                    msg.chat.id,
-                    "The summarization feature is not yet implemented. Stay tuned!",
-                )
-                .await?;
+                let chat_id = msg.chat.id;
+
+                // Send initial processing message
+                let processing_msg = bot
+                    .send_message(chat_id, "🔄 Generating summary...")
+                    .await?;
+
+                // Retrieve the transcription from storage
+                let transcription = match transcription_store::get_transcription(&transcription_store, message_id).await {
+                    Some(text) => text,
+                    None => {
+                        bot.edit_message_text(
+                            chat_id,
+                            processing_msg.id,
+                            "❌ Transcription not found. Please request a new transcription.",
+                        )
+                        .await?;
+                        return Ok(());
+                    }
+                };
+
+                info!("Summarizing transcription for message {}", message_id);
+
+                // Call the chat completion API to summarize
+                match chat_client.summarize(&transcription).await {
+                    Ok(summary) => {
+                        info!("Summarization successful for message {}", message_id);
+
+                        // Delete the processing message
+                        bot.delete_message(chat_id, processing_msg.id).await?;
+
+                        // Send the summary
+                        bot.send_message(chat_id, format!("📝 Summary:\n\n{}", summary))
+                            .await?;
+
+                        // Remove the transcription from storage after successful summarization
+                        transcription_store::remove_transcription(&transcription_store, message_id).await;
+                        info!("Transcription removed from storage for message {}", message_id);
+                    }
+                    Err(e) => {
+                        error!("Summarization failed for message {}: {}", message_id, e);
+
+                        let error_message = match e {
+                            crate::errors::TranscribeError::Timeout => {
+                                "⏱️ Summarization took too long. Please try again later."
+                            }
+                            crate::errors::TranscribeError::RateLimited(_) => {
+                                "⚠️ The service is currently rate limited. Please try again in a few minutes."
+                            }
+                            _ => "❌ Failed to generate summary. Please try again later.",
+                        };
+
+                        bot.edit_message_text(chat_id, processing_msg.id, error_message)
+                            .await?;
+                    }
+                }
             }
         }
     }
