@@ -2,6 +2,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import configparser
 import os
+import sys
 import uuid
 from telegram import error
 from telegram import ForceReply, Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -84,12 +85,31 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Echo the user message."""
     await update.message.reply_text(update.message.text)
     
+def _get_required_config(env_var, config_section, config_key, config_file="config.ini"):
+    """Read a required config value from env var or config.ini, with a clear error if missing."""
+    value = os.environ.get(env_var)
+    if value:
+        return value
+    config = configparser.ConfigParser()
+    config.read(config_file)
+    if config.has_option(config_section, config_key):
+        return config.get(config_section, config_key)
+    logger.error(
+        "Required configuration '%s' is not set. "
+        "Set the %s environment variable or add it to config.ini.",
+        env_var, env_var,
+    )
+    sys.exit(1)
+
+
 def check_audio_length(seconds):
     """Check if the audio length exceeds the threshold."""
-    config = configparser.ConfigParser()
-    config.read("config.ini")
-    threshold = int(config["security"]["voice_threshold"])
-    return seconds > threshold
+    threshold_str = os.environ.get("VOICE_THRESHOLD")
+    if not threshold_str:
+        config = configparser.ConfigParser()
+        config.read("config.ini")
+        threshold_str = config.get("security", "voice_threshold", fallback="300")
+    return seconds > int(threshold_str)
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle voice and video_note messages."""
@@ -194,10 +214,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.warning(str(e))
         return
 
-    # Load API key from config file
-    config = configparser.ConfigParser()
-    config.read("config.ini")
-    api_key = config["credentials"]["api_key"]
+    # Load API key from environment variable or config.ini
+    api_key = _get_required_config("OPENAI_API_KEY", "credentials", "api_key")
 
     voice_to_message = VoiceToMessage(api_key)
 
@@ -297,9 +315,8 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 def main() -> None:
     """Start the bot."""
-    config = configparser.ConfigParser()
-    config.read("config.ini")
-    tg_token = config["telegram"]["bot_token"]
+    # Read telegram token from environment variable or config.ini
+    tg_token = _get_required_config("TELEGRAM_BOT_TOKEN", "telegram", "bot_token")
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(tg_token).build()
 
@@ -322,7 +339,9 @@ def main() -> None:
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
+    db = None
     try:
         main()
     finally:
-        db.close()
+        if db is not None:
+            db.close()
