@@ -10,6 +10,7 @@ mod config;
 mod errors;
 mod http;
 mod logger;
+mod stats;
 mod storage;
 mod telegram_api;
 mod transcriber;
@@ -19,6 +20,7 @@ mod whisper_api;
 
 use config::Config;
 use chat_completion::ChatCompletionClient;
+use stats::create_stats_store;
 use storage::FileStore;
 use transcriber::Transcriber;
 use transcription_store::create_transcription_store;
@@ -57,6 +59,10 @@ async fn main() -> anyhow::Result<()> {
     let transcription_store = create_transcription_store();
     info!("Transcription store initialized");
 
+    // Initialize stats store
+    let stats_store = create_stats_store();
+    info!("Stats store initialized");
+
     // Initialize semaphore for concurrency control
     let semaphore = Arc::new(Semaphore::new(config.concurrency_limit));
     info!("Concurrency limit set to {}", config.concurrency_limit);
@@ -75,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Telegram bot initialized");
 
     // Run bot
-    bot::run_bot(bot, config, transcriber, file_store, semaphore, chat_client, transcription_store).await;
+    bot::run_bot(bot, config, transcriber, file_store, semaphore, chat_client, transcription_store, stats_store).await;
 
     Ok(())
 }

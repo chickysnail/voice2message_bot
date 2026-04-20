@@ -7,10 +7,12 @@ use tracing::info;
 
 use crate::{
     bot::handlers::{
-        handle_callback_query, handle_help, handle_settings, handle_start, handle_voice_message,
+        handle_callback_query, handle_help, handle_settings, handle_start, handle_stats,
+        handle_voice_message,
     },
     chat_completion::ChatCompletionClient,
     config::Config,
+    stats::StatsStore,
     storage::FileStore,
     transcriber::Transcriber,
     transcription_store::TranscriptionStore,
@@ -24,6 +26,7 @@ pub async fn run_bot(
     semaphore: Arc<Semaphore>,
     chat_client: Arc<ChatCompletionClient>,
     transcription_store: TranscriptionStore,
+    stats_store: StatsStore,
 ) {
     info!("Starting Telegram bot with long polling...");
 
@@ -41,7 +44,7 @@ pub async fn run_bot(
     let callback_handler = Update::filter_callback_query().endpoint(handle_callback_query);
 
     let mut dispatcher = Dispatcher::builder(bot, handler.chain(callback_handler))
-        .dependencies(dptree::deps![config, transcriber, file_store, semaphore, chat_client, transcription_store])
+        .dependencies(dptree::deps![config, transcriber, file_store, semaphore, chat_client, transcription_store, stats_store])
         .enable_ctrlc_handler()
         .build();
 
@@ -57,6 +60,8 @@ enum Command {
     Help,
     #[command(description = "Show current settings")]
     Settings,
+    #[command(description = "Show your usage statistics")]
+    Stats,
 }
 
 async fn command_handler(
@@ -64,11 +69,13 @@ async fn command_handler(
     msg: Message,
     cmd: Command,
     config: Arc<Config>,
+    stats_store: StatsStore,
 ) -> ResponseResult<()> {
     match cmd {
         Command::Start => handle_start(bot, msg).await,
         Command::Help => handle_help(bot, msg).await,
         Command::Settings => handle_settings(bot, msg, config).await,
+        Command::Stats => handle_stats(bot, msg, stats_store, config).await,
     }
 }
 
@@ -80,6 +87,7 @@ async fn voice_handler(
     file_store: Arc<FileStore>,
     semaphore: Arc<Semaphore>,
     transcription_store: TranscriptionStore,
+    stats_store: StatsStore,
 ) -> ResponseResult<()> {
-    handle_voice_message(bot, msg, config, transcriber, file_store, semaphore, transcription_store).await
+    handle_voice_message(bot, msg, config, transcriber, file_store, semaphore, transcription_store, stats_store).await
 }
