@@ -15,4 +15,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Generate config.ini from environment variables at startup and run the bot
-CMD ["sh", "-c", "python generate_config.py && python telegram_bot.py"]
+CMD ["sh", "-c", "set -e; python generate_config.py && python telegram_bot.py"]
