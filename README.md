@@ -1,408 +1,216 @@
-# Voice Transcriber Bot 🎤
+# Voice to Message Bot
 
-A minimal, robust Telegram bot written in Rust that transcribes voice messages using OpenAI Whisper API.
+A Telegram bot that transcribes voice messages, audio files, and video notes into text using OpenAI's Whisper API and optionally summarizes them using GPT-4.
 
 ## Features
 
-- 🎙️ Transcribes voice messages and audio files using OpenAI Whisper
-- 📝 **Summarize button** to get AI-generated summaries of transcriptions using GPT-4o-mini
-- 📊 Real-time progress messages showing transcription stages
-- ✂️ Automatic message chunking for long transcriptions (splits at sentence boundaries)
-- 🔄 Automatic retry logic with exponential backoff and jitter
-- ⚡ Concurrent transcription support (configurable limit)
-- 🏥 Health check endpoint for monitoring
-- 📝 Structured logging with file output option
-- 🔒 Secure file handling with automatic cleanup
-- 📊 Admin notifications for rejected audio files and errors
-- ⏱️ Extended timeout support (10 minutes) for long audio processing
+- **Voice Message Transcription**: Converts Telegram voice messages to text
+- **Video Note Support**: Transcribes audio from video notes (circles)
+- **Audio File Support**: Processes uploaded audio files (MP3, WAV, etc.)
+- **Video to Audio Conversion**: Automatically extracts audio from video files
+- **Two Output Modes**:
+  - **Summary**: Rewrites the transcript as a readable text message
+  - **Transcript**: Provides the raw transcription
+- **Multi-language Support**: Preserves the original language of the audio
+- **User Statistics**: Tracks usage statistics per user
+- **Message Length Limit**: Configurable limit on voice message duration to control processing costs
 
-## Quick Start
+## Voice Message Length Limit
+
+The bot has a configurable limit on voice message duration to manage API costs. When a user sends a voice message that exceeds the configured threshold:
+
+- The bot will **not process** the message
+- The user receives a notification showing:
+  - A message indicating the audio is too long
+  - The estimated cost to process that audio length
+  - Instructions to contact the bot owner for unlimited access
+
+**Example message:**
+```
+The audio file is too long.
+Processing audio file of this length costs me $X.XX
+Please contact me (@chickysnail) to be added to unlimited users
+```
+
+The cost calculation is based on OpenAI Whisper API pricing: approximately **$0.006 per minute** of audio.
+
+### Configuring the Length Limit
+
+The voice message duration limit is set in the `config.ini` file under the `[security]` section:
+
+```ini
+[security]
+voice_threshold = 300  # Maximum duration in seconds (e.g., 300 = 5 minutes)
+```
+
+- Set `voice_threshold` to the maximum number of seconds you want to allow
+- Default recommendation: 300 seconds (5 minutes)
+- Adjust based on your budget and usage patterns
+- Users who frequently need longer messages can be added to an unlimited users list (requires code modification)
+
+## Setup
 
 ### Prerequisites
 
-- Rust 1.71 or later
-- Telegram Bot Token (from [@BotFather](https://t.me/botfather))
-- OpenAI API Key (from [OpenAI Platform](https://platform.openai.com))
+- Python 3.7 or higher
+- A Telegram Bot Token (obtain from [@BotFather](https://t.me/botfather))
+- An OpenAI API key (obtain from [OpenAI Platform](https://platform.openai.com/api-keys))
 
-### Local Development
+### Installation
 
-1. **Clone the repository**
-
+1. Clone the repository:
 ```bash
 git clone https://github.com/chickysnail/voice2message_bot.git
 cd voice2message_bot
 ```
 
-2. **Configure environment variables**
-
+2. Install dependencies:
 ```bash
-cp .env.example .env
-# Edit .env with your actual credentials
+pip install -r requirements.txt
 ```
 
-3. **Build and run**
+3. Create a `config.ini` file (see [Configuration](#configuration) section below)
 
+4. Run the bot:
 ```bash
-cargo build --release
-cargo run --release
-```
-
-Or use the provided script:
-
-```bash
-chmod +x scripts/run_local.sh
-./scripts/run_local.sh
+python telegram_bot.py
 ```
 
 ## Configuration
 
-All configuration is done through environment variables. You can use a `.env` file for local development.
+Create a `config.ini` file in the root directory with the following structure:
 
-### Required Variables
+```ini
+[telegram]
+bot_token = YOUR_TELEGRAM_BOT_TOKEN
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `TELEGRAM_BOT_TOKEN` | Telegram Bot API token from BotFather | `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11` |
-| `OPENAI_API_KEY` | OpenAI API key for Whisper transcription and GPT summarization | `sk-...` |
-| `ADMIN_IDS` | Comma-separated list of admin Telegram user IDs | `123456789,987654321` |
+[credentials]
+api_key = YOUR_OPENAI_API_KEY
 
-### Optional Variables
+[security]
+voice_threshold = 300
+```
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AUDIO_MAX_SECONDS` | `3600` | Maximum audio duration in seconds (1 hour) |
-| `TEMP_DIR` | `/tmp/voicebot` | Directory for temporary audio files |
-| `LOG_LEVEL` | `info` | Log level (trace, debug, info, warn, error) |
-| `SAVE_LOG_FILE` | `true` | Whether to save logs to file |
-| `CONCURRENCY_LIMIT` | `4` | Maximum concurrent transcription requests |
-| `HTTP_BIND` | `0.0.0.0` | Health check server bind address |
-| `HTTP_PORT` | `8080` | Health check server port |
-| `OPENAI_TIMEOUT_SECONDS` | `600` | Timeout for OpenAI API requests (10 minutes for long audio) |
+Replace:
+- `YOUR_TELEGRAM_BOT_TOKEN` with your bot token from BotFather
+- `YOUR_OPENAI_API_KEY` with your OpenAI API key
+- `300` with your desired maximum voice message duration in seconds
+
+See `config.ini.example` for a template.
 
 ## Usage
 
-### Commands
+### Bot Commands
 
-- `/start` - Display welcome message
-- `/help` - Show help information
-- `/settings` - Display current bot settings
+- `/start` - Initialize the bot and see a welcome message
+- `/help` - Display help information
+- `/stats` - View your usage statistics (message count and total duration)
+- `/logs` - (Admin only) Download the bot's log file
 
-### Transcribing Audio
+### Processing Audio
 
-1. Send a voice message or audio file to the bot
-2. The bot will display real-time progress messages showing:
-   - 📥 Receiving your audio file...
-   - 🔍 Checking file information...
-   - ⬇️ Downloading audio file...
-   - 💾 Saving audio file...
-   - 🎤 Transcribing audio... (This may take several minutes for long recordings)
-   - ✅ Transcription complete! Sending results...
-3. Receive the transcription text (split into multiple messages if longer than 4096 characters)
-4. Click the **"📝 Summarize"** button to get an AI-generated summary of the transcription
-   - The bot will generate a concise, readable summary using GPT-4o-mini
-   - Summaries preserve the original language of the audio
-   - Transcriptions are stored in memory for 1 hour for summarization
-5. The progress message will be automatically deleted after completion
-6. Long transcriptions are split at sentence boundaries (by ".") for better readability
+1. **Send** a voice message, audio file, or video note to the bot
+2. **Choose** between:
+   - **Summary**: Get a clean, readable text summary
+   - **Transcript**: Get the raw transcription
+3. **Receive** your text within seconds
 
-### Limitations
+The bot supports:
+- Voice messages (Telegram native voice messages)
+- Video notes (round video messages)
+- Audio files (MP3, WAV, OGG, etc.)
+- Video files (MP4, MOV, AVI, etc.) - audio will be extracted automatically
 
-- **Maximum audio duration**: 1 hour (3600 seconds)
-- **Maximum file size**: 50 MB (Telegram's bot API limit for file delivery)
-- **Processing time**: Long audio files (30+ minutes) may take 5-10 minutes to transcribe
-- **Message length**: Transcriptions longer than 4096 characters are automatically split into multiple messages
-- Audio files exceeding these limits will be rejected with a helpful error message
-- Admins will be notified when users attempt to send oversized files or encounter errors
+## Supported File Types
 
-### Error Messages
+**Audio Formats:**
+- MP3
+- WAV
+- OGG
+- M4A
+- FLAC
+- And other common audio formats supported by OpenAI Whisper
 
-The bot provides clear, user-friendly error messages for common issues:
+**Video Formats (audio extraction):**
+- MP4
+- MPEG
+- MOV
+- AVI
+- WMV
 
-- **File too large**: "⚠️ This audio file is too large for Telegram to deliver to bots."
-- **Duration exceeded**: "⚠️ Audio is too long (max 1 hour)"
-- **Transcription timeout**: "⏱️ Transcription took too long. Please try again later or send a shorter audio file."
-- **API errors**: "❌ The transcription service failed. Please try again later."
-- **Rate limiting**: "⚠️ The transcription service is currently rate limited. Please try again in a few minutes."
+## API Costs
 
-## Architecture
+The bot uses two OpenAI APIs:
 
-The bot is designed with modularity and extensibility in mind:
+1. **Whisper API** (Transcription): ~$0.006 per minute of audio
+2. **GPT-4o-mini** (Summary): ~$0.15 per 1M input tokens, ~$0.60 per 1M output tokens
+
+A typical 1-minute voice message might cost approximately $0.006 - $0.01 total.
+
+## Database
+
+The bot maintains a SQLite database (`statistics.db`) to track:
+- User information
+- Number of messages transcribed per user
+- Total audio duration processed per user
+
+## Logging
+
+Logs are stored in `voice2message_bot.log` with rotation (max 10MB, 5 backup files).
+
+## File Structure
 
 ```
-src/
-├── main.rs              # Application entry point
-├── config.rs            # Configuration management
-├── logger.rs            # Logging setup
-├── errors.rs            # Error types (TranscribeError, WhisperError, TelegramError)
-├── utils.rs             # Utility functions (backoff, duration formatting)
-├── telegram_api.rs      # Telegram file operations and size checks
-├── whisper_api.rs       # OpenAI Whisper integration with retry logic
-├── admin_notifier.rs    # Admin notification system
-├── bot/
-│   ├── handlers.rs      # Message and command handlers with progress updates
-│   └── polling.rs       # Long polling setup
-├── transcriber/
-│   ├── trait.rs         # Transcriber trait
-│   └── openai.rs        # Legacy OpenAI implementation
-├── storage/
-│   └── file_store.rs    # Temporary file management
-└── http/
-    └── health.rs        # Health check endpoint
+voice2message_bot/
+├── telegram_bot.py          # Main bot logic
+├── voice2message.py         # Audio transcription and rewriting
+├── video2audio.py           # Video to audio conversion
+├── UserStatisticsDB.py      # User statistics database
+├── main.py                  # Standalone CLI tool
+├── utils/
+│   └── text_helpers.py      # Message splitting utilities
+├── requirements.txt         # Python dependencies
+├── config.ini               # Configuration (create this, gitignored)
+└── README.md               # This file
 ```
 
-### Key Design Patterns
+## Multilingual Support
 
-- **Trait-based abstraction**: The `Transcriber` trait allows easy addition of new transcription providers
-- **Async/await**: Full async implementation using Tokio
-- **Concurrency control**: Semaphore-based limiting to respect API rate limits
-- **Error handling**: Comprehensive error types with retry logic and specific error variants
-- **Clean resource management**: Automatic cleanup of temporary files
-- **Progress tracking**: Real-time user feedback through editable progress messages
-- **Smart chunking**: Automatic message splitting at sentence boundaries for readability
+The bot supports multiple languages for:
 
-### Reliability Features
+- **Welcome messages**: English, Russian, Spanish, German
+- **Audio transcription**: Automatic language detection by Whisper API
+- **Summary generation**: Preserves the original language of the audio
 
-The bot includes several features to handle long audio files (up to 6 minutes tested):
+The bot automatically detects the user's Telegram language setting and responds accordingly.
 
-1. **Extended Timeouts**
-   - 600-second (10 minute) request timeout for OpenAI Whisper API
-   - 30-second connect timeout
-   - 300-second timeout for Telegram file downloads
+## Development
 
-2. **Retry Logic with Exponential Backoff**
-   - Up to 3 retry attempts for transient failures
-   - Exponential backoff with jitter to prevent thundering herd
-   - Retries only on: timeouts, connection resets, HTTP 429, HTTP 5xx
-   - No retries on: invalid API key, unsupported audio format, file download failures
+### Standalone CLI Tool
 
-3. **File Size Validation**
-   - Pre-download file size check using Telegram's `getFile` API
-   - 50 MB limit enforcement (Telegram's bot API constraint)
-   - Clear error messages for oversized files
-
-4. **Admin Notifications**
-   - Oversized file attempts
-   - Transcription timeouts
-   - API errors and failures
-   - Structured notification format with timestamps
-
-5. **Message Chunking**
-   - Automatic splitting of long transcriptions (>4096 characters)
-   - Smart splitting at sentence boundaries (by ".")
-   - Fallback to word-level splitting for very long sentences
-   - Part counters for multi-part messages
-
-## Extending the Bot
-
-### Adding a New Transcription Provider
-
-Implement the `Transcriber` trait:
-
-```rust
-use async_trait::async_trait;
-use crate::transcriber::Transcriber;
-use crate::errors::TranscribeError;
-
-pub struct MyTranscriber {
-    // Your fields
-}
-
-#[async_trait]
-impl Transcriber for MyTranscriber {
-    async fn transcribe(&self, file_path: &Path) -> Result<String, TranscribeError> {
-        // Your implementation
-    }
-}
-```
-
-### Summarization Feature
-
-The bot includes a "Summarize" button that appears after each transcription:
-
-1. **Implementation**: Uses OpenAI's GPT-4o-mini model to generate summaries
-2. **Storage**: Transcriptions are stored in memory for 1 hour with automatic TTL cleanup
-3. **Preservation**: Summaries maintain the original language of the audio
-4. **Format**: Converts transcripts into readable text message format
-5. **Error Handling**: Includes retry logic and clear error messages
-
-The summarization feature is fully implemented and ready to use.
-
-## Testing
-
-### Unit and Integration Tests
-
-Run all tests with:
+You can also use the transcription functionality as a standalone tool:
 
 ```bash
-cargo test
+python main.py config.ini path/to/audio.mp3
 ```
 
-Run with verbose output:
+This will transcribe and summarize the audio file without using Telegram.
 
-```bash
-cargo test -- --nocapture
-```
+## Privacy & Security
 
-### Testing with Long Audio Files
-
-The repository includes a test audio file (`tests/testaudio`, ~6 minutes, ~2.4 MB) for integration testing.
-
-**Important**: To avoid excessive API usage:
-- Limit Whisper API calls to **10 per development session**
-- The test file is for manual testing and validation
-- Use mocking for automated tests where possible
-
-### Test Coverage
-
-Tests include:
-- Configuration parsing and defaults
-- File size validation and chunking logic
-- Retry mechanism with exponential backoff
-- Error message formatting
-- Duration and timeout calculations
-- Admin notification formatting
-- Message chunking by sentence boundaries
-
-## Building for Production
-
-### Optimized Release Build
-
-```bash
-cargo build --release
-```
-
-The binary will be at `target/release/voice-transcriber-bot`.
-
-## Monitoring
-
-### Health Check
-
-The bot exposes a health check endpoint at `/health`:
-
-```bash
-curl http://localhost:8080/health
-```
-
-Response:
-```json
-{"status":"ok"}
-```
-
-### Logs
-
-Logs are written to:
-- **stdout**: Always enabled
-- **File**: `./logs/voicebot.log` (if `SAVE_LOG_FILE=true`)
-
-Log format includes timestamps, levels, and structured context.
-
-## Security
-
-- **Secrets**: Never commit `.env` files with actual credentials
-- **GitHub Secrets**: Use GitHub Secrets for CI/CD deployments
-- **File Permissions**: Temp directory created with `0700` permissions (Unix)
-- **API Keys**: Not logged or exposed in error messages
-
-## Development Tools
-
-### Linting
-
-```bash
-cargo clippy -- -D warnings
-```
-
-### Formatting
-
-```bash
-cargo fmt
-```
-
-### Build All
-
-```bash
-make build        # Build binary
-make test         # Run tests
-```
-
-## Troubleshooting
-
-### Bot doesn't respond
-
-1. Check that the bot token is correct
-2. Verify the bot is running: `curl http://localhost:8080/health`
-3. Check logs for errors
-
-### Transcription fails
-
-1. Verify OpenAI API key is valid
-2. Check OpenAI API status
-3. Review logs for specific error messages
-4. Ensure audio file is in a supported format (OGG, MP3, M4A)
-5. Check that audio duration is under 1 hour
-6. For long audio files, ensure timeout is set to at least 600 seconds
-
-### Transcription times out
-
-For long audio files (30+ minutes), transcription can take 5-10 minutes:
-1. Increase `OPENAI_TIMEOUT_SECONDS` to 600 (10 minutes) or higher
-2. Check network connectivity and stability
-3. Monitor logs for retry attempts
-4. Consider splitting very long audio files
-
-### File too large errors
-
-Telegram's bot API has a 50 MB limit for file downloads:
-1. Compress audio files before sending
-2. Use lower bitrate audio encoding
-3. Split long recordings into smaller segments
-
-### Progress message not showing
-
-1. Ensure bot has permission to send messages in the chat
-2. Check for Telegram API rate limiting
-3. Review logs for message sending errors
-
-### Permission errors
-
-1. Ensure `TEMP_DIR` is writable
-2. Check file system permissions
+- Audio files are temporarily stored during processing and **deleted immediately** after
+- User data is stored locally in `statistics.db`
+- The bot does not permanently store audio content
+- OpenAI's API usage policies apply to all transcriptions
 
 ## Contributing
 
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Run `cargo fmt` and `cargo clippy`
-6. Submit a pull request
+Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+This project is open source. Please check the repository for license details.
 
-## Roadmap
+## Contact
 
-- [x] Summarization feature using OpenAI Chat Completions (GPT-4o-mini)
-- [ ] Support for local Whisper models
-- [ ] Database integration for transcript history
-- [ ] Multi-language support
-- [ ] Voice message synthesis (text-to-speech)
-- [ ] Rate limiting per user
-- [ ] Analytics dashboard
-
-## Credits
-
-Built with:
-- [Teloxide](https://github.com/teloxide/teloxide) - Telegram Bot framework
-- [Tokio](https://tokio.rs/) - Async runtime
-- [Reqwest](https://github.com/seanmonstar/reqwest) - HTTP client
-- [Axum](https://github.com/tokio-rs/axum) - Web framework
-- [Tracing](https://github.com/tokio-rs/tracing) - Structured logging
-
-## Support
-
-For issues, questions, or suggestions:
-- Open an issue on GitHub
-- Contact the maintainers via Telegram (admin IDs in config)
+For questions or issues, contact [@chickysnail](https://t.me/chickysnail) on Telegram.
