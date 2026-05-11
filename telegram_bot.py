@@ -108,7 +108,7 @@ def check_audio_length(seconds):
     if not threshold_str:
         config = configparser.ConfigParser()
         config.read("config.ini")
-        threshold_str = config.get("security", "voice_threshold", fallback="300")
+        threshold_str = config.get("security", "voice_threshold", fallback="3600")
     return seconds > int(threshold_str)
 
 async def handle_voice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
