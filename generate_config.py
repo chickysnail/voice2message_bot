@@ -42,7 +42,7 @@ def generate_config():
     }
 
     config["security"] = {
-        "voice_threshold": os.environ.get("VOICE_THRESHOLD", "300"),
+        "voice_threshold": os.environ.get("VOICE_THRESHOLD", "3600"),
     }
 
     config_path = "config.ini"
