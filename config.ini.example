@@ -11,4 +11,4 @@ api_key = YOUR_OPENAI_API_KEY_HERE
 # Voice messages longer than this will not be processed
 # Default: 300 seconds (5 minutes)
 # Cost estimate: ~$0.006 per minute of audio
-voice_threshold = 300
+voice_threshold = 3600
