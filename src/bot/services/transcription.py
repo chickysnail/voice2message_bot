@@ -9,6 +9,10 @@ from elevenlabs.types.speech_to_text_chunk_response_model import (
 logger = logging.getLogger(__name__)
 
 
+class EmptyTranscriptionError(RuntimeError):
+    """Raised when the API returns no speech content."""
+
+
 class TranscriptionClient(Protocol):
     """Protocol for transcription clients (enables mocking)."""
 
@@ -91,7 +95,7 @@ class ElevenLabsTranscriber:
                 )
             text = format_diarized_transcript(result)  # type: ignore[arg-type]
             if not text.strip():
-                raise RuntimeError("Transcription returned empty text")
+                raise EmptyTranscriptionError("Transcription returned empty text")
             logger.info("Transcribed %s (%d chars)", file_path, len(text))
             return text
         except RuntimeError:

@@ -6,6 +6,7 @@ import pytest
 
 from src.bot.services.transcription import (
     ElevenLabsTranscriber,
+    EmptyTranscriptionError,
     format_diarized_transcript,
 )
 
@@ -100,7 +101,7 @@ def test_transcribe_empty_text(dummy_audio: str) -> None:
 
         transcriber = ElevenLabsTranscriber(api_key="fake-key")
 
-        with pytest.raises(RuntimeError, match="empty text"):
+        with pytest.raises(EmptyTranscriptionError, match="empty text"):
             transcriber.transcribe(dummy_audio)
 
 

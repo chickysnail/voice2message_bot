@@ -13,7 +13,7 @@ from src.bot.keyboards import CALLBACK_SUMMARIZE, post_transcription_keyboard
 from src.bot.services.audio import extract_audio, get_audio_duration
 from src.bot.services.notifier import AdminNotifier
 from src.bot.services.summarization import SummarizationClient
-from src.bot.services.transcription import TranscriptionClient
+from src.bot.services.transcription import EmptyTranscriptionError, TranscriptionClient
 from src.bot.storage.statistics import StatisticsDB
 from src.bot.storage.transcription_store import TranscriptionStore
 from src.bot.utils.text import format_duration, split_message
@@ -201,9 +201,25 @@ class BotHandlers:
                 transcript = await asyncio.to_thread(
                     self._transcriber.transcribe, audio_path
                 )
+            except EmptyTranscriptionError as e:
+                await processing_msg.edit_text(
+                    "No speech was detected in this audio. "
+                    "The recording may be silent or too short."
+                )
+                await self._notifier.notify_error(
+                    "Transcription failed",
+                    username=user.username,
+                    error_detail=str(e),
+                    audio_duration=duration,
+                )
+                await self._stats_db.record_error(
+                    "Transcription (empty)", user.username, str(e)
+                )
+                return
             except RuntimeError as e:
                 await processing_msg.edit_text(
-                    "Transcription service is temporarily unavailable. Please try again later."
+                    "Something went wrong on our end. "
+                    "Please try again later."
                 )
                 await self._notifier.notify_error(
                     "Transcription failed",
@@ -309,7 +325,8 @@ class BotHandlers:
         except RuntimeError as e:
             if query.message:
                 await query.message.reply_text(
-                    "Summarization is temporarily unavailable. Please try again later."
+                    "Something went wrong on our end. "
+                    "Please try again later."
                 )
             await self._notifier.notify_error(
                 "Summarization failed",
