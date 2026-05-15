@@ -303,6 +303,11 @@ class BotHandlers:
             return
 
         user = update.effective_user
+        logger.info(
+            "Stats requested by user %s (id=%d). Admin IDs: %s. Is admin: %s",
+            user.username, user.id, self._admin_ids, user.id in self._admin_ids,
+        )
+
         stats = await self._stats_db.get_user_stats(user.id)
         if stats is None:
             await update.message.reply_text("No usage recorded yet.")
@@ -327,6 +332,8 @@ class BotHandlers:
                         f"@{uname or uid} | {count} msgs | {format_duration(dur)} | last: {last}"
                     )
                 await update.message.reply_text("\n".join(lines))
+            else:
+                await update.message.reply_text("No user stats found in database.")
 
     async def logs_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
