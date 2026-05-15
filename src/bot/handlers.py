@@ -155,7 +155,9 @@ class BotHandlers:
                         "Voice messages and video notes are compressed "
                         "by Telegram and usually work fine \u2014 this limit "
                         "mainly affects large audio/video files sent "
-                        "as attachments."
+                        "as attachments.\n"
+                        "You can try compressing or trimming the file "
+                        "before sending."
                     )
                     return
                 raise
