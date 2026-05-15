@@ -53,3 +53,28 @@ async def test_get_all_stats(db: StatisticsDB) -> None:
     await db.record_usage(user_id=2, username="user2", audio_duration=60)
     all_stats = await db.get_all_stats()
     assert len(all_stats) == 2
+
+
+async def test_record_error(db: StatisticsDB) -> None:
+    await db.record_error("Transcription", "alice", "API timeout")
+    total, by_type, last_error = await db.get_error_stats()
+    assert total == 1
+    assert by_type == {"Transcription": 1}
+    assert last_error is not None
+
+
+async def test_multiple_errors(db: StatisticsDB) -> None:
+    await db.record_error("Transcription", "alice", "API timeout")
+    await db.record_error("Transcription", "bob", "rate limit")
+    await db.record_error("Summarization", "alice", "model error")
+    total, by_type, last_error = await db.get_error_stats()
+    assert total == 3
+    assert by_type == {"Transcription": 2, "Summarization": 1}
+    assert last_error is not None
+
+
+async def test_error_stats_empty(db: StatisticsDB) -> None:
+    total, by_type, last_error = await db.get_error_stats()
+    assert total == 0
+    assert by_type == {}
+    assert last_error is None

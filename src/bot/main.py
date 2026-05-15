@@ -1,5 +1,4 @@
 import logging
-import os
 from logging.handlers import RotatingFileHandler
 
 from telegram.ext import (
@@ -36,18 +35,7 @@ def setup_logging(level: str) -> None:
 
 
 def main() -> None:
-    # Debug: log relevant env var names on startup
-    prefixes = (
-        "ADMIN", "TELEGRAM", "ELEVENLABS", "OPENAI",
-        "DATABASE", "LOG_", "MAX_", "TRANSCRIPTION",
-    )
-    relevant_vars = [k for k in os.environ if k.startswith(prefixes)]
-    print(f"[STARTUP DEBUG] Relevant env vars present: {relevant_vars}")
-    raw_admin = os.environ.get("ADMIN_USER_IDS")
-    print(f"[STARTUP DEBUG] Raw ADMIN_USER_IDS value: repr={repr(raw_admin)}")
-
     settings = Settings()  # type: ignore[call-arg]
-    print(f"[STARTUP DEBUG] Parsed admin_user_ids: {settings.admin_user_ids}")
     setup_logging(settings.log_level)
 
     # Build services

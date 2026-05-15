@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import tempfile
@@ -5,6 +6,7 @@ import uuid
 
 from telegram import Update
 from telegram.constants import ParseMode
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from src.bot.keyboards import CALLBACK_SUMMARIZE, post_transcription_keyboard
@@ -143,7 +145,20 @@ class BotHandlers:
         audio_path: str | None = None
         try:
             # Download the file
-            tg_file = await context.bot.get_file(file_id)
+            try:
+                tg_file = await context.bot.get_file(file_id)
+            except BadRequest as e:
+                if "file is too big" in str(e).lower():
+                    await processing_msg.edit_text(
+                        "This file is too large to download. "
+                        "Telegram limits bot file downloads to 20 MB.\n"
+                        "Voice messages and video notes are compressed "
+                        "by Telegram and usually work fine \u2014 this limit "
+                        "mainly affects large audio/video files sent "
+                        "as attachments."
+                    )
+                    return
+                raise
             ext = (tg_file.file_path or "").rsplit(".", 1)[-1] if tg_file.file_path else "ogg"
             file_path = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}.{ext}")
             await tg_file.download_to_drive(custom_path=file_path)
@@ -158,6 +173,9 @@ class BotHandlers:
                         "Audio extraction failed",
                         username=user.username,
                         error_detail=str(e),
+                    )
+                    await self._stats_db.record_error(
+                        "Audio extraction", user.username, str(e)
                     )
                     return
             else:
@@ -176,9 +194,11 @@ class BotHandlers:
                         )
                         return
 
-            # Transcribe
+            # Transcribe (run in thread to avoid blocking the event loop)
             try:
-                transcript = self._transcriber.transcribe(audio_path)
+                transcript = await asyncio.to_thread(
+                    self._transcriber.transcribe, audio_path
+                )
             except RuntimeError as e:
                 await processing_msg.edit_text(
                     "Transcription service is temporarily unavailable. Please try again later."
@@ -188,6 +208,9 @@ class BotHandlers:
                     username=user.username,
                     error_detail=str(e),
                     audio_duration=duration,
+                )
+                await self._stats_db.record_error(
+                    "Transcription", user.username, str(e)
                 )
                 return
 
@@ -233,6 +256,9 @@ class BotHandlers:
                 username=user.username,
                 error_detail=str(e),
                 audio_duration=duration,
+            )
+            await self._stats_db.record_error(
+                "Unexpected error", user.username, str(e)
             )
         finally:
             # Clean up temp files
@@ -288,6 +314,9 @@ class BotHandlers:
                 username=user.username,
                 error_detail=str(e),
             )
+            await self._stats_db.record_error(
+                "Summarization", user.username, str(e)
+            )
             return
 
         if query.message:
@@ -322,7 +351,7 @@ class BotHandlers:
             f"Last used: {last_used}"
         )
 
-        # Admin: show all users
+        # Admin: show all users + error stats
         if user.id in self._admin_ids:
             all_stats = await self._stats_db.get_all_stats()
             if all_stats:
@@ -334,6 +363,16 @@ class BotHandlers:
                 await update.message.reply_text("\n".join(lines))
             else:
                 await update.message.reply_text("No user stats found in database.")
+
+            total_errors, by_type, last_error = (
+                await self._stats_db.get_error_stats()
+            )
+            if total_errors > 0:
+                err_lines = [f"Errors: {total_errors} total"]
+                for etype, ecount in sorted(by_type.items()):
+                    err_lines.append(f"  {etype}: {ecount}")
+                err_lines.append(f"Last error: {last_error}")
+                await update.message.reply_text("\n".join(err_lines))
 
     async def logs_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE

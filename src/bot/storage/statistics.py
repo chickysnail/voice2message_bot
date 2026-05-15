@@ -24,6 +24,15 @@ class StatisticsDB:
                 last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        await self._db.execute("""
+            CREATE TABLE IF NOT EXISTS error_statistics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                error_type TEXT NOT NULL,
+                username TEXT,
+                error_detail TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         await self._db.commit()
 
     async def close(self) -> None:
@@ -82,3 +91,43 @@ class StatisticsDB:
         ) as cursor:
             rows = await cursor.fetchall()
         return [(r[0], r[1], r[2], r[3], r[4], r[5]) for r in rows]
+
+    async def record_error(
+        self,
+        error_type: str,
+        username: str | None = None,
+        error_detail: str | None = None,
+    ) -> None:
+        """Record an error occurrence."""
+        assert self._db is not None
+        await self._db.execute(
+            "INSERT INTO error_statistics (error_type, username, error_detail) "
+            "VALUES (?, ?, ?)",
+            (error_type, username, error_detail),
+        )
+        await self._db.commit()
+
+    async def get_error_stats(
+        self,
+    ) -> tuple[int, dict[str, int], str | None]:
+        """Returns (total_errors, {error_type: count}, last_error_time)."""
+        assert self._db is not None
+        async with self._db.execute(
+            "SELECT COUNT(*) FROM error_statistics"
+        ) as cursor:
+            row = await cursor.fetchone()
+        total = row[0] if row else 0
+
+        async with self._db.execute(
+            "SELECT error_type, COUNT(*) FROM error_statistics GROUP BY error_type"
+        ) as cursor:
+            type_rows = await cursor.fetchall()
+        by_type = {r[0]: r[1] for r in type_rows}
+
+        async with self._db.execute(
+            "SELECT created_at FROM error_statistics ORDER BY id DESC LIMIT 1"
+        ) as cursor:
+            last_row = await cursor.fetchone()
+        last_error = last_row[0] if last_row else None
+
+        return total, by_type, last_error
