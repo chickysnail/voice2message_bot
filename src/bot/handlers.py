@@ -108,23 +108,30 @@ class BotHandlers:
         duration: int | None = None
         is_video = False
 
+        file_type = "unknown"
+
         if message.voice:
             file_id = message.voice.file_id
             duration = message.voice.duration
+            file_type = "voice message"
         elif message.video_note:
             file_id = message.video_note.file_id
             duration = message.video_note.duration
             is_video = True
+            file_type = "video note"
         elif message.audio:
             file_id = message.audio.file_id
             duration = message.audio.duration
+            file_type = "audio file"
         elif message.video:
             file_id = message.video.file_id
             duration = message.video.duration
             is_video = True
+            file_type = "video"
         elif message.document:
             file_id = message.document.file_id
             duration = None
+            file_type = "document"
 
         if not file_id:
             return
@@ -135,6 +142,14 @@ class BotHandlers:
             await message.reply_text(
                 f"This audio is too long ({format_duration(duration)}). "
                 f"Max supported duration is {max_min} minutes."
+            )
+            await self._notifier.notify_error(
+                "Audio too long",
+                username=user.username,
+                error_detail=(
+                    f"{file_type}, {format_duration(duration)}"
+                ),
+                audio_duration=duration,
             )
             return
 
@@ -158,6 +173,11 @@ class BotHandlers:
                         "as attachments.\n"
                         "You can try compressing or trimming the file "
                         "before sending."
+                    )
+                    await self._notifier.notify_error(
+                        "File too large",
+                        username=user.username,
+                        error_detail=f"{file_type}, exceeded 20 MB",
                     )
                     return
                 raise
@@ -193,6 +213,14 @@ class BotHandlers:
                         await processing_msg.edit_text(
                             f"This audio is too long ({format_duration(duration)}). "
                             f"Max supported duration is {max_min} minutes."
+                        )
+                        await self._notifier.notify_error(
+                            "Audio too long",
+                            username=user.username,
+                            error_detail=(
+                                f"{file_type}, {format_duration(duration)}"
+                            ),
+                            audio_duration=duration,
                         )
                         return
 
