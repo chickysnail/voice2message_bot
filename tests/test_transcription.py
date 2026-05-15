@@ -25,11 +25,15 @@ def _make_word(
     text: str,
     speaker_id: str | None = None,
     word_type: str = "word",
+    start: float | None = None,
+    end: float | None = None,
 ) -> MagicMock:
     w = MagicMock()
     w.text = text
     w.speaker_id = speaker_id
     w.type = word_type
+    w.start = start
+    w.end = end
     return w
 
 
@@ -48,9 +52,9 @@ def test_transcribe_success_single_speaker(dummy_audio: str) -> None:
         mock_cls.return_value = mock_client
 
         words = [
-            _make_word("Hello,", "speaker_0"),
+            _make_word("Hello,", "speaker_0", start=0.0, end=0.5),
             _make_word(" ", "speaker_0", "spacing"),
-            _make_word("world.", "speaker_0"),
+            _make_word("world.", "speaker_0", start=0.5, end=1.0),
         ]
         mock_client.speech_to_text.convert.return_value = _make_result(
             "Hello, world.", words
@@ -59,7 +63,8 @@ def test_transcribe_success_single_speaker(dummy_audio: str) -> None:
         transcriber = ElevenLabsTranscriber(api_key="fake-key")
         result = transcriber.transcribe(dummy_audio)
 
-        assert result == "Hello, world."
+        assert result.text == "Hello, world."
+        assert len(result.words) == 3
         call_kwargs = mock_client.speech_to_text.convert.call_args
         assert call_kwargs[1]["diarize"] is True
 
@@ -70,12 +75,12 @@ def test_transcribe_success_multi_speaker(dummy_audio: str) -> None:
         mock_cls.return_value = mock_client
 
         words = [
-            _make_word("Hey", "speaker_0"),
+            _make_word("Hey", "speaker_0", start=0.0, end=0.3),
             _make_word(" ", None, "spacing"),
-            _make_word("there", "speaker_0"),
-            _make_word("Hi", "speaker_1"),
+            _make_word("there", "speaker_0", start=0.3, end=0.7),
+            _make_word("Hi", "speaker_1", start=0.7, end=1.0),
             _make_word(" ", None, "spacing"),
-            _make_word("back", "speaker_1"),
+            _make_word("back", "speaker_1", start=1.0, end=1.3),
         ]
         mock_client.speech_to_text.convert.return_value = _make_result(
             "Hey there Hi back", words
@@ -84,10 +89,10 @@ def test_transcribe_success_multi_speaker(dummy_audio: str) -> None:
         transcriber = ElevenLabsTranscriber(api_key="fake-key")
         result = transcriber.transcribe(dummy_audio)
 
-        assert "Speaker 1:" in result
-        assert "Speaker 2:" in result
-        assert "Hey" in result
-        assert "Hi" in result
+        assert "Speaker 1:" in result.text
+        assert "Speaker 2:" in result.text
+        assert "Hey" in result.text
+        assert "Hi" in result.text
 
 
 def test_transcribe_empty_text(dummy_audio: str) -> None:

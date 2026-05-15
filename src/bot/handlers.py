@@ -1,4 +1,5 @@
 import asyncio
+import io
 import logging
 import os
 import tempfile
@@ -9,8 +10,16 @@ from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
-from src.bot.keyboards import CALLBACK_SUMMARIZE, post_transcription_keyboard
+from src.bot.keyboards import (
+    CALLBACK_EXPORT_SRT,
+    CALLBACK_EXPORT_TXT,
+    CALLBACK_SAVE_FILE,
+    CALLBACK_SUMMARIZE,
+    file_format_keyboard,
+    post_transcription_keyboard,
+)
 from src.bot.services.audio import extract_audio, get_audio_duration
+from src.bot.services.export import generate_srt, generate_txt
 from src.bot.services.notifier import AdminNotifier
 from src.bot.services.summarization import SummarizationClient
 from src.bot.services.transcription import EmptyTranscriptionError, TranscriptionClient
@@ -260,9 +269,12 @@ class BotHandlers:
                 )
                 return
 
-            # Store the transcription for later actions (summarize)
+            # Store the transcription for later actions (summarize, export)
             original_message_id = message.message_id
-            self._store.save(user.id, original_message_id, transcript)
+            self._store.save(
+                user.id, original_message_id,
+                transcript.text, transcript.words,
+            )
 
             # Record usage statistics
             await self._stats_db.record_usage(
@@ -271,7 +283,7 @@ class BotHandlers:
 
             # Send the transcription
             await processing_msg.delete()
-            chunks = split_message(transcript)
+            chunks = split_message(transcript.text)
             for i, chunk in enumerate(chunks):
                 is_last = i == len(chunks) - 1
                 if is_last:
@@ -323,13 +335,12 @@ class BotHandlers:
 
         await query.answer()
 
-        if not query.data.startswith(CALLBACK_SUMMARIZE):
-            return
-
-        parts = query.data.split(":")
+        data = query.data
+        parts = data.split(":")
         if len(parts) != 2:
             return
 
+        action = parts[0]
         try:
             original_message_id = int(parts[1])
         except ValueError:
@@ -337,7 +348,25 @@ class BotHandlers:
 
         user = update.effective_user
 
-        # Look up the stored transcription
+        if action == CALLBACK_SUMMARIZE:
+            await self._handle_summarize(query, user, original_message_id)
+        elif action == CALLBACK_SAVE_FILE:
+            await self._handle_save_file(query, user, original_message_id)
+        elif action in (CALLBACK_EXPORT_TXT, CALLBACK_EXPORT_SRT):
+            await self._handle_export(query, user, original_message_id, action)
+
+    async def _handle_summarize(
+        self,
+        query: object,
+        user: object,
+        original_message_id: int,
+    ) -> None:
+        """Handle the Summarize button press."""
+        from telegram import CallbackQuery, User
+
+        assert isinstance(query, CallbackQuery)
+        assert isinstance(user, User)
+
         transcript = self._store.get(user.id, original_message_id)
         if transcript is None:
             await query.edit_message_reply_markup(reply_markup=None)
@@ -345,7 +374,6 @@ class BotHandlers:
                 await query.message.reply_text("This transcription has expired.")
             return
 
-        # Remove buttons while processing
         await query.edit_message_reply_markup(reply_markup=None)
 
         try:
@@ -371,6 +399,84 @@ class BotHandlers:
                 await query.message.reply_text(chunk)
 
         logger.info("Summarized transcription for user %s (%d)", user.username, user.id)
+
+    async def _handle_save_file(
+        self,
+        query: object,
+        user: object,
+        original_message_id: int,
+    ) -> None:
+        """Handle the Save as file button — show format options."""
+        from telegram import CallbackQuery, User
+
+        assert isinstance(query, CallbackQuery)
+        assert isinstance(user, User)
+
+        transcript = self._store.get(user.id, original_message_id)
+        if transcript is None:
+            await query.edit_message_reply_markup(reply_markup=None)
+            if query.message:
+                await query.message.reply_text("This transcription has expired.")
+            return
+
+        await query.edit_message_reply_markup(
+            reply_markup=file_format_keyboard(original_message_id),
+        )
+
+    async def _handle_export(
+        self,
+        query: object,
+        user: object,
+        original_message_id: int,
+        action: str,
+    ) -> None:
+        """Handle a file format selection (TXT or SRT)."""
+        from telegram import CallbackQuery, User
+
+        assert isinstance(query, CallbackQuery)
+        assert isinstance(user, User)
+
+        transcript = self._store.get(user.id, original_message_id)
+        if transcript is None:
+            await query.edit_message_reply_markup(reply_markup=None)
+            if query.message:
+                await query.message.reply_text("This transcription has expired.")
+            return
+
+        await query.edit_message_reply_markup(reply_markup=None)
+
+        if action == CALLBACK_EXPORT_TXT:
+            content = generate_txt(transcript)
+            filename = "transcription.txt"
+        else:
+            words = self._store.get_words(user.id, original_message_id)
+            if not words:
+                if query.message:
+                    await query.message.reply_text(
+                        "Word-level data is not available for SRT export. "
+                        "Try saving as .txt instead."
+                    )
+                return
+            content = generate_srt(words)
+            if not content:
+                if query.message:
+                    await query.message.reply_text(
+                        "Could not generate subtitles — no timed words found. "
+                        "Try saving as .txt instead."
+                    )
+                return
+            filename = "transcription.srt"
+
+        file_bytes = content.encode("utf-8")
+        if query.message:
+            await query.message.reply_document(
+                document=io.BytesIO(file_bytes),
+                filename=filename,
+            )
+
+        logger.info(
+            "Exported %s for user %s (%d)", filename, user.username, user.id
+        )
 
     async def stats_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE

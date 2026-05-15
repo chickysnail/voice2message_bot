@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from elevenlabs.client import ElevenLabs
@@ -13,10 +14,29 @@ class EmptyTranscriptionError(RuntimeError):
     """Raised when the API returns no speech content."""
 
 
+@dataclass
+class WordData:
+    """Minimal word-level data needed for SRT generation."""
+
+    text: str
+    start: float | None = None
+    end: float | None = None
+    speaker_id: str | None = None
+    type: str = "word"
+
+
+@dataclass
+class TranscriptionResult:
+    """Result of a transcription, containing text and word-level data."""
+
+    text: str
+    words: list[WordData] = field(default_factory=list)
+
+
 class TranscriptionClient(Protocol):
     """Protocol for transcription clients (enables mocking)."""
 
-    def transcribe(self, file_path: str) -> str: ...
+    def transcribe(self, file_path: str) -> TranscriptionResult: ...
 
 
 def format_diarized_transcript(
@@ -77,8 +97,8 @@ class ElevenLabsTranscriber:
     def __init__(self, api_key: str) -> None:
         self._client = ElevenLabs(api_key=api_key)
 
-    def transcribe(self, file_path: str) -> str:
-        """Transcribe an audio file and return the text.
+    def transcribe(self, file_path: str) -> TranscriptionResult:
+        """Transcribe an audio file and return text + word-level data.
 
         Uses speaker diarization. For multi-speaker audio, returns
         labeled transcript. For single-speaker audio, returns plain text.
@@ -96,8 +116,20 @@ class ElevenLabsTranscriber:
             text = format_diarized_transcript(result)  # type: ignore[arg-type]
             if not text.strip():
                 raise EmptyTranscriptionError("Transcription returned empty text")
+
+            words = [
+                WordData(
+                    text=w.text,
+                    start=w.start,
+                    end=w.end,
+                    speaker_id=w.speaker_id,
+                    type=w.type if isinstance(w.type, str) else "word",
+                )
+                for w in result.words  # type: ignore[union-attr]
+            ]
+
             logger.info("Transcribed %s (%d chars)", file_path, len(text))
-            return text
+            return TranscriptionResult(text=text, words=words)
         except RuntimeError:
             raise
         except Exception as e:
