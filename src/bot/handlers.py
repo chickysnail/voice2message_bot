@@ -467,7 +467,7 @@ class BotHandlers:
                 return
             filename = "transcription.srt"
 
-        file_bytes = content.encode("utf-8")
+        file_bytes = b"\xef\xbb\xbf" + content.encode("utf-8")
         if query.message:
             await query.message.reply_document(
                 document=io.BytesIO(file_bytes),
