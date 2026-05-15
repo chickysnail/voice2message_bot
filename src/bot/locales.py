@@ -69,7 +69,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "am": (
             "እንኳን ደህና መጡ {user}! የድምፅ መልእክት፣ የኦዲዮ ፋይል ወይም የቪዲዮ ማስታወሻ "
-            "ይላኩልኝ እና እኔ ለእርስዎ እጽፈዋለሁ።"
+            "ይላኩልኝ እና ወደ ጽሑፍ እለውጠዋለሁ።"
         ),
         "ko": (
             "환영합니다 {user}! 음성 메시지, 오디오 파일 또는 비디오 노트를 보내주시면 "
@@ -228,7 +228,7 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Transkripsiyadan keyin siz:\n"
             "• Xulosa — qisqa xulosa oling\n"
             "• Fayl sifatida saqlash — .txt yoki .srt (subtitrlar) sifatida yuklab oling\n\n"
-            "Bir nechta ma'ruzachilar avtomatik aniqlanadi.\n\n"
+            "Bir nechta so'zlovchilar avtomatik aniqlanadi.\n\n"
             "Buyruqlar:\n"
             "/start — xush kelibsiz xabari\n"
             "/help — ushbu xabar\n"
@@ -237,7 +237,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "am": (
             "🎙 የድምፅ መልእክት፣ የኦዲዮ ፋይል፣ የቪዲዮ ማስታወሻ "
             "ወይም ቪዲዮ ይላኩልኝ — ወዲያውኑ እጽፈዋለሁ።\n\n"
-            "ከጽሑፍ በኋላ ማድረግ የሚችሉት:\n"
+            "ከተቀየረ በኋላ ማድረግ የሚችሉት:\n"
             "• ማጠቃለያ — አጭር ማጠቃለያ ያግኙ\n"
             "• እንደ ፋይል ያስቀምጡ — በ .txt ወይም .srt (ንዑስ ጽሑፍ) ያውርዱ\n\n"
             "ብዙ ተናጋሪዎች በራስ-ሰር ይታወቃሉ።\n\n"
@@ -263,7 +263,7 @@ _STRINGS: dict[str, dict[str, str]] = {
     "transcribing": {
         "en": "Transcribing...",
         "ru": "Расшифровываю...",
-        "hi": "ट्रांसक्राइब कर रहा हूँ...",
+        "hi": "ट्रांसक्राइब हो रहा है...",
         "id": "Sedang mentranskripsikan...",
         "pt": "Transcrevendo...",
         "uk": "Транскрибую...",
@@ -274,7 +274,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "es": "Transcribiendo...",
         "fr": "Transcription en cours...",
         "uz": "Matn shaklida yozilmoqda...",
-        "am": "በመጻፍ ላይ...",
+        "am": "ወደ ጽሑፍ በመቀየር ላይ...",
         "ko": "텍스트 변환 중...",
     },
     # File too large (20 MB limit)
@@ -362,7 +362,7 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Intenta comprimir o recortar el archivo antes de enviarlo."
         ),
         "fr": (
-            "Ce fichier est trop volumineux à télécharger. "
+            "Ce fichier est trop volumineux pour être téléchargé. "
             "Telegram limite les téléchargements de bots à 20 Mo.\n"
             "Les messages vocaux et notes vidéo sont compressés "
             "par Telegram et fonctionnent généralement bien.\n"
@@ -448,7 +448,7 @@ _STRINGS: dict[str, dict[str, str]] = {
     "extraction_failed": {
         "en": "Could not extract audio from this video.",
         "ru": "Не удалось извлечь аудио из этого видео.",
-        "hi": "इस वीडियो से ऑडियो निकालने में विफल।",
+        "hi": "इस वीडियो से ऑडियो नहीं निकाला जा सका।",
         "id": "Tidak dapat mengekstrak audio dari video ini.",
         "pt": "Não foi possível extrair o áudio deste vídeo.",
         "uk": "Не вдалося витягти аудіо з цього відео.",
@@ -469,7 +469,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "hi": "यह ट्रांसक्रिप्शन समाप्त हो गया है।",
         "id": "Transkripsi ini telah kedaluwarsa.",
         "pt": "Esta transcrição expirou.",
-        "uk": "Ця транскрипція закінчилася.",
+        "uk": "Ця розшифровка більше недоступна.",
         "ar": "انتهت صلاحية هذا التحويل النصي.",
         "fa": "این رونویسی منقضی شده است.",
         "de": "Diese Transkription ist abgelaufen.",
@@ -506,7 +506,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "id": "Data tingkat kata tidak tersedia untuk ekspor SRT. Coba simpan sebagai .txt.",
         "pt": "Dados por palavra não disponíveis para exportação SRT. Tente salvar como .txt.",
         "uk": "Дані на рівні слів недоступні для експорту SRT. Спробуйте зберегти як .txt.",
-        "ar": "بيانات مستوى الكلمة غير متاحة لتصدير SRT. جرب الحفظ كـ .txt.",
+        "ar": "بيانات التوقيت للكلمات غير متاحة لإنشاء ملف SRT. جرب الحفظ كـ .txt.",
         "fa": "داده‌های سطح کلمه برای صادرات SRT در دسترس نیست. به‌جای آن به‌صورت .txt ذخیره کنید.",
         "de": "Wort-Daten für SRT-Export nicht verfügbar. Versuchen Sie .txt.",
         "tr": "SRT dışa aktarımı için kelime düzeyi veri mevcut değil. .txt olarak kaydetmeyi deneyin.",
@@ -520,11 +520,11 @@ _STRINGS: dict[str, dict[str, str]] = {
     "srt_no_timed": {
         "en": "Could not generate subtitles — no timed words found. Try saving as .txt instead.",
         "ru": "Не удалось создать субтитры — не найдены слова с временными метками. Попробуйте .txt.",
-        "hi": "सबटाइटल बनाने में विफल — समयबद्ध शब्द नहीं मिले। .txt में सेव करें।",
+        "hi": "सबटाइटल नहीं बनाए जा सके — समयबद्ध शब्द नहीं मिले। .txt में सेव करें।",
         "id": "Tidak dapat membuat subtitle — tidak ditemukan kata bertanda waktu. Coba .txt.",
         "pt": "Não foi possível gerar legendas — palavras com marcação temporal não encontradas. Tente .txt.",
         "uk": "Не вдалося створити субтитри — не знайдено слів з часовими мітками. Спробуйте .txt.",
-        "ar": "تعذر إنشاء الترجمات — لم يتم العثور على كلمات مؤقتة. جرب .txt.",
+        "ar": "تعذر إنشاء ملف الترجمة — لم يتم العثور على كلمات ذات توقيت. جرب .txt.",
         "fa": "ساخت زیرنویس ممکن نشد — کلمات زمان‌بندی شده یافت نشد. .txt را امتحان کنید.",
         "de": "Untertitel konnten nicht erstellt werden — keine Zeitstempel gefunden. Versuchen Sie .txt.",
         "tr": "Altyazı oluşturulamadı — zamanlı kelime bulunamadı. .txt olarak deneyin.",
@@ -581,7 +581,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ar": (
             "إحصائياتك:\n"
             "التحويلات: {transcriptions}\n"
-            "إجمالي الصوت: {duration}\n"
+            "إجمالي مدة الصوت: {duration}\n"
             "أول استخدام: {first_used}\n"
             "آخر استخدام: {last_used}"
         ),
