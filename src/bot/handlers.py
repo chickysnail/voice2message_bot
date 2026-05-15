@@ -50,12 +50,28 @@ GREETING_MESSAGES = {
 
 HELP_MESSAGES = {
     "en": (
-        "Send me a voice message, audio file, or video note.\n"
-        "I'll transcribe it immediately, then you can choose to summarize it."
+        "🎙 Send me a voice message, audio file, video note, "
+        "or video — I'll transcribe it right away.\n\n"
+        "After transcription you can:\n"
+        "• Summarize — get a short summary\n"
+        "• Save as file — download as .txt or .srt (subtitles)\n\n"
+        "Multiple speakers are detected automatically.\n\n"
+        "Commands:\n"
+        "/start — welcome message\n"
+        "/help — this message\n"
+        "/stats — your usage statistics"
     ),
     "ru": (
-        "Отправьте мне голосовое сообщение, аудиофайл или видеозаметку.\n"
-        "Я сразу сделаю расшифровку, после чего вы сможете получить краткое содержание."
+        "🎙 Отправьте мне голосовое сообщение, аудиофайл, "
+        "видеозаметку или видео — я сразу сделаю расшифровку.\n\n"
+        "После расшифровки вы можете:\n"
+        "• Краткое содержание — получить сводку\n"
+        "• Сохранить как файл — скачать в .txt или .srt (субтитры)\n\n"
+        "Несколько говорящих распознаются автоматически.\n\n"
+        "Команды:\n"
+        "/start — приветствие\n"
+        "/help — эта справка\n"
+        "/stats — ваша статистика использования"
     ),
 }
 
