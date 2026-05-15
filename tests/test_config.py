@@ -12,6 +12,16 @@ def test_parse_admin_ids_from_string() -> None:
     assert settings.admin_user_ids == [123, 456, 789]
 
 
+def test_parse_admin_ids_from_int() -> None:
+    settings = Settings(
+        telegram_bot_token="tok",
+        elevenlabs_api_key="elk",
+        openai_api_key="oai",
+        admin_user_ids=123456789,  # type: ignore[arg-type]
+    )
+    assert settings.admin_user_ids == [123456789]
+
+
 def test_parse_empty_admin_ids() -> None:
     settings = Settings(
         telegram_bot_token="tok",
