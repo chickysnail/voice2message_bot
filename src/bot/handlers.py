@@ -18,6 +18,7 @@ from src.bot.keyboards import (
     file_format_keyboard,
     post_transcription_keyboard,
 )
+from src.bot.locales import t
 from src.bot.services.audio import extract_audio, get_audio_duration
 from src.bot.services.export import generate_srt, generate_txt
 from src.bot.services.notifier import AdminNotifier
@@ -28,52 +29,6 @@ from src.bot.storage.transcription_store import TranscriptionStore
 from src.bot.utils.text import format_duration, split_message
 
 logger = logging.getLogger(__name__)
-
-GREETING_MESSAGES = {
-    "en": (
-        "Welcome {user}! Send me a voice message, audio file, or video note "
-        "and I'll transcribe it for you."
-    ),
-    "ru": (
-        "Добро пожаловать {user}! Отправьте мне голосовое сообщение, аудиофайл "
-        "или видеозаметку, и я сделаю расшифровку."
-    ),
-    "es": (
-        "¡Bienvenido {user}! Envíame un mensaje de voz, archivo de audio o "
-        "nota de video y lo transcribiré para ti."
-    ),
-    "de": (
-        "Willkommen {user}! Senden Sie mir eine Sprachnachricht, Audiodatei "
-        "oder Videonachricht und ich werde sie transkribieren."
-    ),
-}
-
-HELP_MESSAGES = {
-    "en": (
-        "🎙 Send me a voice message, audio file, video note, "
-        "or video — I'll transcribe it right away.\n\n"
-        "After transcription you can:\n"
-        "• Summarize — get a short summary\n"
-        "• Save as file — download as .txt or .srt (subtitles)\n\n"
-        "Multiple speakers are detected automatically.\n\n"
-        "Commands:\n"
-        "/start — welcome message\n"
-        "/help — this message\n"
-        "/stats — your usage statistics"
-    ),
-    "ru": (
-        "🎙 Отправьте мне голосовое сообщение, аудиофайл, "
-        "видеозаметку или видео — я сразу сделаю расшифровку.\n\n"
-        "После расшифровки вы можете:\n"
-        "• Краткое содержание — получить сводку\n"
-        "• Сохранить как файл — скачать в .txt или .srt (субтитры)\n\n"
-        "Несколько говорящих распознаются автоматически.\n\n"
-        "Команды:\n"
-        "/start — приветствие\n"
-        "/help — эта справка\n"
-        "/stats — ваша статистика использования"
-    ),
-}
 
 
 class BotHandlers:
@@ -99,9 +54,8 @@ class BotHandlers:
         if not update.message or not update.effective_user:
             return
         lang = update.effective_user.language_code or "en"
-        greeting = GREETING_MESSAGES.get(lang, GREETING_MESSAGES["en"])
         await update.message.reply_text(
-            greeting.format(user=update.effective_user.mention_html()),
+            t("greeting", lang, user=update.effective_user.mention_html()),
             parse_mode=ParseMode.HTML,
         )
 
@@ -115,8 +69,7 @@ class BotHandlers:
             if update.effective_user
             else "en"
         ) or "en"
-        msg = HELP_MESSAGES.get(lang, HELP_MESSAGES["en"])
-        await update.message.reply_text(msg)
+        await update.message.reply_text(t("help", lang))
 
     async def handle_audio(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -162,11 +115,13 @@ class BotHandlers:
             return
 
         # Check duration limit
+        lang = user.language_code or "en"
+
         if duration and duration > self._max_audio_duration:
             max_min = self._max_audio_duration // 60
             await message.reply_text(
-                f"This audio is too long ({format_duration(duration)}). "
-                f"Max supported duration is {max_min} minutes."
+                t("audio_too_long", lang,
+                  duration=format_duration(duration), max_min=max_min)
             )
             await self._notifier.notify_error(
                 "Audio too long",
@@ -179,7 +134,7 @@ class BotHandlers:
             return
 
         # Send a "processing" message
-        processing_msg = await message.reply_text("Transcribing...")
+        processing_msg = await message.reply_text(t("transcribing", lang))
 
         file_path: str | None = None
         audio_path: str | None = None
@@ -190,14 +145,7 @@ class BotHandlers:
             except BadRequest as e:
                 if "file is too big" in str(e).lower():
                     await processing_msg.edit_text(
-                        "This file is too large to download. "
-                        "Telegram limits bot file downloads to 20 MB.\n"
-                        "Voice messages and video notes are compressed "
-                        "by Telegram and usually work fine \u2014 this limit "
-                        "mainly affects large audio/video files sent "
-                        "as attachments.\n"
-                        "You can try compressing or trimming the file "
-                        "before sending."
+                        t("file_too_large", lang)
                     )
                     await self._notifier.notify_error(
                         "File too large",
@@ -215,7 +163,7 @@ class BotHandlers:
                 try:
                     audio_path = await extract_audio(file_path)
                 except RuntimeError as e:
-                    await processing_msg.edit_text("Could not extract audio from this video.")
+                    await processing_msg.edit_text(t("extraction_failed", lang))
                     await self._notifier.notify_error(
                         "Audio extraction failed",
                         username=user.username,
@@ -236,8 +184,9 @@ class BotHandlers:
                     if duration > self._max_audio_duration:
                         max_min = self._max_audio_duration // 60
                         await processing_msg.edit_text(
-                            f"This audio is too long ({format_duration(duration)}). "
-                            f"Max supported duration is {max_min} minutes."
+                            t("audio_too_long", lang,
+                              duration=format_duration(duration),
+                              max_min=max_min)
                         )
                         await self._notifier.notify_error(
                             "Audio too long",
@@ -256,8 +205,7 @@ class BotHandlers:
                 )
             except EmptyTranscriptionError as e:
                 await processing_msg.edit_text(
-                    "No speech was detected in this audio. "
-                    "The recording may be silent or too short."
+                    t("no_speech", lang)
                 )
                 await self._notifier.notify_error(
                     "Transcription failed",
@@ -271,8 +219,7 @@ class BotHandlers:
                 return
             except RuntimeError as e:
                 await processing_msg.edit_text(
-                    "Something went wrong on our end. "
-                    "Please try again later."
+                    t("something_went_wrong", lang)
                 )
                 await self._notifier.notify_error(
                     "Transcription failed",
@@ -321,7 +268,7 @@ class BotHandlers:
             logger.exception("Unexpected error processing audio for user %d", user.id)
             try:
                 await processing_msg.edit_text(
-                    "Something went wrong. Please try again later."
+                    t("something_went_wrong", lang)
                 )
             except Exception:
                 pass
@@ -383,11 +330,13 @@ class BotHandlers:
         assert isinstance(query, CallbackQuery)
         assert isinstance(user, User)
 
+        lang = user.language_code or "en"
+
         transcript = self._store.get(user.id, original_message_id)
         if transcript is None:
             await query.edit_message_reply_markup(reply_markup=None)
             if query.message:
-                await query.message.reply_text("This transcription has expired.")
+                await query.message.reply_text(t("transcription_expired", lang))
             return
 
         await query.edit_message_reply_markup(reply_markup=None)
@@ -397,8 +346,7 @@ class BotHandlers:
         except RuntimeError as e:
             if query.message:
                 await query.message.reply_text(
-                    "Something went wrong on our end. "
-                    "Please try again later."
+                    t("something_went_wrong", lang)
                 )
             await self._notifier.notify_error(
                 "Summarization failed",
@@ -428,11 +376,13 @@ class BotHandlers:
         assert isinstance(query, CallbackQuery)
         assert isinstance(user, User)
 
+        lang = user.language_code or "en"
+
         transcript = self._store.get(user.id, original_message_id)
         if transcript is None:
             await query.edit_message_reply_markup(reply_markup=None)
             if query.message:
-                await query.message.reply_text("This transcription has expired.")
+                await query.message.reply_text(t("transcription_expired", lang))
             return
 
         await query.edit_message_reply_markup(
@@ -452,11 +402,13 @@ class BotHandlers:
         assert isinstance(query, CallbackQuery)
         assert isinstance(user, User)
 
+        lang = user.language_code or "en"
+
         transcript = self._store.get(user.id, original_message_id)
         if transcript is None:
             await query.edit_message_reply_markup(reply_markup=None)
             if query.message:
-                await query.message.reply_text("This transcription has expired.")
+                await query.message.reply_text(t("transcription_expired", lang))
             return
 
         await query.edit_message_reply_markup(reply_markup=None)
@@ -469,16 +421,14 @@ class BotHandlers:
             if not words:
                 if query.message:
                     await query.message.reply_text(
-                        "Word-level data is not available for SRT export. "
-                        "Try saving as .txt instead."
+                        t("srt_no_words", lang)
                     )
                 return
             content = generate_srt(words)
             if not content:
                 if query.message:
                     await query.message.reply_text(
-                        "Could not generate subtitles — no timed words found. "
-                        "Try saving as .txt instead."
+                        t("srt_no_timed", lang)
                     )
                 return
             filename = "transcription.srt"
@@ -506,18 +456,20 @@ class BotHandlers:
             user.username, user.id, self._admin_ids, user.id in self._admin_ids,
         )
 
+        lang = user.language_code or "en"
+
         stats = await self._stats_db.get_user_stats(user.id)
         if stats is None:
-            await update.message.reply_text("No usage recorded yet.")
+            await update.message.reply_text(t("no_usage", lang))
             return
 
         transcriptions, total_duration, first_used, last_used = stats
         await update.message.reply_text(
-            f"Your stats:\n"
-            f"Transcriptions: {transcriptions}\n"
-            f"Total audio: {format_duration(total_duration)}\n"
-            f"First used: {first_used}\n"
-            f"Last used: {last_used}"
+            t("your_stats", lang,
+              transcriptions=transcriptions,
+              duration=format_duration(total_duration),
+              first_used=first_used,
+              last_used=last_used)
         )
 
         # Admin: show all users + error stats
