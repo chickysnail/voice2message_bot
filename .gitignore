@@ -1,39 +1,44 @@
-# Rust
-target/
-Cargo.lock
-**/*.rs.bk
-*.pdb
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
 
-# Environment
-.env
-
-# Logs
-logs/
-*.log
+# Virtual environment
+.venv/
+venv/
+env/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
+
+# Environment
+.env
+config.ini
+
+# Database (local dev)
+*.db
+
+# Logs
+*.log
+
+# Temp files
+user_files/
+audios/
+tmp/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Temporary files
-/tmp/
-*.tmp
-
-# Old Python files (legacy)
-.config
-config.ini
-audios
-voice2message_bot.log
-TODO.txt
-__pycache__
-user_files
-statistics.db
-utils/test_split_message.py
-utils/users_notifier.py
+# Test / Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
