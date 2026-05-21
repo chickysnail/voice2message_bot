@@ -1,6 +1,8 @@
 import logging
+from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 
+from aiohttp import web
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -34,13 +36,36 @@ def setup_logging(level: str) -> None:
     logging.getLogger("telegram").setLevel(logging.WARNING)
 
 
+async def health_handler(request: web.Request) -> web.Response:
+    """Health check endpoint — returns 200 if the event loop is alive."""
+    return web.Response(text="ok")
+
+
+async def run_health_server(port: int) -> web.AppRunner:
+    """Start a minimal HTTP server for health checks."""
+    app = web.Application()
+    app.router.add_get("/health", health_handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logger.info("Health check server running on port %d", port)
+    return runner
+
+
 def main() -> None:
     settings = Settings()  # type: ignore[call-arg]
     setup_logging(settings.log_level)
 
     # Build services
-    transcriber = ElevenLabsTranscriber(settings.elevenlabs_api_key)
-    summarizer = OpenAISummarizer(settings.openai_api_key)
+    transcriber = ElevenLabsTranscriber(
+        settings.elevenlabs_api_key,
+        timeout=settings.transcription_timeout,
+    )
+    summarizer = OpenAISummarizer(
+        settings.openai_api_key,
+        timeout=settings.summarization_timeout,
+    )
     store = TranscriptionStore(ttl_seconds=settings.transcription_ttl)
     stats_db = StatisticsDB(settings.database_path)
 
@@ -56,6 +81,9 @@ def main() -> None:
         store=store,
         stats_db=stats_db,
         max_audio_duration=settings.max_audio_duration,
+        transcription_timeout=settings.transcription_timeout,
+        ffmpeg_timeout=settings.ffmpeg_timeout,
+        file_download_timeout=settings.file_download_timeout,
     )
 
     # Register handlers
@@ -74,12 +102,34 @@ def main() -> None:
     application.add_handler(MessageHandler(audio_filter, handlers.handle_audio))
     application.add_handler(CallbackQueryHandler(handlers.handle_callback))
 
-    # Initialize DB on startup
+    health_runner: web.AppRunner | None = None
+
     async def post_init(app: Application) -> None:  # type: ignore[type-arg]
+        nonlocal health_runner
         await stats_db.initialize()
+
+        # Start health check server
+        health_runner = await run_health_server(settings.health_port)
+
+        # Notify admins that bot has (re)started
+        now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+        for admin_id in settings.admin_user_ids:
+            try:
+                await app.bot.send_message(
+                    chat_id=admin_id,
+                    text=f"\U0001f7e2 Bot started at {now}",
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to send startup notification to admin %d",
+                    admin_id,
+                )
+
         logger.info("Bot started. Admin IDs: %s", settings.admin_user_ids)
 
     async def post_shutdown(app: Application) -> None:  # type: ignore[type-arg]
+        if health_runner:
+            await health_runner.cleanup()
         await stats_db.close()
 
     application.post_init = post_init

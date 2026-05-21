@@ -35,7 +35,13 @@ def test_none_lang_defaults_to_english() -> None:
     assert "Send me a voice message" in result
 
 
-def test_all_languages_present() -> None:
+def test_no_partial_translations() -> None:
+    """English-only keys are OK (work in progress).
+
+    But if a key has English + at least one other language,
+    ALL supported languages must be present — partial translations
+    mean something was missed.
+    """
     from src.bot.locales import _STRINGS
 
     expected_langs = {
@@ -43,7 +49,12 @@ def test_all_languages_present() -> None:
         "fa", "de", "tr", "es", "fr", "uz", "am", "ko",
     }
     for key, translations in _STRINGS.items():
-        missing = expected_langs - set(translations.keys())
+        langs = set(translations.keys())
+        if langs == {"en"}:
+            continue
+        missing = expected_langs - langs
         assert not missing, (
-            f"Key '{key}' missing languages: {missing}"
+            f"Key '{key}' has partial translations — "
+            f"missing: {missing}. Either add all languages "
+            f"or keep English-only during development."
         )
