@@ -22,8 +22,12 @@ class SummarizationClient(Protocol):
 class OpenAISummarizer:
     """Summarization service using OpenAI GPT-4o-mini."""
 
-    def __init__(self, api_key: str) -> None:
-        self._client = openai.OpenAI(api_key=api_key)
+    def __init__(
+        self, api_key: str, *, timeout: int = 60
+    ) -> None:
+        self._client = openai.OpenAI(
+            api_key=api_key, timeout=timeout
+        )
 
     def summarize(self, text: str) -> str:
         """Summarize a transcript and return the result.

@@ -6,7 +6,9 @@ import tempfile
 logger = logging.getLogger(__name__)
 
 
-async def extract_audio(video_path: str) -> str:
+async def extract_audio(
+    video_path: str, *, timeout: int = 120
+) -> str:
     """Extract audio from a video file using ffmpeg.
 
     Returns the path to the extracted audio file (.ogg).
@@ -27,7 +29,17 @@ async def extract_audio(video_path: str) -> str:
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    _, stderr = await process.communicate()
+    try:
+        _, stderr = await asyncio.wait_for(
+            process.communicate(), timeout=timeout
+        )
+    except TimeoutError:
+        process.kill()
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
+        raise RuntimeError(
+            f"ffmpeg timed out after {timeout}s"
+        )
 
     if process.returncode != 0:
         if os.path.exists(audio_path):
@@ -46,7 +58,9 @@ async def extract_audio(video_path: str) -> str:
     return audio_path
 
 
-async def get_audio_duration(file_path: str) -> float | None:
+async def get_audio_duration(
+    file_path: str, *, timeout: int = 30
+) -> float | None:
     """Get duration of an audio/video file in seconds using ffprobe.
 
     Returns None if duration cannot be determined.
@@ -63,7 +77,13 @@ async def get_audio_duration(file_path: str) -> float | None:
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    stdout, _ = await process.communicate()
+    try:
+        stdout, _ = await asyncio.wait_for(
+            process.communicate(), timeout=timeout
+        )
+    except TimeoutError:
+        process.kill()
+        return None
 
     if process.returncode != 0:
         return None
