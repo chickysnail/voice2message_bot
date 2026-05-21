@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 
 from aiohttp import web
+from telegram import Update
 from telegram.ext import (
     Application,
     BusinessConnectionHandler,
@@ -171,7 +172,7 @@ def main() -> None:
     application.post_shutdown = post_shutdown
 
     logger.info("Starting bot...")
-    application.run_polling()
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":
