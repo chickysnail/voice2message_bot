@@ -153,7 +153,7 @@ class BotHandlers:
                 )
             except TimeoutError:
                 await processing_msg.edit_text(
-                    t("something_went_wrong", lang)
+                    t("download_timeout", lang)
                 )
                 await self._notifier.notify_error(
                     "File download timeout",
@@ -189,7 +189,7 @@ class BotHandlers:
                 )
             except TimeoutError:
                 await processing_msg.edit_text(
-                    t("something_went_wrong", lang)
+                    t("download_timeout", lang)
                 )
                 await self._notifier.notify_error(
                     "File download timeout",
@@ -212,7 +212,12 @@ class BotHandlers:
                         file_path, timeout=self._ffmpeg_timeout
                     )
                 except RuntimeError as e:
-                    await processing_msg.edit_text(t("extraction_failed", lang))
+                    msg_key = (
+                        "video_timeout"
+                        if "timed out" in str(e).lower()
+                        else "extraction_failed"
+                    )
+                    await processing_msg.edit_text(t(msg_key, lang))
                     await self._notifier.notify_error(
                         "Audio extraction failed",
                         username=user.username,
@@ -247,58 +252,72 @@ class BotHandlers:
                         )
                         return
 
-            # Transcribe (run in thread to avoid blocking the event loop)
-            try:
-                transcript = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        self._transcriber.transcribe, audio_path
-                    ),
-                    timeout=self._transcription_timeout,
-                )
-            except TimeoutError:
-                await processing_msg.edit_text(
-                    t("something_went_wrong", lang)
-                )
-                await self._notifier.notify_error(
-                    "Transcription timeout",
-                    username=user.username,
-                    error_detail=(
+            # Transcribe (with one automatic retry on timeout)
+            transcript = None
+            for attempt in range(2):
+                try:
+                    transcript = await asyncio.wait_for(
+                        asyncio.to_thread(
+                            self._transcriber.transcribe, audio_path
+                        ),
+                        timeout=self._transcription_timeout,
+                    )
+                    break
+                except TimeoutError:
+                    if attempt == 0:
+                        logger.warning(
+                            "Transcription timed out for user %s, retrying",
+                            user.username,
+                        )
+                        continue
+                    await processing_msg.edit_text(
+                        t("transcription_timeout", lang)
+                    )
+                    await self._notifier.notify_error(
+                        "Transcription timeout",
+                        username=user.username,
+                        error_detail=(
+                            "Timed out after "
+                            f"{self._transcription_timeout}s "
+                            "(2 attempts)"
+                        ),
+                        audio_duration=duration,
+                    )
+                    await self._stats_db.record_error(
+                        "Transcription timeout", user.username,
                         f"Timed out after {self._transcription_timeout}s"
-                    ),
-                    audio_duration=duration,
-                )
-                await self._stats_db.record_error(
-                    "Transcription timeout", user.username,
-                    f"Timed out after {self._transcription_timeout}s",
-                )
-                return
-            except EmptyTranscriptionError as e:
-                await processing_msg.edit_text(
-                    t("no_speech", lang)
-                )
-                await self._notifier.notify_error(
-                    "Transcription failed",
-                    username=user.username,
-                    error_detail=str(e),
-                    audio_duration=duration,
-                )
-                await self._stats_db.record_error(
-                    "Transcription (empty)", user.username, str(e)
-                )
-                return
-            except RuntimeError as e:
-                await processing_msg.edit_text(
-                    t("something_went_wrong", lang)
-                )
-                await self._notifier.notify_error(
-                    "Transcription failed",
-                    username=user.username,
-                    error_detail=str(e),
-                    audio_duration=duration,
-                )
-                await self._stats_db.record_error(
-                    "Transcription", user.username, str(e)
-                )
+                        " (2 attempts)",
+                    )
+                    return
+                except EmptyTranscriptionError as e:
+                    await processing_msg.edit_text(
+                        t("no_speech", lang)
+                    )
+                    await self._notifier.notify_error(
+                        "Transcription failed",
+                        username=user.username,
+                        error_detail=str(e),
+                        audio_duration=duration,
+                    )
+                    await self._stats_db.record_error(
+                        "Transcription (empty)", user.username, str(e)
+                    )
+                    return
+                except RuntimeError as e:
+                    await processing_msg.edit_text(
+                        t("something_went_wrong", lang)
+                    )
+                    await self._notifier.notify_error(
+                        "Transcription failed",
+                        username=user.username,
+                        error_detail=str(e),
+                        audio_duration=duration,
+                    )
+                    await self._stats_db.record_error(
+                        "Transcription", user.username, str(e)
+                    )
+                    return
+            if transcript is None:
                 return
 
             # Store the transcription for later actions (summarize, export)
