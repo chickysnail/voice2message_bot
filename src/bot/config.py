@@ -12,6 +12,13 @@ class Settings(BaseSettings):
     max_audio_duration: int = 3600
     transcription_ttl: int = 600
     log_level: str = "INFO"
+    health_port: int = 8080
+
+    # Timeouts in seconds
+    transcription_timeout: int = 900  # 15 min (long audio can take a while)
+    summarization_timeout: int = 60
+    ffmpeg_timeout: int = 120
+    file_download_timeout: int = 60
 
     @field_validator("admin_user_ids", mode="before")
     @classmethod

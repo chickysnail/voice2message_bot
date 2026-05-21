@@ -94,8 +94,11 @@ def format_diarized_transcript(
 class ElevenLabsTranscriber:
     """Transcription service using ElevenLabs Scribe v2."""
 
-    def __init__(self, api_key: str) -> None:
-        self._client = ElevenLabs(api_key=api_key)
+    def __init__(
+        self, api_key: str, *, timeout: int = 900
+    ) -> None:
+        self._client = ElevenLabs(api_key=api_key, timeout=timeout)
+        self._timeout = timeout
 
     def transcribe(self, file_path: str) -> TranscriptionResult:
         """Transcribe an audio file and return text + word-level data.
