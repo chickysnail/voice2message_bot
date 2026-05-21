@@ -5,6 +5,7 @@ from logging.handlers import RotatingFileHandler
 from aiohttp import web
 from telegram.ext import (
     Application,
+    BusinessConnectionHandler,
     CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
@@ -13,6 +14,7 @@ from telegram.ext import (
 
 from src.bot.config import Settings
 from src.bot.handlers import BotHandlers
+from src.bot.secretary import SecretaryHandler
 from src.bot.services.notifier import AdminNotifier
 from src.bot.services.summarization import OpenAISummarizer
 from src.bot.services.transcription import ElevenLabsTranscriber
@@ -86,11 +88,23 @@ def main() -> None:
         file_download_timeout=settings.file_download_timeout,
     )
 
+    secretary = SecretaryHandler(
+        transcriber=transcriber,
+        notifier=notifier,
+        store=store,
+        stats_db=stats_db,
+        max_audio_duration=settings.max_audio_duration,
+        transcription_timeout=settings.transcription_timeout,
+        ffmpeg_timeout=settings.ffmpeg_timeout,
+        file_download_timeout=settings.file_download_timeout,
+    )
+
     # Register handlers
     application.add_handler(CommandHandler("start", handlers.start))
     application.add_handler(CommandHandler("help", handlers.help_command))
     application.add_handler(CommandHandler("stats", handlers.stats_command))
     application.add_handler(CommandHandler("logs", handlers.logs_command))
+    application.add_handler(CommandHandler("secretary", handlers.secretary_command))
 
     audio_filter = (
         filters.VOICE
@@ -101,6 +115,23 @@ def main() -> None:
     )
     application.add_handler(MessageHandler(audio_filter, handlers.handle_audio))
     application.add_handler(CallbackQueryHandler(handlers.handle_callback))
+
+    # Secretary (business) handlers
+    application.add_handler(
+        BusinessConnectionHandler(secretary.handle_business_connection)
+    )
+    business_audio_filter = (
+        filters.VOICE | filters.VIDEO_NOTE
+    ) & filters.UpdateType.BUSINESS_MESSAGE
+    application.add_handler(
+        MessageHandler(business_audio_filter, secretary.handle_business_message)
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            secretary.handle_transcribe_callback,
+            pattern=r"^sec_transcribe:",
+        )
+    )
 
     health_runner: web.AppRunner | None = None
 

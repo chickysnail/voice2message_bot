@@ -532,6 +532,29 @@ class BotHandlers:
             "Exported %s for user %s (%d)", filename, user.username, user.id
         )
 
+    async def secretary_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle /secretary command — switch between auto and manual mode."""
+        if not update.message or not update.effective_user:
+            return
+
+        user = update.effective_user
+        lang = user.language_code or "en"
+        args = context.args
+
+        if args and args[0] in ("auto", "manual"):
+            new_mode = args[0]
+            await self._stats_db.set_secretary_mode(user.id, new_mode)
+            await update.message.reply_text(
+                t("secretary_mode_set", lang, mode=new_mode)
+            )
+        else:
+            current = await self._stats_db.get_secretary_mode(user.id)
+            await update.message.reply_text(
+                t("secretary_mode_current", lang, mode=current)
+            )
+
     async def stats_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
@@ -546,30 +569,99 @@ class BotHandlers:
 
         lang = user.language_code or "en"
 
-        stats = await self._stats_db.get_user_stats(user.id)
-        if stats is None:
+        direct = await self._stats_db.get_user_stats(user.id)
+        sec = await self._stats_db.get_secretary_stats(user.id)
+
+        if direct is None and sec is None:
             await update.message.reply_text(t("no_usage", lang))
             return
 
-        transcriptions, total_duration, first_used, last_used = stats
-        await update.message.reply_text(
-            t("your_stats", lang,
-              transcriptions=transcriptions,
-              duration=format_duration(total_duration),
-              first_used=first_used,
-              last_used=last_used)
+        lines: list[str] = []
+        total_t = 0
+        total_d = 0
+        first_used = None
+        last_used = None
+
+        if direct:
+            dt, dd, df, dl = direct
+            total_t += dt
+            total_d += dd
+            first_used = df
+            last_used = dl
+            lines.append(
+                t("stats_direct", lang,
+                  transcriptions=dt, duration=format_duration(dd))
+            )
+
+        if sec:
+            st, sd, sf, sl = sec
+            total_t += st
+            total_d += sd
+            if first_used is None or (sf and sf < first_used):
+                first_used = sf
+            if last_used is None or (sl and sl > last_used):
+                last_used = sl
+            lines.append(
+                t("stats_secretary", lang,
+                  transcriptions=st, duration=format_duration(sd))
+            )
+
+        lines.append(
+            t("stats_total", lang,
+              transcriptions=total_t, duration=format_duration(total_d))
         )
+        lines.append(
+            t("stats_dates", lang,
+              first_used=first_used or "—", last_used=last_used or "—")
+        )
+
+        await update.message.reply_text("\n".join(lines))
 
         # Admin: show all users + error stats
         if user.id in self._admin_ids:
-            all_stats = await self._stats_db.get_all_stats()
-            if all_stats:
-                lines = ["All users:"]
-                for uid, uname, count, dur, _, last in all_stats:
-                    lines.append(
-                        f"@{uname or uid} | {count} msgs | {format_duration(dur)} | last: {last}"
-                    )
-                await update.message.reply_text("\n".join(lines))
+            all_direct = await self._stats_db.get_all_stats()
+            all_sec = await self._stats_db.get_all_secretary_stats()
+
+            # Build combined per-user stats
+            user_data: dict[int, dict[str, object]] = {}
+            for uid, uname, count, dur, _, last in all_direct:
+                user_data[uid] = {
+                    "name": uname, "d_count": count, "d_dur": dur,
+                    "s_count": 0, "s_dur": 0, "last": last,
+                }
+            for uid, uname, count, dur, _, last in all_sec:
+                if uid in user_data:
+                    entry = user_data[uid]
+                    entry["s_count"] = count
+                    entry["s_dur"] = dur
+                    if last and (not entry["last"] or last > entry["last"]):  # type: ignore[operator]
+                        entry["last"] = last
+                else:
+                    user_data[uid] = {
+                        "name": uname, "d_count": 0, "d_dur": 0,
+                        "s_count": count, "s_dur": dur, "last": last,
+                    }
+
+            if user_data:
+                admin_lines = ["All users:"]
+                for uid, d in sorted(
+                    user_data.items(),
+                    key=lambda x: x[1]["last"] or "",  # type: ignore[arg-type]
+                    reverse=True,
+                ):
+                    name = d["name"] or uid
+                    d_count = d["d_count"]
+                    s_count = d["s_count"]
+                    total = int(d_count) + int(s_count)  # type: ignore[arg-type]
+                    total_dur = int(d["d_dur"]) + int(d["s_dur"])  # type: ignore[arg-type]
+                    parts = [f"@{name} | {total} msgs | {format_duration(total_dur)}"]
+                    if int(d_count) > 0 and int(s_count) > 0:  # type: ignore[arg-type]
+                        parts.append(f"(D:{d_count} S:{s_count})")
+                    elif int(s_count) > 0:  # type: ignore[arg-type]
+                        parts.append("(S)")
+                    parts.append(f"| last: {d['last']}")
+                    admin_lines.append(" ".join(parts))
+                await update.message.reply_text("\n".join(admin_lines))
             else:
                 await update.message.reply_text("No user stats found in database.")
 

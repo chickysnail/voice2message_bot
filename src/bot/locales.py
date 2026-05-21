@@ -98,7 +98,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Commands:\n"
             "/start — welcome message\n"
             "/help — this message\n"
-            "/stats — your usage statistics"
+            "/stats — your usage statistics\n"
+            "/secretary — secretary mode settings"
         ),
         "ru": (
             "🎙 Отправьте мне голосовое сообщение, аудиофайл, "
@@ -110,7 +111,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Команды:\n"
             "/start — приветствие\n"
             "/help — эта справка\n"
-            "/stats — ваша статистика использования"
+            "/stats — ваша статистика использования\n"
+            "/secretary — настройки режима секретаря"
         ),
         "hi": (
             "🎙 मुझे वॉइस मैसेज, ऑडियो फाइल, वीडियो नोट "
@@ -122,7 +124,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "कमांड:\n"
             "/start — स्वागत संदेश\n"
             "/help — यह संदेश\n"
-            "/stats — आपकी उपयोग सांख्यिकी"
+            "/stats — आपकी उपयोग सांख्यिकी\n"
+            "/secretary — सेक्रेटरी मोड सेटिंग्स"
         ),
         "id": (
             "🎙 Kirimkan pesan suara, file audio, catatan video, "
@@ -134,7 +137,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Perintah:\n"
             "/start — pesan selamat datang\n"
             "/help — pesan ini\n"
-            "/stats — statistik penggunaan Anda"
+            "/stats — statistik penggunaan Anda\n"
+            "/secretary — pengaturan mode sekretaris"
         ),
         "pt": (
             "🎙 Envie-me uma mensagem de voz, arquivo de áudio, "
@@ -146,7 +150,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Comandos:\n"
             "/start — mensagem de boas-vindas\n"
             "/help — esta mensagem\n"
-            "/stats — suas estatísticas de uso"
+            "/stats — suas estatísticas de uso\n"
+            "/secretary — configurações do modo secretário"
         ),
         "uk": (
             "🎙 Надішліть мені голосове повідомлення, аудіофайл, "
@@ -158,7 +163,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Команди:\n"
             "/start — привітання\n"
             "/help — ця довідка\n"
-            "/stats — ваша статистика використання"
+            "/stats — ваша статистика використання\n"
+            "/secretary — налаштування режиму секретаря"
         ),
         "ar": (
             "🎙 أرسل لي رسالة صوتية أو ملف صوتي أو ملاحظة فيديو "
@@ -170,7 +176,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "الأوامر:\n"
             "/start — رسالة الترحيب\n"
             "/help — هذه الرسالة\n"
-            "/stats — إحصائيات استخدامك"
+            "/stats — إحصائيات استخدامك\n"
+            "/secretary — إعدادات وضع السكرتير"
         ),
         "fa": (
             "🎙 یک پیام صوتی، فایل صوتی، یادداشت ویدیویی "
@@ -182,7 +189,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "دستورات:\n"
             "/start — پیام خوشامدگویی\n"
             "/help — این پیام\n"
-            "/stats — آمار استفاده شما"
+            "/stats — آمار استفاده شما\n"
+            "/secretary — تنظیمات حالت منشی"
         ),
         "de": (
             "🎙 Senden Sie mir eine Sprachnachricht, Audiodatei, "
@@ -194,7 +202,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Befehle:\n"
             "/start — Willkommensnachricht\n"
             "/help — diese Nachricht\n"
-            "/stats — Ihre Nutzungsstatistiken"
+            "/stats — Ihre Nutzungsstatistiken\n"
+            "/secretary — Sekretär-Modus-Einstellungen"
         ),
         "tr": (
             "🎙 Bana sesli mesaj, ses dosyası, video notu "
@@ -206,7 +215,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Komutlar:\n"
             "/start — hoş geldiniz mesajı\n"
             "/help — bu mesaj\n"
-            "/stats — kullanım istatistikleriniz"
+            "/stats — kullanım istatistikleriniz\n"
+            "/secretary — sekreter modu ayarları"
         ),
         "es": (
             "🎙 Envíame un mensaje de voz, archivo de audio, "
@@ -218,7 +228,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Comandos:\n"
             "/start — mensaje de bienvenida\n"
             "/help — este mensaje\n"
-            "/stats — tus estadísticas de uso"
+            "/stats — tus estadísticas de uso\n"
+            "/secretary — ajustes del modo secretario"
         ),
         "fr": (
             "🎙 Envoyez-moi un message vocal, un fichier audio, "
@@ -230,7 +241,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Commandes :\n"
             "/start — message de bienvenue\n"
             "/help — ce message\n"
-            "/stats — vos statistiques d'utilisation"
+            "/stats — vos statistiques d'utilisation\n"
+            "/secretary — paramètres du mode secrétaire"
         ),
         "uz": (
             "🎙 Menga ovozli xabar, audio fayl, video eslatma "
@@ -242,7 +254,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Buyruqlar:\n"
             "/start — xush kelibsiz xabari\n"
             "/help — ushbu xabar\n"
-            "/stats — foydalanish statistikasi"
+            "/stats — foydalanish statistikasi\n"
+            "/secretary — kotib rejimi sozlamalari"
         ),
         "am": (
             "🎙 የድምፅ መልእክት፣ የኦዲዮ ፋይል፣ የቪዲዮ ማስታወሻ "
@@ -254,7 +267,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "ትዕዛዞች:\n"
             "/start — የእንኳን ደህና መጡ መልእክት\n"
             "/help — ይህ መልእክት\n"
-            "/stats — የእርስዎ የአጠቃቀም ስታቲስቲክስ"
+            "/stats — የእርስዎ የአጠቃቀም ስታቲስቲክስ\n"
+            "/secretary — የጸሐፊ ሁነታ ቅንብሮች"
         ),
         "ko": (
             "🎙 음성 메시지, 오디오 파일, 비디오 노트 "
@@ -266,7 +280,8 @@ _STRINGS: dict[str, dict[str, str]] = {
             "명령어:\n"
             "/start — 환영 메시지\n"
             "/help — 이 메시지\n"
-            "/stats — 사용 통계"
+            "/stats — 사용 통계\n"
+            "/secretary — 비서 모드 설정"
         ),
     },
     # "Transcribing..." processing message
@@ -687,6 +702,151 @@ _STRINGS: dict[str, dict[str, str]] = {
         "uz": "Faylni Telegramdan yuklab bo'lmadi. Uni qayta yuborib ko'ring.",
         "am": "ፋይሉን ከ Telegram ማውረድ አልተቻለም። እባክዎ እንደገና ይላኩት።",
         "ko": "Telegram에서 파일을 다운로드할 수 없습니다. 다시 보내 보세요.",
+    },
+    # --- Secretary mode ---
+    # Prefix for secretary transcription messages
+    "secretary_prefix": {
+        "en": "📝 Transcription:",
+        "ru": "📝 Расшифровка:",
+        "hi": "📝 ट्रांसक्रिप्शन:",
+        "id": "📝 Transkripsi:",
+        "pt": "📝 Transcrição:",
+        "uk": "📝 Транскрипція:",
+        "ar": "📝 النص:",
+        "fa": "📝 رونویسی:",
+        "de": "📝 Transkription:",
+        "tr": "📝 Yazıya dökme:",
+        "es": "📝 Transcripción:",
+        "fr": "📝 Transcription :",
+        "uz": "📝 Transkripsiya:",
+        "am": "📝 ጽሑፍ:",
+        "ko": "📝 텍스트 변환:",
+    },
+    # Manual mode prompt ({duration} placeholder)
+    "secretary_manual_prompt": {
+        "en": "🎙 Voice message ({duration})",
+        "ru": "🎙 Голосовое сообщение ({duration})",
+        "hi": "🎙 वॉइस मैसेज ({duration})",
+        "id": "🎙 Pesan suara ({duration})",
+        "pt": "🎙 Mensagem de voz ({duration})",
+        "uk": "🎙 Голосове повідомлення ({duration})",
+        "ar": "🎙 رسالة صوتية ({duration})",
+        "fa": "🎙 پیام صوتی ({duration})",
+        "de": "🎙 Sprachnachricht ({duration})",
+        "tr": "🎙 Sesli mesaj ({duration})",
+        "es": "🎙 Mensaje de voz ({duration})",
+        "fr": "🎙 Message vocal ({duration})",
+        "uz": "🎙 Ovozli xabar ({duration})",
+        "am": "🎙 የድምፅ መልእክት ({duration})",
+        "ko": "🎙 음성 메시지 ({duration})",
+    },
+    # /secretary mode set ({mode} placeholder)
+    "secretary_mode_set": {
+        "en": "Secretary mode set to: {mode}",
+        "ru": "Режим секретаря установлен: {mode}",
+        "hi": "सेक्रेटरी मोड सेट किया गया: {mode}",
+        "id": "Mode sekretaris diatur ke: {mode}",
+        "pt": "Modo secretário definido para: {mode}",
+        "uk": "Режим секретаря встановлено: {mode}",
+        "ar": "تم ضبط وضع السكرتير على: {mode}",
+        "fa": "حالت منشی تنظیم شد: {mode}",
+        "de": "Sekretär-Modus eingestellt auf: {mode}",
+        "tr": "Sekreter modu ayarlandı: {mode}",
+        "es": "Modo secretario configurado: {mode}",
+        "fr": "Mode secrétaire défini sur : {mode}",
+        "uz": "Kotib rejimi o'rnatildi: {mode}",
+        "am": "የጸሐፊ ሁነታ ተቀናብሯል: {mode}",
+        "ko": "비서 모드 설정: {mode}",
+    },
+    # /secretary current mode ({mode} placeholder)
+    "secretary_mode_current": {
+        "en": "Secretary mode: {mode}\nUse /secretary auto or /secretary manual to change.",
+        "ru": "Режим секретаря: {mode}\nИспользуйте /secretary auto или /secretary manual для изменения.",
+        "hi": "सेक्रेटरी मोड: {mode}\nबदलने के लिए /secretary auto या /secretary manual का उपयोग करें।",
+        "id": "Mode sekretaris: {mode}\nGunakan /secretary auto atau /secretary manual untuk mengubah.",
+        "pt": "Modo secretário: {mode}\nUse /secretary auto ou /secretary manual para alterar.",
+        "uk": "Режим секретаря: {mode}\nВикористовуйте /secretary auto або /secretary manual для зміни.",
+        "ar": "وضع السكرتير: {mode}\nاستخدم /secretary auto أو /secretary manual للتغيير.",
+        "fa": "حالت منشی: {mode}\nبرای تغییر از /secretary auto یا /secretary manual استفاده کنید.",
+        "de": "Sekretär-Modus: {mode}\nVerwenden Sie /secretary auto oder /secretary manual zum Ändern.",
+        "tr": "Sekreter modu: {mode}\nDeğiştirmek için /secretary auto veya /secretary manual kullanın.",
+        "es": "Modo secretario: {mode}\nUsa /secretary auto o /secretary manual para cambiar.",
+        "fr": "Mode secrétaire : {mode}\nUtilisez /secretary auto ou /secretary manual pour changer.",
+        "uz": "Kotib rejimi: {mode}\nO'zgartirish uchun /secretary auto yoki /secretary manual dan foydalaning.",
+        "am": "የጸሐፊ ሁነታ: {mode}\nለመቀየር /secretary auto ወይም /secretary manual ይጠቀሙ።",
+        "ko": "비서 모드: {mode}\n변경하려면 /secretary auto 또는 /secretary manual을 사용하세요.",
+    },
+    # Stats: direct usage line
+    "stats_direct": {
+        "en": "Direct: {transcriptions} transcriptions, {duration}",
+        "ru": "Прямые: {transcriptions} расшифровок, {duration}",
+        "hi": "प्रत्यक्ष: {transcriptions} ट्रांसक्रिप्शन, {duration}",
+        "id": "Langsung: {transcriptions} transkripsi, {duration}",
+        "pt": "Direto: {transcriptions} transcrições, {duration}",
+        "uk": "Прямі: {transcriptions} транскрипцій, {duration}",
+        "ar": "مباشر: {transcriptions} تحويلات, {duration}",
+        "fa": "مستقیم: {transcriptions} رونویسی, {duration}",
+        "de": "Direkt: {transcriptions} Transkriptionen, {duration}",
+        "tr": "Doğrudan: {transcriptions} dönüştürme, {duration}",
+        "es": "Directo: {transcriptions} transcripciones, {duration}",
+        "fr": "Direct : {transcriptions} transcriptions, {duration}",
+        "uz": "To'g'ridan-to'g'ri: {transcriptions} transkripsiya, {duration}",
+        "am": "ቀጥተኛ: {transcriptions} ጽሑፎች, {duration}",
+        "ko": "직접: {transcriptions}건, {duration}",
+    },
+    # Stats: secretary usage line
+    "stats_secretary": {
+        "en": "Secretary: {transcriptions} transcriptions, {duration}",
+        "ru": "Секретарь: {transcriptions} расшифровок, {duration}",
+        "hi": "सेक्रेटरी: {transcriptions} ट्रांसक्रिप्शन, {duration}",
+        "id": "Sekretaris: {transcriptions} transkripsi, {duration}",
+        "pt": "Secretário: {transcriptions} transcrições, {duration}",
+        "uk": "Секретар: {transcriptions} транскрипцій, {duration}",
+        "ar": "سكرتير: {transcriptions} تحويلات, {duration}",
+        "fa": "منشی: {transcriptions} رونویسی, {duration}",
+        "de": "Sekretär: {transcriptions} Transkriptionen, {duration}",
+        "tr": "Sekreter: {transcriptions} dönüştürme, {duration}",
+        "es": "Secretario: {transcriptions} transcripciones, {duration}",
+        "fr": "Secrétaire : {transcriptions} transcriptions, {duration}",
+        "uz": "Kotib: {transcriptions} transkripsiya, {duration}",
+        "am": "ጸሐፊ: {transcriptions} ጽሑፎች, {duration}",
+        "ko": "비서: {transcriptions}건, {duration}",
+    },
+    # Stats: total line
+    "stats_total": {
+        "en": "Total: {transcriptions} transcriptions, {duration}",
+        "ru": "Всего: {transcriptions} расшифровок, {duration}",
+        "hi": "कुल: {transcriptions} ट्रांसक्रिप्शन, {duration}",
+        "id": "Total: {transcriptions} transkripsi, {duration}",
+        "pt": "Total: {transcriptions} transcrições, {duration}",
+        "uk": "Всього: {transcriptions} транскрипцій, {duration}",
+        "ar": "الإجمالي: {transcriptions} تحويلات, {duration}",
+        "fa": "مجموع: {transcriptions} رونویسی, {duration}",
+        "de": "Gesamt: {transcriptions} Transkriptionen, {duration}",
+        "tr": "Toplam: {transcriptions} dönüştürme, {duration}",
+        "es": "Total: {transcriptions} transcripciones, {duration}",
+        "fr": "Total : {transcriptions} transcriptions, {duration}",
+        "uz": "Jami: {transcriptions} transkripsiya, {duration}",
+        "am": "ጠቅላላ: {transcriptions} ጽሑፎች, {duration}",
+        "ko": "합계: {transcriptions}건, {duration}",
+    },
+    # Stats: date range line
+    "stats_dates": {
+        "en": "First used: {first_used}\nLast used: {last_used}",
+        "ru": "Первое использование: {first_used}\nПоследнее: {last_used}",
+        "hi": "पहली बार: {first_used}\nआखिरी बार: {last_used}",
+        "id": "Pertama digunakan: {first_used}\nTerakhir: {last_used}",
+        "pt": "Primeiro uso: {first_used}\nÚltimo: {last_used}",
+        "uk": "Перше використання: {first_used}\nОстаннє: {last_used}",
+        "ar": "أول استخدام: {first_used}\nآخر استخدام: {last_used}",
+        "fa": "اولین استفاده: {first_used}\nآخرین: {last_used}",
+        "de": "Erstverwendung: {first_used}\nLetzte: {last_used}",
+        "tr": "İlk kullanım: {first_used}\nSon: {last_used}",
+        "es": "Primer uso: {first_used}\nÚltimo: {last_used}",
+        "fr": "Première utilisation : {first_used}\nDernière : {last_used}",
+        "uz": "Birinchi foydalanish: {first_used}\nOxirgi: {last_used}",
+        "am": "የመጀመሪያ አጠቃቀም: {first_used}\nመጨረሻ: {last_used}",
+        "ko": "첫 사용: {first_used}\n마지막: {last_used}",
     },
     # Video processing timeout
     "video_timeout": {
