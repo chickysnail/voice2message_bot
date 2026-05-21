@@ -114,7 +114,6 @@ def main() -> None:
         | filters.Document.AUDIO
     )
     application.add_handler(MessageHandler(audio_filter, handlers.handle_audio))
-    application.add_handler(CallbackQueryHandler(handlers.handle_callback))
 
     # Secretary (business) handlers
     application.add_handler(
@@ -126,12 +125,17 @@ def main() -> None:
     application.add_handler(
         MessageHandler(business_audio_filter, secretary.handle_business_message)
     )
+
+    # Pattern-filtered callback handler must be registered before the
+    # general one — python-telegram-bot only runs the first matching
+    # handler in a group.
     application.add_handler(
         CallbackQueryHandler(
             secretary.handle_transcribe_callback,
             pattern=r"^sec_transcribe:",
         )
     )
+    application.add_handler(CallbackQueryHandler(handlers.handle_callback))
 
     health_runner: web.AppRunner | None = None
 
