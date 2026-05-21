@@ -113,7 +113,7 @@ def main() -> None:
         | filters.AUDIO
         | filters.VIDEO
         | filters.Document.AUDIO
-    )
+    ) & filters.UpdateType.MESSAGE
     application.add_handler(MessageHandler(audio_filter, handlers.handle_audio))
 
     # Secretary (business) handlers
