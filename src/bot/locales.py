@@ -1,7 +1,14 @@
 """Localised user-facing strings.
 
-Supported languages (top Telegram markets):
-en, ru, hi, id, pt, uk, ar, fa, de, tr, es, fr, uz, am, ko
+RULES — read before adding or changing messages:
+1. Every key MUST have translations for ALL 15 languages:
+   en, ru, hi, id, pt, uk, ar, fa, de, tr, es, fr, uz, am, ko
+   The test suite enforces this — missing languages will fail CI.
+2. Translations must be CONTEXTUALLY accurate for a transcription bot.
+   Do not use literal/dictionary translations. Consider how a native
+   speaker would phrase the message in the context of voice-to-text.
+3. Use gender-neutral phrasing where applicable (e.g. Hindi, Arabic).
+4. Keep the same tone across languages: friendly, concise, helpful.
 
 Usage:
     from src.bot.locales import t
