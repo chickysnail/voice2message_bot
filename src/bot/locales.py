@@ -1001,24 +1001,25 @@ _STRINGS: dict[str, dict[str, str]] = {
     "secretary_setup": {
         "en": (
             "✨ <b>Auto-transcribe voice messages in your chats</b>\n\n"
-            "Go to <b>Telegram Settings → Telegram Business → Chatbots</b> "
-            "and add this bot. Once connected, every voice message and "
-            "video note in your DMs will be transcribed automatically.\n\n"
+            "Go to your <b>Account → Chat Automation</b> in Telegram "
+            "settings and add this bot. Once connected, every voice "
+            "message and video note in your DMs will be transcribed "
+            "automatically.\n\n"
             "You can switch between auto and manual mode anytime "
             "with /secretary."
         ),
         "ru": (
             "✨ <b>Автоматическая расшифровка в ваших чатах</b>\n\n"
-            "Перейдите в <b>Настройки Telegram → Telegram Бизнес → "
-            "Чат-боты</b> и добавьте этого бота. После подключения "
-            "все голосовые и видеозаметки в личных сообщениях будут "
-            "расшифрованы автоматически.\n\n"
+            "Перейдите в <b>Аккаунт → Автоматизация чатов</b> "
+            "в настройках Telegram и добавьте этого бота. После "
+            "подключения все голосовые и видеозаметки в личных "
+            "сообщениях будут расшифрованы автоматически.\n\n"
             "Переключайтесь между авто и ручным режимом "
             "командой /secretary."
         ),
         "hi": (
             "✨ <b>अपनी चैट में वॉइस मैसेज ऑटो-ट्रांसक्राइब करें</b>\n\n"
-            "<b>Telegram Settings → Telegram Business → Chatbots</b> "
+            "Telegram सेटिंग्स में <b>Account → Chat Automation</b> "
             "में जाएं और इस बॉट को जोड़ें। कनेक्ट होने के बाद, "
             "आपके DM में हर वॉइस मैसेज और वीडियो नोट अपने आप "
             "ट्रांसक्राइब होगा।\n\n"
@@ -1026,8 +1027,8 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "id": (
             "✨ <b>Transkripsi otomatis pesan suara di chat Anda</b>\n\n"
-            "Buka <b>Pengaturan Telegram → Telegram Business → "
-            "Chatbots</b> dan tambahkan bot ini. Setelah terhubung, "
+            "Buka <b>Akun → Otomatisasi Chat</b> di pengaturan "
+            "Telegram dan tambahkan bot ini. Setelah terhubung, "
             "setiap pesan suara dan catatan video di DM Anda akan "
             "ditranskripsi otomatis.\n\n"
             "Beralih antara mode otomatis dan manual kapan saja "
@@ -1035,26 +1036,26 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "pt": (
             "✨ <b>Transcreva mensagens de voz automaticamente</b>\n\n"
-            "Vá em <b>Configurações do Telegram → Telegram Business → "
-            "Chatbots</b> e adicione este bot. Depois de conectado, "
-            "toda mensagem de voz e nota de vídeo nas suas conversas "
-            "será transcrita automaticamente.\n\n"
+            "Vá em <b>Conta → Automação de Chats</b> nas "
+            "configurações do Telegram e adicione este bot. Depois "
+            "de conectado, toda mensagem de voz e nota de vídeo nas "
+            "suas conversas será transcrita automaticamente.\n\n"
             "Alterne entre modo automático e manual a qualquer momento "
             "com /secretary."
         ),
         "uk": (
             "✨ <b>Автоматична транскрипція у ваших чатах</b>\n\n"
-            "Перейдіть у <b>Налаштування Telegram → Telegram Бізнес → "
-            "Чат-боти</b> і додайте цього бота. Після підключення "
-            "всі голосові та відеонотатки у приватних повідомленнях "
-            "будуть транскрибовані автоматично.\n\n"
+            "Перейдіть у <b>Акаунт → Автоматизація чатів</b> "
+            "у налаштуваннях Telegram і додайте цього бота. Після "
+            "підключення всі голосові та відеонотатки у приватних "
+            "повідомленнях будуть транскрибовані автоматично.\n\n"
             "Переключайтесь між авто та ручним режимом "
             "командою /secretary."
         ),
         "ar": (
             "✨ <b>تحويل الرسائل الصوتية تلقائياً في محادثاتك</b>\n\n"
-            "اذهب إلى <b>إعدادات Telegram → Telegram Business → "
-            "Chatbots</b> وأضف هذا البوت. بعد الاتصال، سيتم تحويل "
+            "اذهب إلى <b>الحساب → أتمتة المحادثات</b> في إعدادات "
+            "Telegram وأضف هذا البوت. بعد الاتصال، سيتم تحويل "
             "كل رسالة صوتية وملاحظة فيديو في رسائلك إلى نص "
             "تلقائياً.\n\n"
             "بدّل بين الوضع التلقائي واليدوي في أي وقت "
@@ -1062,7 +1063,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "fa": (
             "✨ <b>رونویسی خودکار پیام‌های صوتی در چت‌هایتان</b>\n\n"
-            "به <b>تنظیمات تلگرام → Telegram Business → Chatbots</b> "
+            "در تنظیمات تلگرام به <b>حساب → اتوماسیون چت</b> "
             "بروید و این ربات را اضافه کنید. پس از اتصال، هر پیام "
             "صوتی و یادداشت ویدیویی در پیام‌های شما به‌صورت خودکار "
             "رونویسی می‌شود.\n\n"
@@ -1070,16 +1071,17 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "de": (
             "✨ <b>Sprachnachrichten automatisch transkribieren</b>\n\n"
-            "Gehen Sie zu <b>Telegram Einstellungen → Telegram Business → "
-            "Chatbots</b> und fügen Sie diesen Bot hinzu. Nach der "
-            "Verbindung wird jede Sprachnachricht und Videonachricht "
-            "in Ihren DMs automatisch transkribiert.\n\n"
+            "Gehen Sie in den Telegram-Einstellungen zu "
+            "<b>Konto → Chat-Automatisierung</b> und fügen Sie "
+            "diesen Bot hinzu. Nach der Verbindung wird jede "
+            "Sprachnachricht und Videonachricht in Ihren DMs "
+            "automatisch transkribiert.\n\n"
             "Wechseln Sie jederzeit zwischen Automatik und Manuell "
             "mit /secretary."
         ),
         "tr": (
             "✨ <b>Sohbetlerinizde sesli mesajları otomatik yazıya dökün</b>\n\n"
-            "<b>Telegram Ayarları → Telegram Business → Chatbots</b>'a "
+            "Telegram ayarlarında <b>Hesap → Sohbet Otomasyonu</b>'na "
             "gidin ve bu botu ekleyin. Bağlandıktan sonra, DM'lerinizdeki "
             "her sesli mesaj ve video notu otomatik olarak yazıya "
             "dökülür.\n\n"
@@ -1088,25 +1090,25 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "es": (
             "✨ <b>Transcribe mensajes de voz automáticamente</b>\n\n"
-            "Ve a <b>Ajustes de Telegram → Telegram Business → "
-            "Chatbots</b> y añade este bot. Una vez conectado, cada "
-            "mensaje de voz y nota de video en tus conversaciones se "
-            "transcribirá automáticamente.\n\n"
+            "Ve a <b>Cuenta → Automatización de chats</b> en los "
+            "ajustes de Telegram y añade este bot. Una vez conectado, "
+            "cada mensaje de voz y nota de video en tus conversaciones "
+            "se transcribirá automáticamente.\n\n"
             "Cambia entre modo automático y manual en cualquier momento "
             "con /secretary."
         ),
         "fr": (
             "✨ <b>Transcrivez les messages vocaux automatiquement</b>\n\n"
-            "Allez dans <b>Paramètres Telegram → Telegram Business → "
-            "Chatbots</b> et ajoutez ce bot. Une fois connecté, chaque "
-            "message vocal et note vidéo dans vos conversations sera "
-            "transcrit automatiquement.\n\n"
+            "Allez dans <b>Compte → Automatisation des chats</b> "
+            "dans les paramètres Telegram et ajoutez ce bot. Une fois "
+            "connecté, chaque message vocal et note vidéo dans vos "
+            "conversations sera transcrit automatiquement.\n\n"
             "Basculez entre le mode automatique et manuel à tout moment "
             "avec /secretary."
         ),
         "uz": (
             "✨ <b>Chatlaringizda ovozli xabarlarni avtomatik yozing</b>\n\n"
-            "<b>Telegram Sozlamalari → Telegram Business → Chatbots</b>ga "
+            "Telegram sozlamalarida <b>Hisob → Chat avtomatlashtirish</b>ga "
             "boring va bu botni qo'shing. Ulanganidan keyin, "
             "DM'laringizdagi har bir ovozli xabar va video eslatma "
             "avtomatik ravishda matn shaklida yoziladi.\n\n"
@@ -1115,7 +1117,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "am": (
             "✨ <b>በቻቶችዎ ውስጥ የድምፅ መልእክቶችን በራስ-ሰር ይቀይሩ</b>\n\n"
-            "ወደ <b>Telegram ቅንብሮች → Telegram Business → Chatbots</b> "
+            "በTelegram ቅንብሮች ውስጥ ወደ <b>መለያ → የቻት አውቶሜሽን</b> "
             "ይሂዱ እና ይህን ቦት ያክሉ። ከተገናኘ በኋላ፣ በDM ውስጥ ያለው "
             "እያንዳንዱ የድምፅ መልእክት እና የቪዲዮ ማስታወሻ በራስ-ሰር "
             "ወደ ጽሑፍ ይቀየራል።\n\n"
@@ -1124,8 +1126,8 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "ko": (
             "✨ <b>채팅에서 음성 메시지를 자동으로 변환하세요</b>\n\n"
-            "<b>Telegram 설정 → Telegram Business → Chatbots</b>로 "
-            "가서 이 봇을 추가하세요. 연결되면 DM의 모든 음성 메시지와 "
+            "Telegram 설정에서 <b>계정 → 채팅 자동화</b>로 가서 "
+            "이 봇을 추가하세요. 연결되면 DM의 모든 음성 메시지와 "
             "비디오 노트가 자동으로 텍스트로 변환됩니다.\n\n"
             "언제든지 /secretary로 자동 모드와 수동 모드를 "
             "전환할 수 있습니다."

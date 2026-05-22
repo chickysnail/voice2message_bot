@@ -45,11 +45,11 @@ def test_button_labels_localized() -> None:
         assert ru != en, f"{key} not localized for Russian"
 
 
-def test_secretary_setup_mentions_chatbots() -> None:
+def test_secretary_setup_mentions_chat_automation() -> None:
     """Setup instructions should reference the Telegram settings path."""
     result = t("secretary_setup", "en")
-    assert "Chatbots" in result
-    assert "Telegram Business" in result
+    assert "Chat Automation" in result
+    assert "Account" in result
 
 
 def test_secretary_settings_has_mode_placeholder() -> None:
