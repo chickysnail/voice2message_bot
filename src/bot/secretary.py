@@ -1,6 +1,7 @@
 """Secretary mode — transcribe voice messages in users' DM chats."""
 
 import asyncio
+import html
 import io
 import logging
 import os
@@ -8,6 +9,7 @@ import tempfile
 import uuid
 
 from telegram import Bot, BusinessConnection, Message, Update, User
+from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from src.bot.keyboards import (
@@ -598,26 +600,43 @@ class SecretaryHandler:
                 owner_user.id, owner_user.username, duration or 0
             )
 
-            # Send transcription — edit status message for first chunk,
-            # send additional messages for long transcriptions
+            # Send transcription in an expandable blockquote so it
+            # takes less visual space in the chat.
             keyboard = secretary_post_transcription_keyboard(
                 message.message_id, owner_user.id
             )
-            chunks = split_message(f"{prefix}\n{transcript.text}")
-            for i, chunk in enumerate(chunks):
-                is_last = i == len(chunks) - 1
+            escaped_prefix = html.escape(prefix)
+            escaped_text = html.escape(transcript.text)
+
+            # Split the escaped text first, then wrap each chunk in
+            # blockquote tags so HTML is never broken by the splitter.
+            bq_overhead = len("<blockquote expandable></blockquote>")
+            first_overhead = len(escaped_prefix) + 1 + bq_overhead
+            raw_chunks = split_message(
+                escaped_text, max_length=4096 - first_overhead
+            )
+            for i, chunk in enumerate(raw_chunks):
+                is_last = i == len(raw_chunks) - 1
+                text = (
+                    f"{escaped_prefix}\n"
+                    f"<blockquote expandable>{chunk}</blockquote>"
+                    if i == 0
+                    else f"<blockquote expandable>{chunk}</blockquote>"
+                )
                 if i == 0:
                     await bot.edit_message_text(
                         chat_id=chat_id,
                         message_id=status_msg.message_id,
-                        text=chunk,
+                        text=text,
+                        parse_mode=ParseMode.HTML,
                         reply_markup=keyboard if is_last else None,
                         business_connection_id=biz_conn_id,
                     )
                 else:
                     await bot.send_message(
                         chat_id=chat_id,
-                        text=chunk,
+                        text=text,
+                        parse_mode=ParseMode.HTML,
                         reply_markup=keyboard if is_last else None,
                         business_connection_id=biz_conn_id,
                     )
