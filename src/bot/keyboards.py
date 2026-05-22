@@ -145,3 +145,15 @@ def secretary_setup_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
             ),
         ]
     ])
+
+
+def secretary_settings_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
+    """Button shown in /start when secretary is already connected."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                t("btn_secretary_settings", lang),
+                callback_data=CALLBACK_SECRETARY_SETUP,
+            ),
+        ]
+    ])

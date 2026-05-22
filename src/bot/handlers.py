@@ -21,6 +21,7 @@ from src.bot.keyboards import (
     file_format_keyboard,
     post_transcription_keyboard,
     secretary_mode_keyboard,
+    secretary_settings_keyboard,
     secretary_setup_keyboard,
 )
 from src.bot.locales import t
@@ -64,11 +65,17 @@ class BotHandlers:
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.message or not update.effective_user:
             return
-        lang = update.effective_user.language_code or "en"
+        user = update.effective_user
+        lang = user.language_code or "en"
+        connected = await self._stats_db.is_user_secretary_connected(user.id)
+        keyboard = (
+            secretary_settings_keyboard(lang) if connected
+            else secretary_setup_keyboard(lang)
+        )
         await update.message.reply_text(
-            t("greeting", lang, user=update.effective_user.mention_html()),
+            t("greeting", lang, user=user.mention_html()),
             parse_mode=ParseMode.HTML,
-            reply_markup=secretary_setup_keyboard(lang),
+            reply_markup=keyboard,
         )
 
     async def help_command(
@@ -82,6 +89,15 @@ class BotHandlers:
             else "en"
         ) or "en"
         await update.message.reply_text(t("help", lang))
+
+    async def handle_text(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Nudge users who send plain text instead of audio."""
+        if not update.message or not update.effective_user:
+            return
+        lang = update.effective_user.language_code or "en"
+        await update.message.reply_text(t("text_nudge", lang))
 
     async def handle_audio(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -401,10 +417,20 @@ class BotHandlers:
 
         # Handle secretary setup button (no colon, single token)
         if data == CALLBACK_SECRETARY_SETUP:
-            await query.edit_message_text(
-                t("secretary_setup", lang),
-                parse_mode=ParseMode.HTML,
+            connected = await self._stats_db.is_user_secretary_connected(
+                user.id
             )
+            if connected:
+                current = await self._stats_db.get_secretary_mode(user.id)
+                await query.edit_message_text(
+                    t("secretary_settings", lang, mode=current),
+                    reply_markup=secretary_mode_keyboard(lang),
+                )
+            else:
+                await query.edit_message_text(
+                    t("secretary_setup", lang),
+                    parse_mode=ParseMode.HTML,
+                )
             return
 
         # Handle secretary mode buttons (no colon, single token)
@@ -563,12 +589,21 @@ class BotHandlers:
     async def secretary_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
-        """Handle /secretary command — show mode picker with inline buttons."""
+        """Handle /secretary command — show setup or mode picker."""
         if not update.message or not update.effective_user:
             return
 
         user = update.effective_user
         lang = user.language_code or "en"
+
+        connected = await self._stats_db.is_user_secretary_connected(user.id)
+        if not connected:
+            await update.message.reply_text(
+                t("secretary_setup", lang),
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
         current = await self._stats_db.get_secretary_mode(user.id)
         await update.message.reply_text(
             t("secretary_settings", lang, mode=current),

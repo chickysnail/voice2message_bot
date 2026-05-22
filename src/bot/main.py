@@ -145,6 +145,14 @@ def main() -> None:
     )
     application.add_handler(CallbackQueryHandler(handlers.handle_callback))
 
+    # Text message handler — nudge users who send plain text
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND & filters.UpdateType.MESSAGE,
+            handlers.handle_text,
+        )
+    )
+
     health_runner: web.AppRunner | None = None
 
     async def post_init(app: Application) -> None:  # type: ignore[type-arg]
