@@ -1000,11 +1000,10 @@ _STRINGS: dict[str, dict[str, str]] = {
     # Secretary setup instructions (shown from /start button)
     "secretary_setup": {
         "en": (
-            "✨ <b>Auto-transcribe voice messages in your chats</b>\n\n"
+            "✨ <b>Transcribe voice messages right in your DMs</b>\n\n"
             "Go to your <b>Account → Chat Automation</b> in Telegram "
-            "settings and add this bot. Once connected, every voice "
-            "message and video note in your DMs will be transcribed "
-            "automatically.\n\n"
+            "settings and add this bot. Once connected, I can transcribe "
+            "voice messages and video notes in your private chats.\n\n"
             "You can switch between auto and manual mode anytime "
             "with /secretary."
         ),
@@ -1135,21 +1134,21 @@ _STRINGS: dict[str, dict[str, str]] = {
     },
     # Button label for secretary setup in /start
     "btn_secretary_setup": {
-        "en": "✨ Auto-transcribe your chats",
-        "ru": "✨ Авторасшифровка в чатах",
-        "hi": "✨ चैट में ऑटो-ट्रांसक्राइब",
-        "id": "✨ Transkripsi otomatis di chat",
-        "pt": "✨ Transcrição automática",
-        "uk": "✨ Автотранскрипція у чатах",
-        "ar": "✨ تحويل تلقائي في محادثاتك",
-        "fa": "✨ رونویسی خودکار چت‌ها",
-        "de": "✨ Auto-Transkription in Chats",
-        "tr": "✨ Sohbetlerde otomatik dönüştür",
-        "es": "✨ Auto-transcribir tus chats",
-        "fr": "✨ Transcription auto dans vos chats",
-        "uz": "✨ Chatlarda avtomatik yozish",
-        "am": "✨ ቻቶችዎን በራስ-ሰር ይቀይሩ",
-        "ko": "✨ 채팅 자동 변환 설정",
+        "en": "✨ Set up transcription in DMs",
+        "ru": "✨ Настроить расшифровку в чатах",
+        "hi": "✨ DM में ट्रांसक्रिप्शन सेट करें",
+        "id": "✨ Atur transkripsi di DM",
+        "pt": "✨ Configurar transcrição nos DMs",
+        "uk": "✨ Налаштувати транскрипцію в чатах",
+        "ar": "✨ إعداد التحويل في المحادثات",
+        "fa": "✨ تنظیم رونویسی در چت‌ها",
+        "de": "✨ Transkription in DMs einrichten",
+        "tr": "✨ DM'lerde dönüştürmeyi kur",
+        "es": "✨ Configurar transcripción en DMs",
+        "fr": "✨ Configurer la transcription en DM",
+        "uz": "✨ DMda transkripsiyani sozlash",
+        "am": "✨ በDM ውስጥ ጽሑፍ ቀየር ያዘጋጁ",
+        "ko": "✨ DM 음성 변환 설정",
     },
     # Button label for secretary settings (shown in /start when already connected)
     "btn_secretary_settings": {

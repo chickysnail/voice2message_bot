@@ -77,7 +77,7 @@ def test_keyboard_uses_localized_labels() -> None:
     assert "Auto" in mode_en.inline_keyboard[0][0].text
 
     setup_en = secretary_setup_keyboard("en")
-    assert "Auto-transcribe" in setup_en.inline_keyboard[0][0].text
+    assert "transcription" in setup_en.inline_keyboard[0][0].text.lower()
 
     tr_ru = secretary_transcribe_keyboard(123, "conn_1", "ru")
     assert tr_ru.inline_keyboard[0][0].text != "📝 Transcribe"
