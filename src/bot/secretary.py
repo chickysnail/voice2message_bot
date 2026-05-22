@@ -166,10 +166,13 @@ class SecretaryHandler:
         # Determine the bot-owner user from the connection
         conn = self._connections.get(biz_conn_id)
         if conn is None:
-            # Try to fetch connection info via API
+            # Try to fetch connection info via API and persist it
             try:
                 conn = await context.bot.get_business_connection(biz_conn_id)
                 self._connections[biz_conn_id] = conn
+                await self._stats_db.save_secretary_connection(
+                    conn.user.id, biz_conn_id, conn.user.username
+                )
             except Exception:
                 logger.warning("Could not fetch business connection %s", biz_conn_id)
                 return
