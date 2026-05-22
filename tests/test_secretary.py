@@ -143,7 +143,7 @@ def _make_context(bot: AsyncMock | None = None) -> MagicMock:
 
 
 async def test_handle_connection_enabled(
-    handler: SecretaryHandler, mock_notifier: AsyncMock
+    handler: SecretaryHandler, mock_notifier: AsyncMock, db: StatisticsDB
 ) -> None:
     conn = _make_business_connection(is_enabled=True)
     update = _make_update_with_connection(conn)
@@ -155,10 +155,12 @@ async def test_handle_connection_enabled(
     mock_notifier.notify_secretary_event.assert_called_once_with(
         "connected", "testuser", 42
     )
+    # Connection should be persisted in DB
+    assert await db.is_user_secretary_connected(42)
 
 
 async def test_handle_connection_disabled(
-    handler: SecretaryHandler, mock_notifier: AsyncMock
+    handler: SecretaryHandler, mock_notifier: AsyncMock, db: StatisticsDB
 ) -> None:
     # First connect
     conn = _make_business_connection(is_enabled=True)
@@ -172,6 +174,8 @@ async def test_handle_connection_disabled(
     await handler.handle_business_connection(update2, ctx)
 
     assert "biz_123" not in handler._connections
+    # Connection should be removed from DB
+    assert not await db.is_user_secretary_connected(42)
 
 
 async def test_handle_connection_none(handler: SecretaryHandler) -> None:
@@ -687,3 +691,116 @@ async def test_dedup_allows_different_file_ids(
         await handler.handle_business_message(update2, ctx)
 
     assert mock_transcriber.transcribe.call_count == 2
+
+
+async def test_smart_dedup_skips_outgoing_when_recipient_connected(
+    handler: SecretaryHandler,
+    mock_transcriber: MagicMock,
+    db: StatisticsDB,
+) -> None:
+    """Owner sends voice → skip if recipient also has the bot connected."""
+    owner = _make_user(user_id=42)
+    recipient_id = 99
+
+    conn = _make_business_connection(conn_id="biz_a", user=owner)
+    handler._connections["biz_a"] = conn
+
+    # Recipient is also connected as secretary (in DB)
+    await db.save_secretary_connection(recipient_id, "biz_b", "otheruser")
+
+    msg = _make_voice_message(biz_conn_id="biz_a", chat_id=recipient_id)
+    msg.from_user = owner  # Owner sent this message (outgoing)
+    msg.voice.file_id = "outgoing_file"
+
+    update = _make_update_with_business_message(msg)
+    ctx = _make_context()
+
+    await handler.handle_business_message(update, ctx)
+
+    # Should be skipped — recipient's connection will handle it
+    mock_transcriber.transcribe.assert_not_called()
+
+
+async def test_smart_dedup_allows_outgoing_when_recipient_not_connected(
+    handler: SecretaryHandler,
+    mock_transcriber: MagicMock,
+    db: StatisticsDB,
+) -> None:
+    """Owner sends voice → transcribe if recipient does NOT have the bot."""
+    owner = _make_user(user_id=42)
+    recipient_id = 99
+
+    conn = _make_business_connection(conn_id="biz_a", user=owner)
+    handler._connections["biz_a"] = conn
+
+    # Recipient is NOT connected as secretary
+
+    msg = _make_voice_message(biz_conn_id="biz_a", chat_id=recipient_id)
+    msg.from_user = owner
+    msg.voice.file_id = "outgoing_file_2"
+
+    update = _make_update_with_business_message(msg)
+
+    bot = AsyncMock()
+    tg_file = AsyncMock()
+    tg_file.file_path = "audio.ogg"
+    tg_file.download_to_drive = AsyncMock()
+    bot.get_file = AsyncMock(return_value=tg_file)
+
+    sent_msg = MagicMock()
+    sent_msg.message_id = 99
+    sent_msg.chat.id = recipient_id
+    bot.send_message = AsyncMock(return_value=sent_msg)
+    bot.edit_message_text = AsyncMock()
+
+    ctx = _make_context(bot)
+
+    with patch("src.bot.secretary.os.path.exists", return_value=True), \
+         patch("src.bot.secretary.os.remove"):
+        await handler.handle_business_message(update, ctx)
+
+    # Should transcribe since recipient doesn't have the bot
+    mock_transcriber.transcribe.assert_called_once()
+
+
+async def test_smart_dedup_always_transcribes_incoming(
+    handler: SecretaryHandler,
+    mock_transcriber: MagicMock,
+    db: StatisticsDB,
+) -> None:
+    """Incoming voice from other person → always transcribe."""
+    owner = _make_user(user_id=42)
+    sender = _make_user(user_id=99, username="otheruser")
+
+    conn = _make_business_connection(conn_id="biz_a", user=owner)
+    handler._connections["biz_a"] = conn
+
+    # Sender is also connected (doesn't matter for incoming)
+    await db.save_secretary_connection(99, "biz_b", "otheruser")
+
+    msg = _make_voice_message(biz_conn_id="biz_a", chat_id=99)
+    msg.from_user = sender  # Other person sent this (incoming to owner)
+    msg.voice.file_id = "incoming_file"
+
+    update = _make_update_with_business_message(msg)
+
+    bot = AsyncMock()
+    tg_file = AsyncMock()
+    tg_file.file_path = "audio.ogg"
+    tg_file.download_to_drive = AsyncMock()
+    bot.get_file = AsyncMock(return_value=tg_file)
+
+    sent_msg = MagicMock()
+    sent_msg.message_id = 99
+    sent_msg.chat.id = 99
+    bot.send_message = AsyncMock(return_value=sent_msg)
+    bot.edit_message_text = AsyncMock()
+
+    ctx = _make_context(bot)
+
+    with patch("src.bot.secretary.os.path.exists", return_value=True), \
+         patch("src.bot.secretary.os.remove"):
+        await handler.handle_business_message(update, ctx)
+
+    # Should transcribe — incoming messages are always processed
+    mock_transcriber.transcribe.assert_called_once()

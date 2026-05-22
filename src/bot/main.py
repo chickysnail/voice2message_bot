@@ -168,6 +168,9 @@ def main() -> None:
                     admin_id,
                 )
 
+        # Restore secretary connections from DB
+        await secretary.load_connections_from_db(app.bot)
+
         logger.info("Bot started. Admin IDs: %s", settings.admin_user_ids)
 
     async def post_shutdown(app: Application) -> None:  # type: ignore[type-arg]

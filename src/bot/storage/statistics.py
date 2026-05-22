@@ -51,6 +51,15 @@ class StatisticsDB:
                 last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # Active secretary connections (persisted across restarts)
+        await self._db.execute("""
+            CREATE TABLE IF NOT EXISTS secretary_connections (
+                user_id INTEGER PRIMARY KEY,
+                connection_id TEXT NOT NULL,
+                username TEXT,
+                connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         await self._db.commit()
 
     async def close(self) -> None:
@@ -227,3 +236,50 @@ class StatisticsDB:
         ) as cursor:
             rows = await cursor.fetchall()
         return [(r[0], r[1], r[2], r[3], r[4], r[5]) for r in rows]
+
+    # --- Secretary connections ---
+
+    async def save_secretary_connection(
+        self, user_id: int, connection_id: str, username: str | None
+    ) -> None:
+        assert self._db is not None
+        await self._db.execute(
+            """
+            INSERT INTO secretary_connections
+                (user_id, connection_id, username)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                connection_id = ?, username = COALESCE(?, username),
+                connected_at = CURRENT_TIMESTAMP
+            """,
+            (user_id, connection_id, username, connection_id, username),
+        )
+        await self._db.commit()
+
+    async def remove_secretary_connection(self, user_id: int) -> None:
+        assert self._db is not None
+        await self._db.execute(
+            "DELETE FROM secretary_connections WHERE user_id = ?",
+            (user_id,),
+        )
+        await self._db.commit()
+
+    async def get_all_secretary_connections(
+        self,
+    ) -> list[tuple[int, str]]:
+        """Returns list of (user_id, connection_id) for active connections."""
+        assert self._db is not None
+        async with self._db.execute(
+            "SELECT user_id, connection_id FROM secretary_connections"
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [(r[0], r[1]) for r in rows]
+
+    async def is_user_secretary_connected(self, user_id: int) -> bool:
+        assert self._db is not None
+        async with self._db.execute(
+            "SELECT 1 FROM secretary_connections WHERE user_id = ?",
+            (user_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        return row is not None

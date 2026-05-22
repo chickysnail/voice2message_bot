@@ -91,6 +91,9 @@ class SecretaryHandler:
         user = conn.user
         if conn.is_enabled:
             self._connections[conn.id] = conn
+            await self._stats_db.save_secretary_connection(
+                user.id, conn.id, user.username
+            )
             logger.info(
                 "Secretary connected: user %s (%d), connection %s",
                 user.username, user.id, conn.id,
@@ -100,6 +103,7 @@ class SecretaryHandler:
             )
         else:
             self._connections.pop(conn.id, None)
+            await self._stats_db.remove_secretary_connection(user.id)
             logger.info(
                 "Secretary disconnected: user %s (%d), connection %s",
                 user.username, user.id, conn.id,
@@ -107,6 +111,27 @@ class SecretaryHandler:
             await self._notifier.notify_secretary_event(
                 "disconnected", user.username, user.id
             )
+
+    async def load_connections_from_db(
+        self, bot: Bot
+    ) -> None:
+        """Restore active connections from DB on startup."""
+        rows = await self._stats_db.get_all_secretary_connections()
+        for user_id, connection_id in rows:
+            try:
+                conn = await bot.get_business_connection(connection_id)
+                self._connections[connection_id] = conn
+                logger.info(
+                    "Restored secretary connection %s for user %d",
+                    connection_id, user_id,
+                )
+            except Exception:
+                logger.warning(
+                    "Could not restore connection %s for user %d "
+                    "— removing stale entry",
+                    connection_id, user_id,
+                )
+                await self._stats_db.remove_secretary_connection(user_id)
 
     # ------------------------------------------------------------------
     # Business message handling
@@ -150,6 +175,20 @@ class SecretaryHandler:
                 return
 
         owner_user = conn.user
+
+        # Smart dedup: if the owner sent this message (outgoing) and the
+        # other person also has the bot as secretary, skip — the
+        # recipient's connection will handle it as an incoming message.
+        if message.from_user and message.from_user.id == owner_user.id:
+            other_user_id = message.chat.id
+            if await self._stats_db.is_user_secretary_connected(other_user_id):
+                logger.debug(
+                    "Skipping outgoing message from %d — recipient %d "
+                    "also has secretary",
+                    owner_user.id, other_user_id,
+                )
+                return
+
         mode = await self._stats_db.get_secretary_mode(owner_user.id)
         lang = owner_user.language_code or "en"
 
