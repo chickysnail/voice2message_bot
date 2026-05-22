@@ -6,7 +6,7 @@ import tempfile
 import uuid
 
 from telegram import Update
-from telegram.constants import ParseMode
+from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
@@ -14,9 +14,14 @@ from src.bot.keyboards import (
     CALLBACK_EXPORT_SRT,
     CALLBACK_EXPORT_TXT,
     CALLBACK_SAVE_FILE,
+    CALLBACK_SEC_MODE_AUTO,
+    CALLBACK_SEC_MODE_MANUAL,
+    CALLBACK_SECRETARY_SETUP,
     CALLBACK_SUMMARIZE,
     file_format_keyboard,
     post_transcription_keyboard,
+    secretary_mode_keyboard,
+    secretary_setup_keyboard,
 )
 from src.bot.locales import t
 from src.bot.services.audio import extract_audio, get_audio_duration
@@ -63,6 +68,7 @@ class BotHandlers:
         await update.message.reply_text(
             t("greeting", lang, user=update.effective_user.mention_html()),
             parse_mode=ParseMode.HTML,
+            reply_markup=secretary_setup_keyboard(lang),
         )
 
     async def help_command(
@@ -139,7 +145,10 @@ class BotHandlers:
             )
             return
 
-        # Send a "processing" message
+        # Send a "processing" message and show typing indicator
+        await context.bot.send_chat_action(
+            chat_id=message.chat_id, action=ChatAction.TYPING
+        )
         processing_msg = await message.reply_text(t("transcribing", lang))
 
         file_path: str | None = None
@@ -340,7 +349,7 @@ class BotHandlers:
                 if is_last:
                     await message.reply_text(
                         chunk,
-                        reply_markup=post_transcription_keyboard(original_message_id),
+                        reply_markup=post_transcription_keyboard(original_message_id, lang),
                     )
                 else:
                     await message.reply_text(chunk)
@@ -387,6 +396,27 @@ class BotHandlers:
         await query.answer()
 
         data = query.data
+        user = update.effective_user
+        lang = user.language_code or "en"
+
+        # Handle secretary setup button (no colon, single token)
+        if data == CALLBACK_SECRETARY_SETUP:
+            await query.edit_message_text(
+                t("secretary_setup", lang),
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        # Handle secretary mode buttons (no colon, single token)
+        if data in (CALLBACK_SEC_MODE_AUTO, CALLBACK_SEC_MODE_MANUAL):
+            new_mode = "auto" if data == CALLBACK_SEC_MODE_AUTO else "manual"
+            await self._stats_db.set_secretary_mode(user.id, new_mode)
+            await query.edit_message_text(
+                t("secretary_settings", lang, mode=new_mode),
+                reply_markup=secretary_mode_keyboard(lang),
+            )
+            return
+
         parts = data.split(":")
         if len(parts) != 2:
             return
@@ -396,8 +426,6 @@ class BotHandlers:
             original_message_id = int(parts[1])
         except ValueError:
             return
-
-        user = update.effective_user
 
         if action == CALLBACK_SUMMARIZE:
             await self._handle_summarize(query, user, original_message_id)
@@ -535,25 +563,17 @@ class BotHandlers:
     async def secretary_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
-        """Handle /secretary command — switch between auto and manual mode."""
+        """Handle /secretary command — show mode picker with inline buttons."""
         if not update.message or not update.effective_user:
             return
 
         user = update.effective_user
         lang = user.language_code or "en"
-        args = context.args
-
-        if args and args[0] in ("auto", "manual"):
-            new_mode = args[0]
-            await self._stats_db.set_secretary_mode(user.id, new_mode)
-            await update.message.reply_text(
-                t("secretary_mode_set", lang, mode=new_mode)
-            )
-        else:
-            current = await self._stats_db.get_secretary_mode(user.id)
-            await update.message.reply_text(
-                t("secretary_mode_current", lang, mode=current)
-            )
+        current = await self._stats_db.get_secretary_mode(user.id)
+        await update.message.reply_text(
+            t("secretary_settings", lang, mode=current),
+            reply_markup=secretary_mode_keyboard(lang),
+        )
 
     async def stats_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE

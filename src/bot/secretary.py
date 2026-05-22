@@ -256,7 +256,7 @@ class SecretaryHandler:
             text=t("secretary_manual_prompt", lang, duration=dur_str),
             reply_to_message_id=message.message_id,
             reply_markup=secretary_transcribe_keyboard(
-                message.message_id, biz_conn_id
+                message.message_id, biz_conn_id, lang
             ),
             business_connection_id=biz_conn_id,
         )
@@ -671,7 +671,7 @@ class SecretaryHandler:
             # Send transcription in an expandable blockquote so it
             # takes less visual space in the chat.
             keyboard = secretary_post_transcription_keyboard(
-                message.message_id, owner_user.id
+                message.message_id, owner_user.id, lang
             )
             escaped_prefix = html.escape(prefix)
             escaped_text = html.escape(transcript.text)

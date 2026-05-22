@@ -26,262 +26,215 @@ _STRINGS: dict[str, dict[str, str]] = {
     # /start greeting  ({user} placeholder)
     "greeting": {
         "en": (
-            "Welcome {user}! Send me a voice message, audio file, or video note "
-            "and I'll transcribe it for you."
+            "Hi {user}! I turn voice messages into text.\n\n"
+            "Just send or forward a voice message, audio, or video — "
+            "I'll transcribe it instantly."
         ),
         "ru": (
-            "Добро пожаловать {user}! Отправьте мне голосовое сообщение, аудиофайл "
-            "или видеозаметку, и я сделаю расшифровку."
+            "Привет {user}! Я превращаю голосовые сообщения в текст.\n\n"
+            "Просто отправьте или перешлите голосовое, аудио или видео — "
+            "я мгновенно сделаю расшифровку."
         ),
         "hi": (
-            "स्वागत है {user}! मुझे एक वॉइस मैसेज, ऑडियो फाइल या वीडियो नोट भेजें "
-            "और मैं उसे ट्रांसक्राइब कर दूँगा।"
+            "नमस्ते {user}! मैं वॉइस मैसेज को टेक्स्ट में बदलता हूँ।\n\n"
+            "बस वॉइस मैसेज, ऑडियो या वीडियो भेजें या फॉरवर्ड करें — "
+            "मैं तुरंत ट्रांसक्राइब कर दूँगा।"
         ),
         "id": (
-            "Selamat datang {user}! Kirimkan pesan suara, file audio, atau catatan video "
-            "dan saya akan mentranskripsikannya untuk Anda."
+            "Hai {user}! Saya mengubah pesan suara menjadi teks.\n\n"
+            "Cukup kirim atau teruskan pesan suara, audio, atau video — "
+            "saya akan langsung mentranskripsikannya."
         ),
         "pt": (
-            "Bem-vindo {user}! Envie-me uma mensagem de voz, arquivo de áudio ou "
-            "nota de vídeo e eu farei a transcrição."
+            "Olá {user}! Eu transformo mensagens de voz em texto.\n\n"
+            "Basta enviar ou encaminhar um áudio, voz ou vídeo — "
+            "eu transcrevo na hora."
         ),
         "uk": (
-            "Ласкаво просимо {user}! Надішліть мені голосове повідомлення, аудіофайл "
-            "або відеонотатку, і я зроблю транскрипцію."
+            "Привіт {user}! Я перетворюю голосові повідомлення в текст.\n\n"
+            "Просто надішліть або перешліть голосове, аудіо чи відео — "
+            "я миттєво зроблю транскрипцію."
         ),
         "ar": (
-            "مرحبًا {user}! أرسل لي رسالة صوتية أو ملف صوتي أو ملاحظة فيديو "
-            "وسأقوم بتحويلها إلى نص."
+            "مرحبًا {user}! أنا أحوّل الرسائل الصوتية إلى نص.\n\n"
+            "فقط أرسل أو أعد توجيه رسالة صوتية أو صوت أو فيديو — "
+            "سأحوّلها إلى نص فوراً."
         ),
         "fa": (
-            "خوش آمدید {user}! یک پیام صوتی، فایل صوتی یا یادداشت ویدیویی "
-            "برایم بفرستید و من آن را رونویسی می‌کنم."
+            "سلام {user}! من پیام‌های صوتی را به متن تبدیل می‌کنم.\n\n"
+            "فقط پیام صوتی، صوت یا ویدیو بفرستید یا فوروارد کنید — "
+            "فوراً رونویسی می‌کنم."
         ),
         "de": (
-            "Willkommen {user}! Senden Sie mir eine Sprachnachricht, Audiodatei "
-            "oder Videonachricht und ich werde sie transkribieren."
+            "Hallo {user}! Ich verwandle Sprachnachrichten in Text.\n\n"
+            "Senden oder leiten Sie einfach eine Sprachnachricht, "
+            "Audio oder Video weiter — ich transkribiere es sofort."
         ),
         "tr": (
-            "Hoş geldiniz {user}! Bana bir sesli mesaj, ses dosyası veya video notu "
-            "gönderin, sizin için yazıya dökeyim."
+            "Merhaba {user}! Sesli mesajları yazıya dönüştürüyorum.\n\n"
+            "Bir sesli mesaj, ses veya video gönderin veya iletin — "
+            "hemen yazıya dökerim."
         ),
         "es": (
-            "¡Bienvenido {user}! Envíame un mensaje de voz, archivo de audio o "
-            "nota de video y lo transcribiré para ti."
+            "¡Hola {user}! Convierto mensajes de voz en texto.\n\n"
+            "Solo envía o reenvía un mensaje de voz, audio o video — "
+            "lo transcribiré al instante."
         ),
         "fr": (
-            "Bienvenue {user} ! Envoyez-moi un message vocal, un fichier audio ou "
-            "une note vidéo et je le transcrirai pour vous."
+            "Bonjour {user} ! Je transforme les messages vocaux en texte.\n\n"
+            "Envoyez ou transférez simplement un message vocal, "
+            "audio ou vidéo — je le transcrirai instantanément."
         ),
         "uz": (
-            "Xush kelibsiz {user}! Menga ovozli xabar, audio fayl yoki video eslatma "
-            "yuboring va men uni matn shaklida yozib beraman."
+            "Salom {user}! Men ovozli xabarlarni matnga aylantiraman.\n\n"
+            "Ovozli xabar, audio yoki video yuboring yoki yo'naltiring — "
+            "darhol matn shaklida yozib beraman."
         ),
         "am": (
-            "እንኳን ደህና መጡ {user}! የድምፅ መልእክት፣ የኦዲዮ ፋይል ወይም የቪዲዮ ማስታወሻ "
-            "ይላኩልኝ እና ወደ ጽሑፍ እለውጠዋለሁ።"
+            "ሰላም {user}! የድምፅ መልእክቶችን ወደ ጽሑፍ እቀይራለሁ።\n\n"
+            "የድምፅ መልእክት፣ ኦዲዮ ወይም ቪዲዮ ይላኩ ወይም ያስተላልፉ — "
+            "ወዲያውኑ ወደ ጽሑፍ እቀይረዋለሁ።"
         ),
         "ko": (
-            "환영합니다 {user}! 음성 메시지, 오디오 파일 또는 비디오 노트를 보내주시면 "
-            "텍스트로 변환해 드리겠습니다."
+            "안녕하세요 {user}! 음성 메시지를 텍스트로 변환합니다.\n\n"
+            "음성 메시지, 오디오 또는 비디오를 보내거나 전달하세요 — "
+            "즉시 텍스트로 변환해 드립니다."
         ),
     },
     # /help
     "help": {
         "en": (
-            "🎙 Send me a voice message, audio file, video note, "
-            "or video — I'll transcribe it right away.\n\n"
-            "After transcription you can:\n"
-            "• Summarize — get a short summary\n"
-            "• Save as file — download as .txt or .srt (subtitles)\n\n"
-            "Multiple speakers are detected automatically.\n\n"
-            "Commands:\n"
-            "/start — welcome message\n"
-            "/help — this message\n"
-            "/stats — your usage statistics\n"
-            "/secretary — secretary mode settings"
+            "🎙 Send me a voice message, audio, video note, or video "
+            "— I'll transcribe it.\n\n"
+            "After transcription you can summarize it or save as "
+            ".txt / .srt file. Multiple speakers are detected "
+            "automatically.\n\n"
+            "/secretary — auto-transcription in your chats\n"
+            "/stats — your usage statistics"
         ),
         "ru": (
-            "🎙 Отправьте мне голосовое сообщение, аудиофайл, "
-            "видеозаметку или видео — я сразу сделаю расшифровку.\n\n"
-            "После расшифровки вы можете:\n"
-            "• Краткое содержание — получить сводку\n"
-            "• Сохранить как файл — скачать в .txt или .srt (субтитры)\n\n"
-            "Несколько говорящих распознаются автоматически.\n\n"
-            "Команды:\n"
-            "/start — приветствие\n"
-            "/help — эта справка\n"
-            "/stats — ваша статистика использования\n"
-            "/secretary — настройки режима секретаря"
+            "🎙 Отправьте мне голосовое, аудио, видеозаметку или видео "
+            "— я сделаю расшифровку.\n\n"
+            "После расшифровки можно получить краткое содержание "
+            "или сохранить в .txt / .srt. Несколько говорящих "
+            "распознаются автоматически.\n\n"
+            "/secretary — авторасшифровка в ваших чатах\n"
+            "/stats — статистика использования"
         ),
         "hi": (
-            "🎙 मुझे वॉइस मैसेज, ऑडियो फाइल, वीडियो नोट "
-            "या वीडियो भेजें — मैं तुरंत ट्रांसक्राइब कर दूँगा।\n\n"
-            "ट्रांसक्रिप्शन के बाद आप कर सकते हैं:\n"
-            "• सारांश — संक्षिप्त सारांश प्राप्त करें\n"
-            "• फाइल में सेव — .txt या .srt (सबटाइटल) में डाउनलोड करें\n\n"
-            "कई वक्ताओं की पहचान स्वचालित रूप से होती है।\n\n"
-            "कमांड:\n"
-            "/start — स्वागत संदेश\n"
-            "/help — यह संदेश\n"
-            "/stats — आपकी उपयोग सांख्यिकी\n"
-            "/secretary — सेक्रेटरी मोड सेटिंग्स"
+            "🎙 मुझे वॉइस मैसेज, ऑडियो, वीडियो नोट या वीडियो भेजें "
+            "— मैं ट्रांसक्राइब कर दूँगा।\n\n"
+            "ट्रांसक्रिप्शन के बाद सारांश बना सकते हैं या "
+            ".txt / .srt में सेव कर सकते हैं। कई वक्ता अपने आप "
+            "पहचाने जाते हैं।\n\n"
+            "/secretary — चैट में ऑटो-ट्रांसक्रिप्शन\n"
+            "/stats — उपयोग सांख्यिकी"
         ),
         "id": (
-            "🎙 Kirimkan pesan suara, file audio, catatan video, "
-            "atau video — saya akan langsung mentranskripsikannya.\n\n"
-            "Setelah transkripsi Anda dapat:\n"
-            "• Ringkasan — dapatkan ringkasan singkat\n"
-            "• Simpan sebagai file — unduh sebagai .txt atau .srt (subtitle)\n\n"
-            "Beberapa pembicara terdeteksi secara otomatis.\n\n"
-            "Perintah:\n"
-            "/start — pesan selamat datang\n"
-            "/help — pesan ini\n"
-            "/stats — statistik penggunaan Anda\n"
-            "/secretary — pengaturan mode sekretaris"
+            "🎙 Kirimkan pesan suara, audio, catatan video, atau video "
+            "— saya akan mentranskripsikannya.\n\n"
+            "Setelah transkripsi Anda bisa meringkas atau menyimpan "
+            "sebagai .txt / .srt. Beberapa pembicara terdeteksi "
+            "secara otomatis.\n\n"
+            "/secretary — transkripsi otomatis di chat Anda\n"
+            "/stats — statistik penggunaan"
         ),
         "pt": (
-            "🎙 Envie-me uma mensagem de voz, arquivo de áudio, "
-            "nota de vídeo ou vídeo — eu transcrevo na hora.\n\n"
-            "Após a transcrição você pode:\n"
-            "• Resumir — obter um resumo curto\n"
-            "• Salvar como arquivo — baixar em .txt ou .srt (legendas)\n\n"
-            "Múltiplos falantes são detectados automaticamente.\n\n"
-            "Comandos:\n"
-            "/start — mensagem de boas-vindas\n"
-            "/help — esta mensagem\n"
-            "/stats — suas estatísticas de uso\n"
-            "/secretary — configurações do modo secretário"
+            "🎙 Envie-me uma mensagem de voz, áudio, nota de vídeo "
+            "ou vídeo — eu transcrevo.\n\n"
+            "Após a transcrição você pode resumir ou salvar em "
+            ".txt / .srt. Múltiplos falantes são detectados "
+            "automaticamente.\n\n"
+            "/secretary — transcrição automática nos seus chats\n"
+            "/stats — estatísticas de uso"
         ),
         "uk": (
-            "🎙 Надішліть мені голосове повідомлення, аудіофайл, "
-            "відеонотатку або відео — я одразу зроблю транскрипцію.\n\n"
-            "Після транскрипції ви можете:\n"
-            "• Підсумок — отримати короткий зміст\n"
-            "• Зберегти як файл — завантажити в .txt або .srt (субтитри)\n\n"
-            "Кілька мовців розпізнаються автоматично.\n\n"
-            "Команди:\n"
-            "/start — привітання\n"
-            "/help — ця довідка\n"
-            "/stats — ваша статистика використання\n"
-            "/secretary — налаштування режиму секретаря"
+            "🎙 Надішліть голосове, аудіо, відеонотатку або відео "
+            "— я зроблю транскрипцію.\n\n"
+            "Після транскрипції можна отримати підсумок або зберегти "
+            "в .txt / .srt. Кілька мовців розпізнаються "
+            "автоматично.\n\n"
+            "/secretary — автотранскрипція у ваших чатах\n"
+            "/stats — статистика використання"
         ),
         "ar": (
-            "🎙 أرسل لي رسالة صوتية أو ملف صوتي أو ملاحظة فيديو "
-            "أو فيديو — سأقوم بتحويلها إلى نص فوراً.\n\n"
-            "بعد التحويل يمكنك:\n"
-            "• تلخيص — الحصول على ملخص قصير\n"
-            "• حفظ كملف — تنزيل بصيغة .txt أو .srt (ترجمات)\n\n"
-            "يتم الكشف عن المتحدثين المتعددين تلقائياً.\n\n"
-            "الأوامر:\n"
-            "/start — رسالة الترحيب\n"
-            "/help — هذه الرسالة\n"
-            "/stats — إحصائيات استخدامك\n"
-            "/secretary — إعدادات وضع السكرتير"
+            "🎙 أرسل لي رسالة صوتية أو صوت أو ملاحظة فيديو أو فيديو "
+            "— سأحوّلها إلى نص.\n\n"
+            "بعد التحويل يمكنك تلخيصها أو حفظها كملف "
+            ".txt / .srt. يتم كشف المتحدثين المتعددين "
+            "تلقائياً.\n\n"
+            "/secretary — تحويل تلقائي في محادثاتك\n"
+            "/stats — إحصائيات الاستخدام"
         ),
         "fa": (
-            "🎙 یک پیام صوتی، فایل صوتی، یادداشت ویدیویی "
-            "یا ویدیو برایم بفرستید — فوراً رونویسی می‌کنم.\n\n"
-            "بعد از رونویسی می‌توانید:\n"
-            "• خلاصه — یک خلاصه کوتاه دریافت کنید\n"
-            "• ذخیره به‌عنوان فایل — دانلود به‌صورت .txt یا .srt (زیرنویس)\n\n"
-            "چندین گوینده به‌صورت خودکار شناسایی می‌شوند.\n\n"
-            "دستورات:\n"
-            "/start — پیام خوشامدگویی\n"
-            "/help — این پیام\n"
-            "/stats — آمار استفاده شما\n"
-            "/secretary — تنظیمات حالت منشی"
+            "🎙 پیام صوتی، صوت، یادداشت ویدیویی یا ویدیو بفرستید "
+            "— رونویسی می‌کنم.\n\n"
+            "بعد از رونویسی می‌توانید خلاصه بگیرید یا به‌صورت "
+            ".txt / .srt ذخیره کنید. چندین گوینده به‌صورت خودکار "
+            "شناسایی می‌شوند.\n\n"
+            "/secretary — رونویسی خودکار در چت‌ها\n"
+            "/stats — آمار استفاده"
         ),
         "de": (
-            "🎙 Senden Sie mir eine Sprachnachricht, Audiodatei, "
-            "Videonachricht oder Video — ich transkribiere es sofort.\n\n"
-            "Nach der Transkription können Sie:\n"
-            "• Zusammenfassen — eine kurze Zusammenfassung erhalten\n"
-            "• Als Datei speichern — als .txt oder .srt (Untertitel) herunterladen\n\n"
-            "Mehrere Sprecher werden automatisch erkannt.\n\n"
-            "Befehle:\n"
-            "/start — Willkommensnachricht\n"
-            "/help — diese Nachricht\n"
-            "/stats — Ihre Nutzungsstatistiken\n"
-            "/secretary — Sekretär-Modus-Einstellungen"
+            "🎙 Senden Sie mir eine Sprachnachricht, Audio, Videonachricht "
+            "oder Video — ich transkribiere es.\n\n"
+            "Nach der Transkription können Sie zusammenfassen oder "
+            "als .txt / .srt speichern. Mehrere Sprecher werden "
+            "automatisch erkannt.\n\n"
+            "/secretary — Auto-Transkription in Ihren Chats\n"
+            "/stats — Nutzungsstatistiken"
         ),
         "tr": (
-            "🎙 Bana sesli mesaj, ses dosyası, video notu "
-            "veya video gönderin — hemen yazıya dökerim.\n\n"
-            "Dönüştürmeden sonra şunları yapabilirsiniz:\n"
-            "• Özetle — kısa bir özet alın\n"
-            "• Dosya olarak kaydet — .txt veya .srt (altyazı) olarak indirin\n\n"
-            "Birden fazla konuşmacı otomatik olarak algılanır.\n\n"
-            "Komutlar:\n"
-            "/start — hoş geldiniz mesajı\n"
-            "/help — bu mesaj\n"
-            "/stats — kullanım istatistikleriniz\n"
-            "/secretary — sekreter modu ayarları"
+            "🎙 Bana sesli mesaj, ses, video notu veya video gönderin "
+            "— yazıya dökerim.\n\n"
+            "Dönüştürmeden sonra özetleyebilir veya .txt / .srt "
+            "olarak kaydedebilirsiniz. Birden fazla konuşmacı otomatik "
+            "algılanır.\n\n"
+            "/secretary — sohbetlerde otomatik dönüştürme\n"
+            "/stats — kullanım istatistikleri"
         ),
         "es": (
-            "🎙 Envíame un mensaje de voz, archivo de audio, "
-            "nota de video o video — lo transcribiré de inmediato.\n\n"
-            "Después de la transcripción puedes:\n"
-            "• Resumir — obtener un resumen breve\n"
-            "• Guardar como archivo — descargar en .txt o .srt (subtítulos)\n\n"
+            "🎙 Envíame un mensaje de voz, audio, nota de video "
+            "o video — lo transcribiré.\n\n"
+            "Después puedes resumir o guardar como .txt / .srt. "
             "Se detectan múltiples hablantes automáticamente.\n\n"
-            "Comandos:\n"
-            "/start — mensaje de bienvenida\n"
-            "/help — este mensaje\n"
-            "/stats — tus estadísticas de uso\n"
-            "/secretary — ajustes del modo secretario"
+            "/secretary — transcripción automática en tus chats\n"
+            "/stats — estadísticas de uso"
         ),
         "fr": (
-            "🎙 Envoyez-moi un message vocal, un fichier audio, "
-            "une note vidéo ou une vidéo — je le transcrirai immédiatement.\n\n"
-            "Après la transcription vous pouvez :\n"
-            "• Résumer — obtenir un résumé court\n"
-            "• Enregistrer en fichier — télécharger en .txt ou .srt (sous-titres)\n\n"
-            "Les locuteurs multiples sont détectés automatiquement.\n\n"
-            "Commandes :\n"
-            "/start — message de bienvenue\n"
-            "/help — ce message\n"
-            "/stats — vos statistiques d'utilisation\n"
-            "/secretary — paramètres du mode secrétaire"
+            "🎙 Envoyez-moi un message vocal, audio, note vidéo "
+            "ou vidéo — je le transcrirai.\n\n"
+            "Après la transcription vous pouvez résumer ou enregistrer "
+            "en .txt / .srt. Les locuteurs multiples sont détectés "
+            "automatiquement.\n\n"
+            "/secretary — transcription auto dans vos chats\n"
+            "/stats — statistiques d'utilisation"
         ),
         "uz": (
-            "🎙 Menga ovozli xabar, audio fayl, video eslatma "
-            "yoki video yuboring — darhol matn shaklida yozib beraman.\n\n"
-            "Transkripsiyadan keyin siz:\n"
-            "• Xulosa — qisqa xulosa oling\n"
-            "• Fayl sifatida saqlash — .txt yoki .srt (subtitrlar) sifatida yuklab oling\n\n"
-            "Bir nechta so'zlovchilar avtomatik aniqlanadi.\n\n"
-            "Buyruqlar:\n"
-            "/start — xush kelibsiz xabari\n"
-            "/help — ushbu xabar\n"
-            "/stats — foydalanish statistikasi\n"
-            "/secretary — kotib rejimi sozlamalari"
+            "🎙 Ovozli xabar, audio, video eslatma yoki video yuboring "
+            "— matn shaklida yozib beraman.\n\n"
+            "Transkripsiyadan keyin xulosa olishingiz yoki .txt / .srt "
+            "shaklida saqlashingiz mumkin. Bir nechta so'zlovchilar "
+            "avtomatik aniqlanadi.\n\n"
+            "/secretary — chatlarda avtomatik transkripsiya\n"
+            "/stats — foydalanish statistikasi"
         ),
         "am": (
-            "🎙 የድምፅ መልእክት፣ የኦዲዮ ፋይል፣ የቪዲዮ ማስታወሻ "
-            "ወይም ቪዲዮ ይላኩልኝ — ወዲያውኑ እጽፈዋለሁ።\n\n"
-            "ከተቀየረ በኋላ ማድረግ የሚችሉት:\n"
-            "• ማጠቃለያ — አጭር ማጠቃለያ ያግኙ\n"
-            "• እንደ ፋይል ያስቀምጡ — በ .txt ወይም .srt (ንዑስ ጽሑፍ) ያውርዱ\n\n"
-            "ብዙ ተናጋሪዎች በራስ-ሰር ይታወቃሉ።\n\n"
-            "ትዕዛዞች:\n"
-            "/start — የእንኳን ደህና መጡ መልእክት\n"
-            "/help — ይህ መልእክት\n"
-            "/stats — የእርስዎ የአጠቃቀም ስታቲስቲክስ\n"
-            "/secretary — የጸሐፊ ሁነታ ቅንብሮች"
+            "🎙 የድምፅ መልእክት፣ ኦዲዮ፣ የቪዲዮ ማስታወሻ ወይም ቪዲዮ "
+            "ይላኩልኝ — ወደ ጽሑፍ እቀይረዋለሁ።\n\n"
+            "ከተቀየረ በኋላ ማጠቃለያ ማግኘት ወይም በ .txt / .srt "
+            "ማስቀመጥ ይችላሉ። ብዙ ተናጋሪዎች በራስ-ሰር "
+            "ይታወቃሉ።\n\n"
+            "/secretary — በቻቶች ውስጥ ራስ-ሰር ጽሑፍ መቀየር\n"
+            "/stats — የአጠቃቀም ስታቲስቲክስ"
         ),
         "ko": (
-            "🎙 음성 메시지, 오디오 파일, 비디오 노트 "
-            "또는 비디오를 보내주세요 — 바로 텍스트로 변환해 드립니다.\n\n"
-            "변환 후 할 수 있는 것:\n"
-            "• 요약 — 짧은 요약 받기\n"
-            "• 파일로 저장 — .txt 또는 .srt(자막)로 다운로드\n\n"
+            "🎙 음성 메시지, 오디오, 비디오 노트 또는 비디오를 "
+            "보내주세요 — 텍스트로 변환합니다.\n\n"
+            "변환 후 요약하거나 .txt / .srt로 저장할 수 있습니다. "
             "여러 화자가 자동으로 감지됩니다.\n\n"
-            "명령어:\n"
-            "/start — 환영 메시지\n"
-            "/help — 이 메시지\n"
-            "/stats — 사용 통계\n"
-            "/secretary — 비서 모드 설정"
+            "/secretary — 채팅에서 자동 변환\n"
+            "/stats — 사용 통계"
         ),
     },
     # "Transcribing..." processing message
@@ -849,6 +802,353 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ko": "첫 사용: {first_used}\n마지막: {last_used}",
     },
     # Video processing timeout
+    # Button labels
+    "btn_summarize": {
+        "en": "Summarize",
+        "ru": "Краткое содержание",
+        "hi": "सारांश",
+        "id": "Ringkasan",
+        "pt": "Resumir",
+        "uk": "Підсумок",
+        "ar": "تلخيص",
+        "fa": "خلاصه",
+        "de": "Zusammenfassen",
+        "tr": "Özetle",
+        "es": "Resumir",
+        "fr": "Résumer",
+        "uz": "Xulosa",
+        "am": "ማጠቃለያ",
+        "ko": "요약",
+    },
+    "btn_save_file": {
+        "en": "Save as file",
+        "ru": "Сохранить как файл",
+        "hi": "फाइल में सेव",
+        "id": "Simpan sebagai file",
+        "pt": "Salvar como arquivo",
+        "uk": "Зберегти як файл",
+        "ar": "حفظ كملف",
+        "fa": "ذخیره به‌عنوان فایل",
+        "de": "Als Datei speichern",
+        "tr": "Dosya olarak kaydet",
+        "es": "Guardar como archivo",
+        "fr": "Enregistrer en fichier",
+        "uz": "Fayl sifatida saqlash",
+        "am": "እንደ ፋይል ያስቀምጡ",
+        "ko": "파일로 저장",
+    },
+    "btn_transcribe": {
+        "en": "📝 Transcribe",
+        "ru": "📝 Расшифровать",
+        "hi": "📝 ट्रांसक्राइब",
+        "id": "📝 Transkripsikan",
+        "pt": "📝 Transcrever",
+        "uk": "📝 Транскрибувати",
+        "ar": "📝 تحويل إلى نص",
+        "fa": "📝 رونویسی",
+        "de": "📝 Transkribieren",
+        "tr": "📝 Yazıya dök",
+        "es": "📝 Transcribir",
+        "fr": "📝 Transcrire",
+        "uz": "📝 Matn shaklida yozish",
+        "am": "📝 ወደ ጽሑፍ ቀይር",
+        "ko": "📝 텍스트 변환",
+    },
+    # /secretary inline button labels
+    "btn_mode_auto": {
+        "en": "🔄 Auto",
+        "ru": "🔄 Авто",
+        "hi": "🔄 ऑटो",
+        "id": "🔄 Otomatis",
+        "pt": "🔄 Automático",
+        "uk": "🔄 Авто",
+        "ar": "🔄 تلقائي",
+        "fa": "🔄 خودکار",
+        "de": "🔄 Automatisch",
+        "tr": "🔄 Otomatik",
+        "es": "🔄 Automático",
+        "fr": "🔄 Automatique",
+        "uz": "🔄 Avtomatik",
+        "am": "🔄 ራስ-ሰር",
+        "ko": "🔄 자동",
+    },
+    "btn_mode_manual": {
+        "en": "👆 Manual",
+        "ru": "👆 Вручную",
+        "hi": "👆 मैनुअल",
+        "id": "👆 Manual",
+        "pt": "👆 Manual",
+        "uk": "👆 Вручну",
+        "ar": "👆 يدوي",
+        "fa": "👆 دستی",
+        "de": "👆 Manuell",
+        "tr": "👆 Manuel",
+        "es": "👆 Manual",
+        "fr": "👆 Manuel",
+        "uz": "👆 Qo'lda",
+        "am": "👆 በእጅ",
+        "ko": "👆 수동",
+    },
+    # Secretary settings message (shown with inline buttons)
+    "secretary_settings": {
+        "en": (
+            "🤖 Secretary mode transcribes voice messages "
+            "in your private chats automatically.\n\n"
+            "Current mode: {mode}\n\n"
+            "🔄 Auto — transcribe every voice message instantly\n"
+            "👆 Manual — show a button, transcribe on tap"
+        ),
+        "ru": (
+            "🤖 Режим секретаря автоматически расшифровывает "
+            "голосовые сообщения в ваших личных чатах.\n\n"
+            "Текущий режим: {mode}\n\n"
+            "🔄 Авто — расшифровывать каждое голосовое сразу\n"
+            "👆 Вручную — показать кнопку, расшифровать по нажатию"
+        ),
+        "hi": (
+            "🤖 सेक्रेटरी मोड आपकी प्राइवेट चैट में वॉइस मैसेज "
+            "को स्वचालित रूप से ट्रांसक्राइब करता है।\n\n"
+            "वर्तमान मोड: {mode}\n\n"
+            "🔄 ऑटो — हर वॉइस मैसेज तुरंत ट्रांसक्राइब करें\n"
+            "👆 मैनुअल — बटन दिखाएं, टैप पर ट्रांसक्राइब करें"
+        ),
+        "id": (
+            "🤖 Mode sekretaris mentranskripsikan pesan suara "
+            "di chat pribadi Anda secara otomatis.\n\n"
+            "Mode saat ini: {mode}\n\n"
+            "🔄 Otomatis — transkripsi setiap pesan suara langsung\n"
+            "👆 Manual — tampilkan tombol, transkripsi saat ditekan"
+        ),
+        "pt": (
+            "🤖 O modo secretário transcreve mensagens de voz "
+            "nos seus chats privados automaticamente.\n\n"
+            "Modo atual: {mode}\n\n"
+            "🔄 Automático — transcrever toda mensagem de voz na hora\n"
+            "👆 Manual — mostrar botão, transcrever ao tocar"
+        ),
+        "uk": (
+            "🤖 Режим секретаря автоматично транскрибує "
+            "голосові повідомлення у ваших приватних чатах.\n\n"
+            "Поточний режим: {mode}\n\n"
+            "🔄 Авто — транскрибувати кожне голосове одразу\n"
+            "👆 Вручну — показати кнопку, транскрибувати по натисканню"
+        ),
+        "ar": (
+            "🤖 وضع السكرتير يحوّل الرسائل الصوتية "
+            "في محادثاتك الخاصة إلى نص تلقائياً.\n\n"
+            "الوضع الحالي: {mode}\n\n"
+            "🔄 تلقائي — تحويل كل رسالة صوتية فوراً\n"
+            "👆 يدوي — عرض زر، تحويل عند الضغط"
+        ),
+        "fa": (
+            "🤖 حالت منشی پیام‌های صوتی را "
+            "در چت‌های خصوصی شما به‌صورت خودکار رونویسی می‌کند.\n\n"
+            "حالت فعلی: {mode}\n\n"
+            "🔄 خودکار — هر پیام صوتی را فوراً رونویسی کن\n"
+            "👆 دستی — دکمه نشان بده، با لمس رونویسی کن"
+        ),
+        "de": (
+            "🤖 Der Sekretär-Modus transkribiert Sprachnachrichten "
+            "in Ihren privaten Chats automatisch.\n\n"
+            "Aktueller Modus: {mode}\n\n"
+            "🔄 Automatisch — jede Sprachnachricht sofort transkribieren\n"
+            "👆 Manuell — Schaltfläche anzeigen, bei Tippen transkribieren"
+        ),
+        "tr": (
+            "🤖 Sekreter modu özel sohbetlerinizdeki sesli mesajları "
+            "otomatik olarak yazıya döker.\n\n"
+            "Mevcut mod: {mode}\n\n"
+            "🔄 Otomatik — her sesli mesajı anında yazıya dök\n"
+            "👆 Manuel — buton göster, dokunarak yazıya dök"
+        ),
+        "es": (
+            "🤖 El modo secretario transcribe mensajes de voz "
+            "en tus chats privados automáticamente.\n\n"
+            "Modo actual: {mode}\n\n"
+            "🔄 Automático — transcribir cada mensaje de voz al instante\n"
+            "👆 Manual — mostrar botón, transcribir al tocar"
+        ),
+        "fr": (
+            "🤖 Le mode secrétaire transcrit les messages vocaux "
+            "dans vos conversations privées automatiquement.\n\n"
+            "Mode actuel : {mode}\n\n"
+            "🔄 Automatique — transcrire chaque message vocal instantanément\n"
+            "👆 Manuel — afficher un bouton, transcrire au toucher"
+        ),
+        "uz": (
+            "🤖 Kotib rejimi shaxsiy chatlaringizdagi ovozli xabarlarni "
+            "avtomatik ravishda matn shaklida yozadi.\n\n"
+            "Joriy rejim: {mode}\n\n"
+            "🔄 Avtomatik — har bir ovozli xabarni darhol yozish\n"
+            "👆 Qo'lda — tugma ko'rsatish, bosish orqali yozish"
+        ),
+        "am": (
+            "🤖 የጸሐፊ ሁነታ በግል ውይይቶችዎ ውስጥ የድምፅ መልእክቶችን "
+            "በራስ-ሰር ወደ ጽሑፍ ይቀይራል።\n\n"
+            "የአሁኑ ሁነታ: {mode}\n\n"
+            "🔄 ራስ-ሰር — እያንዳንዱን የድምፅ መልእክት ወዲያውኑ ይቀይሩ\n"
+            "👆 በእጅ — ቁልፍ ያሳዩ፣ በመንካት ይቀይሩ"
+        ),
+        "ko": (
+            "🤖 비서 모드는 개인 채팅에서 음성 메시지를 "
+            "자동으로 텍스트로 변환합니다.\n\n"
+            "현재 모드: {mode}\n\n"
+            "🔄 자동 — 모든 음성 메시지를 즉시 변환\n"
+            "👆 수동 — 버튼 표시, 탭하여 변환"
+        ),
+    },
+    # Secretary setup instructions (shown from /start button)
+    "secretary_setup": {
+        "en": (
+            "✨ <b>Auto-transcribe voice messages in your chats</b>\n\n"
+            "Go to <b>Telegram Settings → Telegram Business → Chatbots</b> "
+            "and add this bot. Once connected, every voice message and "
+            "video note in your DMs will be transcribed automatically.\n\n"
+            "You can switch between auto and manual mode anytime "
+            "with /secretary."
+        ),
+        "ru": (
+            "✨ <b>Автоматическая расшифровка в ваших чатах</b>\n\n"
+            "Перейдите в <b>Настройки Telegram → Telegram Бизнес → "
+            "Чат-боты</b> и добавьте этого бота. После подключения "
+            "все голосовые и видеозаметки в личных сообщениях будут "
+            "расшифрованы автоматически.\n\n"
+            "Переключайтесь между авто и ручным режимом "
+            "командой /secretary."
+        ),
+        "hi": (
+            "✨ <b>अपनी चैट में वॉइस मैसेज ऑटो-ट्रांसक्राइब करें</b>\n\n"
+            "<b>Telegram Settings → Telegram Business → Chatbots</b> "
+            "में जाएं और इस बॉट को जोड़ें। कनेक्ट होने के बाद, "
+            "आपके DM में हर वॉइस मैसेज और वीडियो नोट अपने आप "
+            "ट्रांसक्राइब होगा।\n\n"
+            "ऑटो और मैनुअल मोड के बीच कभी भी /secretary से बदलें।"
+        ),
+        "id": (
+            "✨ <b>Transkripsi otomatis pesan suara di chat Anda</b>\n\n"
+            "Buka <b>Pengaturan Telegram → Telegram Business → "
+            "Chatbots</b> dan tambahkan bot ini. Setelah terhubung, "
+            "setiap pesan suara dan catatan video di DM Anda akan "
+            "ditranskripsi otomatis.\n\n"
+            "Beralih antara mode otomatis dan manual kapan saja "
+            "dengan /secretary."
+        ),
+        "pt": (
+            "✨ <b>Transcreva mensagens de voz automaticamente</b>\n\n"
+            "Vá em <b>Configurações do Telegram → Telegram Business → "
+            "Chatbots</b> e adicione este bot. Depois de conectado, "
+            "toda mensagem de voz e nota de vídeo nas suas conversas "
+            "será transcrita automaticamente.\n\n"
+            "Alterne entre modo automático e manual a qualquer momento "
+            "com /secretary."
+        ),
+        "uk": (
+            "✨ <b>Автоматична транскрипція у ваших чатах</b>\n\n"
+            "Перейдіть у <b>Налаштування Telegram → Telegram Бізнес → "
+            "Чат-боти</b> і додайте цього бота. Після підключення "
+            "всі голосові та відеонотатки у приватних повідомленнях "
+            "будуть транскрибовані автоматично.\n\n"
+            "Переключайтесь між авто та ручним режимом "
+            "командою /secretary."
+        ),
+        "ar": (
+            "✨ <b>تحويل الرسائل الصوتية تلقائياً في محادثاتك</b>\n\n"
+            "اذهب إلى <b>إعدادات Telegram → Telegram Business → "
+            "Chatbots</b> وأضف هذا البوت. بعد الاتصال، سيتم تحويل "
+            "كل رسالة صوتية وملاحظة فيديو في رسائلك إلى نص "
+            "تلقائياً.\n\n"
+            "بدّل بين الوضع التلقائي واليدوي في أي وقت "
+            "بأمر /secretary."
+        ),
+        "fa": (
+            "✨ <b>رونویسی خودکار پیام‌های صوتی در چت‌هایتان</b>\n\n"
+            "به <b>تنظیمات تلگرام → Telegram Business → Chatbots</b> "
+            "بروید و این ربات را اضافه کنید. پس از اتصال، هر پیام "
+            "صوتی و یادداشت ویدیویی در پیام‌های شما به‌صورت خودکار "
+            "رونویسی می‌شود.\n\n"
+            "هر زمان با /secretary بین حالت خودکار و دستی جابه‌جا شوید."
+        ),
+        "de": (
+            "✨ <b>Sprachnachrichten automatisch transkribieren</b>\n\n"
+            "Gehen Sie zu <b>Telegram Einstellungen → Telegram Business → "
+            "Chatbots</b> und fügen Sie diesen Bot hinzu. Nach der "
+            "Verbindung wird jede Sprachnachricht und Videonachricht "
+            "in Ihren DMs automatisch transkribiert.\n\n"
+            "Wechseln Sie jederzeit zwischen Automatik und Manuell "
+            "mit /secretary."
+        ),
+        "tr": (
+            "✨ <b>Sohbetlerinizde sesli mesajları otomatik yazıya dökün</b>\n\n"
+            "<b>Telegram Ayarları → Telegram Business → Chatbots</b>'a "
+            "gidin ve bu botu ekleyin. Bağlandıktan sonra, DM'lerinizdeki "
+            "her sesli mesaj ve video notu otomatik olarak yazıya "
+            "dökülür.\n\n"
+            "Otomatik ve manuel mod arasında istediğiniz zaman "
+            "/secretary ile geçiş yapın."
+        ),
+        "es": (
+            "✨ <b>Transcribe mensajes de voz automáticamente</b>\n\n"
+            "Ve a <b>Ajustes de Telegram → Telegram Business → "
+            "Chatbots</b> y añade este bot. Una vez conectado, cada "
+            "mensaje de voz y nota de video en tus conversaciones se "
+            "transcribirá automáticamente.\n\n"
+            "Cambia entre modo automático y manual en cualquier momento "
+            "con /secretary."
+        ),
+        "fr": (
+            "✨ <b>Transcrivez les messages vocaux automatiquement</b>\n\n"
+            "Allez dans <b>Paramètres Telegram → Telegram Business → "
+            "Chatbots</b> et ajoutez ce bot. Une fois connecté, chaque "
+            "message vocal et note vidéo dans vos conversations sera "
+            "transcrit automatiquement.\n\n"
+            "Basculez entre le mode automatique et manuel à tout moment "
+            "avec /secretary."
+        ),
+        "uz": (
+            "✨ <b>Chatlaringizda ovozli xabarlarni avtomatik yozing</b>\n\n"
+            "<b>Telegram Sozlamalari → Telegram Business → Chatbots</b>ga "
+            "boring va bu botni qo'shing. Ulanganidan keyin, "
+            "DM'laringizdagi har bir ovozli xabar va video eslatma "
+            "avtomatik ravishda matn shaklida yoziladi.\n\n"
+            "Istalgan vaqtda /secretary bilan avtomatik va qo'lda "
+            "rejim o'rtasida almashing."
+        ),
+        "am": (
+            "✨ <b>በቻቶችዎ ውስጥ የድምፅ መልእክቶችን በራስ-ሰር ይቀይሩ</b>\n\n"
+            "ወደ <b>Telegram ቅንብሮች → Telegram Business → Chatbots</b> "
+            "ይሂዱ እና ይህን ቦት ያክሉ። ከተገናኘ በኋላ፣ በDM ውስጥ ያለው "
+            "እያንዳንዱ የድምፅ መልእክት እና የቪዲዮ ማስታወሻ በራስ-ሰር "
+            "ወደ ጽሑፍ ይቀየራል።\n\n"
+            "በማንኛውም ጊዜ /secretary በመጠቀም በራስ-ሰር "
+            "እና በእጅ ሁነታ መካከል ይቀያይሩ።"
+        ),
+        "ko": (
+            "✨ <b>채팅에서 음성 메시지를 자동으로 변환하세요</b>\n\n"
+            "<b>Telegram 설정 → Telegram Business → Chatbots</b>로 "
+            "가서 이 봇을 추가하세요. 연결되면 DM의 모든 음성 메시지와 "
+            "비디오 노트가 자동으로 텍스트로 변환됩니다.\n\n"
+            "언제든지 /secretary로 자동 모드와 수동 모드를 "
+            "전환할 수 있습니다."
+        ),
+    },
+    # Button label for secretary setup in /start
+    "btn_secretary_setup": {
+        "en": "✨ Auto-transcribe your chats",
+        "ru": "✨ Авторасшифровка в чатах",
+        "hi": "✨ चैट में ऑटो-ट्रांसक्राइब",
+        "id": "✨ Transkripsi otomatis di chat",
+        "pt": "✨ Transcrição automática",
+        "uk": "✨ Автотранскрипція у чатах",
+        "ar": "✨ تحويل تلقائي في محادثاتك",
+        "fa": "✨ رونویسی خودکار چت‌ها",
+        "de": "✨ Auto-Transkription in Chats",
+        "tr": "✨ Sohbetlerde otomatik dönüştür",
+        "es": "✨ Auto-transcribir tus chats",
+        "fr": "✨ Transcription auto dans vos chats",
+        "uz": "✨ Chatlarda avtomatik yozish",
+        "am": "✨ ቻቶችዎን በራስ-ሰር ይቀይሩ",
+        "ko": "✨ 채팅 자동 변환 설정",
+    },
     "video_timeout": {
         "en": "Could not process this video. Please try again or send just the audio.",
         "ru": "Не удалось обработать это видео. Попробуйте ещё раз или отправьте только аудио.",
