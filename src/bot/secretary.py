@@ -1,6 +1,7 @@
 """Secretary mode — transcribe voice messages in users' DM chats."""
 
 import asyncio
+import io
 import logging
 import os
 import tempfile
@@ -10,13 +11,20 @@ from telegram import Bot, BusinessConnection, Message, Update, User
 from telegram.ext import ContextTypes
 
 from src.bot.keyboards import (
+    CALLBACK_SEC_EXPORT_SRT,
+    CALLBACK_SEC_EXPORT_TXT,
+    CALLBACK_SEC_SAVEFILE,
+    CALLBACK_SEC_SUMMARIZE,
     CALLBACK_SEC_TRANSCRIBE,
-    post_transcription_keyboard,
+    secretary_file_format_keyboard,
+    secretary_post_transcription_keyboard,
     secretary_transcribe_keyboard,
 )
 from src.bot.locales import t
 from src.bot.services.audio import extract_audio, get_audio_duration
+from src.bot.services.export import generate_srt, generate_txt
 from src.bot.services.notifier import AdminNotifier
+from src.bot.services.summarization import SummarizationClient
 from src.bot.services.transcription import EmptyTranscriptionError, TranscriptionClient
 from src.bot.storage.statistics import StatisticsDB
 from src.bot.storage.transcription_store import TranscriptionStore
@@ -31,6 +39,7 @@ class SecretaryHandler:
     def __init__(
         self,
         transcriber: TranscriptionClient,
+        summarizer: SummarizationClient,
         notifier: AdminNotifier,
         store: TranscriptionStore,
         stats_db: StatisticsDB,
@@ -40,6 +49,7 @@ class SecretaryHandler:
         file_download_timeout: int = 60,
     ) -> None:
         self._transcriber = transcriber
+        self._summarizer = summarizer
         self._notifier = notifier
         self._store = store
         self._stats_db = stats_db
@@ -241,6 +251,147 @@ class SecretaryHandler:
         await self._do_transcription(
             context.bot, original_message, prompt_msg, biz_conn_id,
             owner_user, lang, prefix,
+        )
+
+    # ------------------------------------------------------------------
+    # Post-transcription callbacks (summarize, save file, export)
+    # ------------------------------------------------------------------
+
+    async def handle_post_transcription_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle Summarize / Save as file / Export buttons for secretary transcriptions."""
+        query = update.callback_query
+        if not query or not query.data:
+            return
+
+        parts = query.data.split(":")
+        if len(parts) != 3:
+            return
+
+        action = parts[0]
+        try:
+            original_message_id = int(parts[1])
+            owner_user_id = int(parts[2])
+        except ValueError:
+            return
+
+        await query.answer()
+
+        user = update.effective_user
+        lang = user.language_code or "en" if user else "en"
+
+        if action == CALLBACK_SEC_SUMMARIZE:
+            await self._handle_secretary_summarize(
+                query, owner_user_id, original_message_id, lang
+            )
+        elif action == CALLBACK_SEC_SAVEFILE:
+            await self._handle_secretary_save_file(
+                query, owner_user_id, original_message_id, lang
+            )
+        elif action in (CALLBACK_SEC_EXPORT_TXT, CALLBACK_SEC_EXPORT_SRT):
+            await self._handle_secretary_export(
+                query, owner_user_id, original_message_id, action, lang
+            )
+
+    async def _handle_secretary_summarize(
+        self,
+        query: object,
+        owner_user_id: int,
+        original_message_id: int,
+        lang: str,
+    ) -> None:
+        transcript = self._store.get(owner_user_id, original_message_id)
+        if transcript is None:
+            await query.edit_message_reply_markup(reply_markup=None)
+            if query.message:
+                await query.message.reply_text(t("transcription_expired", lang))
+            return
+
+        await query.edit_message_reply_markup(reply_markup=None)
+
+        try:
+            summary = self._summarizer.summarize(transcript)
+        except RuntimeError as e:
+            if query.message:
+                await query.message.reply_text(t("something_went_wrong", lang))
+            await self._notifier.notify_error(
+                "Secretary: summarization failed",
+                username=f"owner:{owner_user_id}",
+                error_detail=str(e),
+            )
+            return
+
+        if query.message:
+            for chunk in split_message(summary):
+                await query.message.reply_text(chunk)
+
+        logger.info(
+            "Secretary: summarized transcription for owner %d", owner_user_id
+        )
+
+    async def _handle_secretary_save_file(
+        self,
+        query: object,
+        owner_user_id: int,
+        original_message_id: int,
+        lang: str,
+    ) -> None:
+        transcript = self._store.get(owner_user_id, original_message_id)
+        if transcript is None:
+            await query.edit_message_reply_markup(reply_markup=None)
+            if query.message:
+                await query.message.reply_text(t("transcription_expired", lang))
+            return
+
+        await query.edit_message_reply_markup(
+            reply_markup=secretary_file_format_keyboard(
+                original_message_id, owner_user_id
+            ),
+        )
+
+    async def _handle_secretary_export(
+        self,
+        query: object,
+        owner_user_id: int,
+        original_message_id: int,
+        action: str,
+        lang: str,
+    ) -> None:
+        transcript = self._store.get(owner_user_id, original_message_id)
+        if transcript is None:
+            await query.edit_message_reply_markup(reply_markup=None)
+            if query.message:
+                await query.message.reply_text(t("transcription_expired", lang))
+            return
+
+        await query.edit_message_reply_markup(reply_markup=None)
+
+        if action == CALLBACK_SEC_EXPORT_TXT:
+            content = generate_txt(transcript)
+            filename = "transcription.txt"
+        else:
+            words = self._store.get_words(owner_user_id, original_message_id)
+            if not words:
+                if query.message:
+                    await query.message.reply_text(t("srt_no_words", lang))
+                return
+            content = generate_srt(words)
+            if not content:
+                if query.message:
+                    await query.message.reply_text(t("srt_no_timed", lang))
+                return
+            filename = "transcription.srt"
+
+        file_bytes = b"\xef\xbb\xbf" + content.encode("utf-8")
+        if query.message:
+            await query.message.reply_document(
+                document=io.BytesIO(file_bytes),
+                filename=filename,
+            )
+
+        logger.info(
+            "Secretary: exported %s for owner %d", filename, owner_user_id
         )
 
     # ------------------------------------------------------------------
@@ -449,6 +600,9 @@ class SecretaryHandler:
 
             # Send transcription — edit status message for first chunk,
             # send additional messages for long transcriptions
+            keyboard = secretary_post_transcription_keyboard(
+                message.message_id, owner_user.id
+            )
             chunks = split_message(f"{prefix}\n{transcript.text}")
             for i, chunk in enumerate(chunks):
                 is_last = i == len(chunks) - 1
@@ -457,20 +611,14 @@ class SecretaryHandler:
                         chat_id=chat_id,
                         message_id=status_msg.message_id,
                         text=chunk,
-                        reply_markup=(
-                            post_transcription_keyboard(message.message_id)
-                            if is_last else None
-                        ),
+                        reply_markup=keyboard if is_last else None,
                         business_connection_id=biz_conn_id,
                     )
                 else:
                     await bot.send_message(
                         chat_id=chat_id,
                         text=chunk,
-                        reply_markup=(
-                            post_transcription_keyboard(message.message_id)
-                            if is_last else None
-                        ),
+                        reply_markup=keyboard if is_last else None,
                         business_connection_id=biz_conn_id,
                     )
 

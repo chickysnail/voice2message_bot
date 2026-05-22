@@ -8,6 +8,7 @@ import pytest
 
 from src.bot.secretary import SecretaryHandler
 from src.bot.services.notifier import AdminNotifier
+from src.bot.services.summarization import SummarizationClient
 from src.bot.services.transcription import (
     EmptyTranscriptionError,
     TranscriptionClient,
@@ -50,14 +51,23 @@ def store() -> TranscriptionStore:
 
 
 @pytest.fixture
+def mock_summarizer() -> MagicMock:
+    s = MagicMock(spec=SummarizationClient)
+    s.summarize.return_value = "This is a summary."
+    return s
+
+
+@pytest.fixture
 def handler(
     mock_transcriber: MagicMock,
+    mock_summarizer: MagicMock,
     mock_notifier: AsyncMock,
     store: TranscriptionStore,
     db: StatisticsDB,
 ) -> SecretaryHandler:
     return SecretaryHandler(
         transcriber=mock_transcriber,
+        summarizer=mock_summarizer,
         notifier=mock_notifier,
         store=store,
         stats_db=db,
@@ -412,6 +422,7 @@ async def test_auto_mode_audio_too_long(
 ) -> None:
     h = SecretaryHandler(
         transcriber=MagicMock(),
+        summarizer=MagicMock(),
         notifier=AsyncMock(),
         store=TranscriptionStore(),
         stats_db=MagicMock(),
@@ -468,3 +479,126 @@ async def test_notify_secretary_event_no_admins() -> None:
 
     await notifier.notify_secretary_event("connected", "alice", 42)
     bot.send_message.assert_not_called()
+
+
+# --- Post-Transcription Callback Tests ---
+
+
+def _make_callback_update(
+    callback_data: str,
+    user_id: int = 99,
+    username: str = "otheruser",
+    lang: str = "en",
+) -> MagicMock:
+    """Create an update with a callback query, simulating a button press."""
+    update = MagicMock()
+    query = MagicMock()
+    query.data = callback_data
+    query.answer = AsyncMock()
+    query.message = MagicMock()
+    query.message.reply_text = AsyncMock()
+    query.message.reply_document = AsyncMock()
+    query.edit_message_reply_markup = AsyncMock()
+    update.callback_query = query
+
+    user = MagicMock()
+    user.id = user_id
+    user.username = username
+    user.language_code = lang
+    update.effective_user = user
+    return update
+
+
+async def test_sec_summarize_by_other_user(
+    handler: SecretaryHandler,
+    mock_summarizer: MagicMock,
+    store: TranscriptionStore,
+) -> None:
+    """Other person clicks Summarize — should find transcription via owner_user_id."""
+    owner_id = 42
+    msg_id = 1
+    store.save(owner_id, msg_id, "Hello world transcript")
+
+    # Other user (id=99) clicks the sec_summarize button
+    update = _make_callback_update(f"sec_summarize:{msg_id}:{owner_id}")
+    ctx = _make_context()
+
+    await handler.handle_post_transcription_callback(update, ctx)
+
+    mock_summarizer.summarize.assert_called_once_with("Hello world transcript")
+    update.callback_query.message.reply_text.assert_called()
+
+
+async def test_sec_summarize_expired(
+    handler: SecretaryHandler,
+    store: TranscriptionStore,
+) -> None:
+    """Summarize with no stored transcription — should show expired message."""
+    update = _make_callback_update("sec_summarize:1:42")
+    ctx = _make_context()
+
+    await handler.handle_post_transcription_callback(update, ctx)
+
+    update.callback_query.message.reply_text.assert_called_once()
+    call_text = str(update.callback_query.message.reply_text.call_args)
+    assert "expired" in call_text.lower() or "transcription_expired" in call_text
+
+
+async def test_sec_savefile_shows_format_keyboard(
+    handler: SecretaryHandler,
+    store: TranscriptionStore,
+) -> None:
+    """Save as file button should show format selection keyboard."""
+    owner_id = 42
+    msg_id = 1
+    store.save(owner_id, msg_id, "Hello world transcript")
+
+    update = _make_callback_update(f"sec_savefile:{msg_id}:{owner_id}")
+    ctx = _make_context()
+
+    await handler.handle_post_transcription_callback(update, ctx)
+
+    update.callback_query.edit_message_reply_markup.assert_called()
+    markup = str(update.callback_query.edit_message_reply_markup.call_args)
+    assert "sec_export_txt" in markup
+    assert "sec_export_srt" in markup
+
+
+async def test_sec_export_txt(
+    handler: SecretaryHandler,
+    store: TranscriptionStore,
+) -> None:
+    """Export as .txt should send a document."""
+    owner_id = 42
+    msg_id = 1
+    store.save(owner_id, msg_id, "Hello world transcript")
+
+    update = _make_callback_update(f"sec_export_txt:{msg_id}:{owner_id}")
+    ctx = _make_context()
+
+    await handler.handle_post_transcription_callback(update, ctx)
+
+    update.callback_query.message.reply_document.assert_called_once()
+    call_kwargs = update.callback_query.message.reply_document.call_args.kwargs
+    assert call_kwargs["filename"] == "transcription.txt"
+
+
+async def test_sec_summarize_by_owner(
+    handler: SecretaryHandler,
+    mock_summarizer: MagicMock,
+    store: TranscriptionStore,
+) -> None:
+    """Owner clicks Summarize — should also work with embedded owner_id."""
+    owner_id = 42
+    msg_id = 1
+    store.save(owner_id, msg_id, "Hello world transcript")
+
+    # Owner themselves clicks (user_id matches owner_id)
+    update = _make_callback_update(
+        f"sec_summarize:{msg_id}:{owner_id}", user_id=owner_id
+    )
+    ctx = _make_context()
+
+    await handler.handle_post_transcription_callback(update, ctx)
+
+    mock_summarizer.summarize.assert_called_once_with("Hello world transcript")

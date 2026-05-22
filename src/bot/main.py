@@ -91,6 +91,7 @@ def main() -> None:
 
     secretary = SecretaryHandler(
         transcriber=transcriber,
+        summarizer=summarizer,
         notifier=notifier,
         store=store,
         stats_db=stats_db,
@@ -134,6 +135,12 @@ def main() -> None:
         CallbackQueryHandler(
             secretary.handle_transcribe_callback,
             pattern=r"^sec_transcribe:",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            secretary.handle_post_transcription_callback,
+            pattern=r"^sec_(summarize|savefile|export_txt|export_srt):",
         )
     )
     application.add_handler(CallbackQueryHandler(handlers.handle_callback))
