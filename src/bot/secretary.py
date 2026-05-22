@@ -20,6 +20,7 @@ from src.bot.keyboards import (
     CALLBACK_SEC_SUMMARIZE,
     CALLBACK_SEC_TRANSCRIBE,
     secretary_file_format_keyboard,
+    secretary_mode_keyboard,
     secretary_post_transcription_keyboard,
     secretary_transcribe_keyboard,
 )
@@ -101,6 +102,20 @@ class SecretaryHandler:
             await self._notifier.notify_secretary_event(
                 "connected", user.username, user.id
             )
+            # Send welcome DM explaining how secretary mode works
+            lang = user.language_code or "en"
+            try:
+                await context.bot.send_message(
+                    chat_id=user.id,
+                    text=t("secretary_welcome", lang),
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=secretary_mode_keyboard(lang),
+                )
+            except Exception:
+                logger.warning(
+                    "Could not send secretary welcome to user %d",
+                    user.id,
+                )
         else:
             self._connections.pop(conn.id, None)
             await self._stats_db.remove_secretary_connection(user.id)

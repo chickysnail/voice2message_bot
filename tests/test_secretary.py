@@ -147,7 +147,8 @@ async def test_handle_connection_enabled(
 ) -> None:
     conn = _make_business_connection(is_enabled=True)
     update = _make_update_with_connection(conn)
-    ctx = _make_context()
+    bot = AsyncMock()
+    ctx = _make_context(bot)
 
     await handler.handle_business_connection(update, ctx)
 
@@ -157,6 +158,12 @@ async def test_handle_connection_enabled(
     )
     # Connection should be persisted in DB
     assert await db.is_user_secretary_connected(42)
+    # Welcome DM should be sent
+    bot.send_message.assert_called_once()
+    call_kwargs = bot.send_message.call_args.kwargs
+    assert call_kwargs["chat_id"] == 42
+    welcome_text = str(call_kwargs["text"]).lower()
+    assert "secretary" in welcome_text or "active" in welcome_text
 
 
 async def test_handle_connection_disabled(
@@ -194,9 +201,10 @@ async def test_auto_mode_transcribes_voice(
     mock_transcriber: MagicMock,
     db: StatisticsDB,
 ) -> None:
-    # Set up connection
+    # Set up connection and explicitly enable auto mode
     conn = _make_business_connection()
     handler._connections["biz_123"] = conn
+    await db.set_secretary_mode(42, "auto")
 
     message = _make_voice_message()
     update = _make_update_with_business_message(message)
@@ -332,9 +340,9 @@ async def test_transcribe_callback_invalid_data(handler: SecretaryHandler) -> No
 # --- Secretary Mode Settings Tests ---
 
 
-async def test_secretary_mode_default_auto(db: StatisticsDB) -> None:
+async def test_secretary_mode_default_manual(db: StatisticsDB) -> None:
     mode = await db.get_secretary_mode(42)
-    assert mode == "auto"
+    assert mode == "manual"
 
 
 async def test_secretary_mode_set_manual(db: StatisticsDB) -> None:
@@ -344,7 +352,6 @@ async def test_secretary_mode_set_manual(db: StatisticsDB) -> None:
 
 
 async def test_secretary_mode_set_auto(db: StatisticsDB) -> None:
-    await db.set_secretary_mode(42, "manual")
     await db.set_secretary_mode(42, "auto")
     mode = await db.get_secretary_mode(42)
     assert mode == "auto"
@@ -388,9 +395,11 @@ async def test_secretary_stats_get_all(db: StatisticsDB) -> None:
 async def test_auto_mode_handles_empty_transcription(
     handler: SecretaryHandler,
     mock_transcriber: MagicMock,
+    db: StatisticsDB,
 ) -> None:
     conn = _make_business_connection()
     handler._connections["biz_123"] = conn
+    await db.set_secretary_mode(42, "auto")
 
     mock_transcriber.transcribe.side_effect = EmptyTranscriptionError("no speech")
 
@@ -614,6 +623,7 @@ async def test_sec_summarize_by_owner(
 async def test_dedup_skips_second_business_message(
     handler: SecretaryHandler,
     mock_transcriber: MagicMock,
+    db: StatisticsDB,
 ) -> None:
     """When both users have the bot, the same file_id arrives twice — second should be skipped."""
     conn_a = _make_business_connection(conn_id="biz_a", user=_make_user(user_id=42))
@@ -622,6 +632,8 @@ async def test_dedup_skips_second_business_message(
     )
     handler._connections["biz_a"] = conn_a
     handler._connections["biz_b"] = conn_b
+    await db.set_secretary_mode(42, "auto")
+    await db.set_secretary_mode(99, "auto")
 
     msg1 = _make_voice_message(biz_conn_id="biz_a")
     msg2 = _make_voice_message(biz_conn_id="biz_b")
@@ -658,10 +670,12 @@ async def test_dedup_skips_second_business_message(
 async def test_dedup_allows_different_file_ids(
     handler: SecretaryHandler,
     mock_transcriber: MagicMock,
+    db: StatisticsDB,
 ) -> None:
     """Different file_ids should both be transcribed."""
     conn = _make_business_connection()
     handler._connections["biz_123"] = conn
+    await db.set_secretary_mode(42, "auto")
 
     msg1 = _make_voice_message(message_id=1)
     msg1.voice.file_id = "file_1"
@@ -732,6 +746,7 @@ async def test_smart_dedup_allows_outgoing_when_recipient_not_connected(
 
     conn = _make_business_connection(conn_id="biz_a", user=owner)
     handler._connections["biz_a"] = conn
+    await db.set_secretary_mode(42, "auto")
 
     # Recipient is NOT connected as secretary
 
@@ -774,6 +789,7 @@ async def test_smart_dedup_always_transcribes_incoming(
 
     conn = _make_business_connection(conn_id="biz_a", user=owner)
     handler._connections["biz_a"] = conn
+    await db.set_secretary_mode(42, "auto")
 
     # Sender is also connected (doesn't matter for incoming)
     await db.save_secretary_connection(99, "biz_b", "otheruser")

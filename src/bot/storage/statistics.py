@@ -162,14 +162,14 @@ class StatisticsDB:
     # --- Secretary mode settings ---
 
     async def get_secretary_mode(self, user_id: int) -> str:
-        """Returns 'auto' or 'manual'. Defaults to 'auto'."""
+        """Returns 'auto' or 'manual'. Defaults to 'manual'."""
         assert self._db is not None
         async with self._db.execute(
             "SELECT mode FROM secretary_settings WHERE user_id = ?",
             (user_id,),
         ) as cursor:
             row = await cursor.fetchone()
-        return row[0] if row else "auto"
+        return row[0] if row else "manual"
 
     async def set_secretary_mode(self, user_id: int, mode: str) -> None:
         assert self._db is not None

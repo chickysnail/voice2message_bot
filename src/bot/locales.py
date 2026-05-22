@@ -1187,6 +1187,182 @@ _STRINGS: dict[str, dict[str, str]] = {
         "am": "የድምፅ መልእክቶች፣ ኦዲዮ እና ቪዲዮ እሠራለሁ። ይላኩ ወይም ያስተላልፉ — ወደ ጽሑፍ እቀይረዋለሁ!",
         "ko": "음성 메시지, 오디오, 비디오와 함께 작동합니다. 보내거나 전달하면 텍스트로 변환해 드립니다!",
     },
+    # Welcome message when user first connects the bot as secretary
+    "secretary_welcome": {
+        "en": (
+            "✅ <b>Secretary mode is active!</b>\n\n"
+            "I'll now work in your private chats. When someone sends "
+            "a voice message or video note, I can transcribe it.\n\n"
+            "<b>Choose your mode:</b>\n"
+            "👆 <b>Manual</b> (default) — I'll show a Transcribe button. "
+            "Either you or the other person taps it.\n"
+            "🔄 <b>Auto</b> — I transcribe every voice message instantly, "
+            "no button needed.\n\n"
+            "You can switch anytime with /secretary."
+        ),
+        "ru": (
+            "✅ <b>Режим секретаря активирован!</b>\n\n"
+            "Теперь я работаю в ваших личных чатах. Когда кто-то "
+            "отправит голосовое или видеозаметку, я могу расшифровать.\n\n"
+            "<b>Выберите режим:</b>\n"
+            "👆 <b>Ручной</b> (по умолчанию) — покажу кнопку «Расшифровать». "
+            "Нажать может любой из собеседников.\n"
+            "🔄 <b>Авто</b> — расшифровываю каждое голосовое мгновенно, "
+            "без кнопки.\n\n"
+            "Переключить можно командой /secretary."
+        ),
+        "hi": (
+            "✅ <b>सेक्रेटरी मोड सक्रिय है!</b>\n\n"
+            "अब मैं आपकी प्राइवेट चैट में काम करूँगा। जब कोई वॉइस "
+            "मैसेज या वीडियो नोट भेजेगा, मैं ट्रांसक्राइब कर सकता हूँ।\n\n"
+            "<b>अपना मोड चुनें:</b>\n"
+            "👆 <b>मैनुअल</b> (डिफ़ॉल्ट) — ट्रांसक्राइब बटन दिखाऊँगा। "
+            "आप या सामने वाला दबा सकता है।\n"
+            "🔄 <b>ऑटो</b> — हर वॉइस मैसेज तुरंत ट्रांसक्राइब, "
+            "बटन की ज़रूरत नहीं।\n\n"
+            "/secretary से कभी भी बदलें।"
+        ),
+        "id": (
+            "✅ <b>Mode sekretaris aktif!</b>\n\n"
+            "Sekarang saya bekerja di chat pribadi Anda. Saat seseorang "
+            "mengirim pesan suara atau catatan video, saya bisa "
+            "mentranskripsikannya.\n\n"
+            "<b>Pilih mode Anda:</b>\n"
+            "👆 <b>Manual</b> (default) — saya tampilkan tombol Transkripsi. "
+            "Anda atau lawan bicara bisa menekannya.\n"
+            "🔄 <b>Otomatis</b> — saya transkripsi setiap pesan suara "
+            "langsung, tanpa tombol.\n\n"
+            "Ganti kapan saja dengan /secretary."
+        ),
+        "pt": (
+            "✅ <b>Modo secretário ativado!</b>\n\n"
+            "Agora trabalho nos seus chats privados. Quando alguém "
+            "enviar uma mensagem de voz ou nota de vídeo, posso "
+            "transcrever.\n\n"
+            "<b>Escolha seu modo:</b>\n"
+            "👆 <b>Manual</b> (padrão) — mostro um botão Transcrever. "
+            "Você ou a outra pessoa pode pressionar.\n"
+            "🔄 <b>Automático</b> — transcrevo cada mensagem de voz "
+            "instantaneamente, sem botão.\n\n"
+            "Mude a qualquer momento com /secretary."
+        ),
+        "uk": (
+            "✅ <b>Режим секретаря активовано!</b>\n\n"
+            "Тепер я працюю у ваших приватних чатах. Коли хтось "
+            "надішле голосове або відеонотатку, я можу транскрибувати.\n\n"
+            "<b>Оберіть режим:</b>\n"
+            "👆 <b>Ручний</b> (за замовчуванням) — покажу кнопку "
+            "«Транскрибувати». Натиснути може будь-хто.\n"
+            "🔄 <b>Авто</b> — транскрибую кожне голосове миттєво, "
+            "без кнопки.\n\n"
+            "Перемикайте командою /secretary."
+        ),
+        "ar": (
+            "✅ <b>وضع السكرتير مفعّل!</b>\n\n"
+            "سأعمل الآن في محادثاتك الخاصة. عندما يرسل شخص رسالة "
+            "صوتية أو ملاحظة فيديو، يمكنني تحويلها إلى نص.\n\n"
+            "<b>اختر الوضع:</b>\n"
+            "👆 <b>يدوي</b> (افتراضي) — سأعرض زر تحويل. "
+            "أنت أو الشخص الآخر يضغط عليه.\n"
+            "🔄 <b>تلقائي</b> — أحوّل كل رسالة صوتية فوراً "
+            "بدون زر.\n\n"
+            "بدّل في أي وقت بأمر /secretary."
+        ),
+        "fa": (
+            "✅ <b>حالت منشی فعال شد!</b>\n\n"
+            "حالا در چت‌های خصوصی شما کار می‌کنم. وقتی کسی پیام "
+            "صوتی یا یادداشت ویدیویی بفرستد، می‌توانم رونویسی کنم.\n\n"
+            "<b>حالت خود را انتخاب کنید:</b>\n"
+            "👆 <b>دستی</b> (پیش‌فرض) — دکمه رونویسی نشان می‌دهم. "
+            "شما یا طرف مقابل می‌تواند بزند.\n"
+            "🔄 <b>خودکار</b> — هر پیام صوتی را فوراً رونویسی "
+            "می‌کنم، بدون دکمه.\n\n"
+            "هر زمان با /secretary تغییر دهید."
+        ),
+        "de": (
+            "✅ <b>Sekretär-Modus ist aktiv!</b>\n\n"
+            "Ich arbeite jetzt in Ihren privaten Chats. Wenn jemand "
+            "eine Sprachnachricht oder Videonachricht sendet, kann ich "
+            "sie transkribieren.\n\n"
+            "<b>Wählen Sie Ihren Modus:</b>\n"
+            "👆 <b>Manuell</b> (Standard) — Ich zeige einen "
+            "Transkribieren-Button. Sie oder Ihr Gesprächspartner "
+            "tippt darauf.\n"
+            "🔄 <b>Automatisch</b> — Ich transkribiere jede "
+            "Sprachnachricht sofort, ohne Button.\n\n"
+            "Jederzeit wechseln mit /secretary."
+        ),
+        "tr": (
+            "✅ <b>Sekreter modu aktif!</b>\n\n"
+            "Artık özel sohbetlerinizde çalışıyorum. Birisi sesli "
+            "mesaj veya video notu gönderdiğinde yazıya dökebilirim.\n\n"
+            "<b>Modunuzu seçin:</b>\n"
+            "👆 <b>Manuel</b> (varsayılan) — Dönüştür butonu "
+            "gösteririm. Siz veya karşı taraf basabilir.\n"
+            "🔄 <b>Otomatik</b> — Her sesli mesajı anında yazıya "
+            "dökerim, butona gerek yok.\n\n"
+            "İstediğiniz zaman /secretary ile değiştirin."
+        ),
+        "es": (
+            "✅ <b>¡Modo secretario activo!</b>\n\n"
+            "Ahora trabajo en tus chats privados. Cuando alguien "
+            "envíe un mensaje de voz o nota de video, puedo "
+            "transcribirlo.\n\n"
+            "<b>Elige tu modo:</b>\n"
+            "👆 <b>Manual</b> (predeterminado) — muestro un botón "
+            "Transcribir. Tú o la otra persona lo presiona.\n"
+            "🔄 <b>Automático</b> — transcribo cada mensaje de voz "
+            "al instante, sin botón.\n\n"
+            "Cambia en cualquier momento con /secretary."
+        ),
+        "fr": (
+            "✅ <b>Mode secrétaire activé !</b>\n\n"
+            "Je travaille maintenant dans vos chats privés. Quand "
+            "quelqu'un envoie un message vocal ou une note vidéo, "
+            "je peux le transcrire.\n\n"
+            "<b>Choisissez votre mode :</b>\n"
+            "👆 <b>Manuel</b> (par défaut) — j'affiche un bouton "
+            "Transcrire. Vous ou l'autre personne appuie dessus.\n"
+            "🔄 <b>Automatique</b> — je transcris chaque message "
+            "vocal instantanément, sans bouton.\n\n"
+            "Changez à tout moment avec /secretary."
+        ),
+        "uz": (
+            "✅ <b>Kotib rejimi faol!</b>\n\n"
+            "Endi shaxsiy chatlaringizda ishlayman. Kimdir ovozli "
+            "xabar yoki video eslatma yuborganda, matn shaklida "
+            "yozib bera olaman.\n\n"
+            "<b>Rejimni tanlang:</b>\n"
+            "👆 <b>Qo'lda</b> (standart) — Transkripsiya tugmasini "
+            "ko'rsataman. Siz yoki suhbatdosh bosishi mumkin.\n"
+            "🔄 <b>Avtomatik</b> — har bir ovozli xabarni darhol "
+            "yozaman, tugma kerak emas.\n\n"
+            "Istalgan vaqtda /secretary bilan almashing."
+        ),
+        "am": (
+            "✅ <b>የጸሐፊ ሁነታ ገባሪ ነው!</b>\n\n"
+            "አሁን በግል ቻቶችዎ ውስጥ እሠራለሁ። ማንም የድምፅ "
+            "መልእክት ወይም የቪዲዮ ማስታወሻ ሲልክ ወደ ጽሑፍ "
+            "መቀየር እችላለሁ።\n\n"
+            "<b>ሁነታዎን ይምረጡ:</b>\n"
+            "👆 <b>በእጅ</b> (ነባሪ) — ወደ ጽሑፍ ቀይር ቁልፍ "
+            "አሳያለሁ። እርስዎ ወይም ሌላው ሰው ይጫኑት።\n"
+            "🔄 <b>ራስ-ሰር</b> — ሁሉንም የድምፅ መልእክት ወዲያውኑ "
+            "እቀይራለሁ፣ ቁልፍ አያስፈልግም።\n\n"
+            "በማንኛውም ጊዜ /secretary ይቀያይሩ።"
+        ),
+        "ko": (
+            "✅ <b>비서 모드가 활성화되었습니다!</b>\n\n"
+            "이제 비공개 채팅에서 작동합니다. 누군가 음성 메시지나 "
+            "비디오 노트를 보내면 텍스트로 변환할 수 있습니다.\n\n"
+            "<b>모드를 선택하세요:</b>\n"
+            "👆 <b>수동</b> (기본) — 변환 버튼을 표시합니다. "
+            "당신이나 상대방이 누를 수 있습니다.\n"
+            "🔄 <b>자동</b> — 모든 음성 메시지를 즉시 변환합니다. "
+            "버튼이 필요 없습니다.\n\n"
+            "언제든 /secretary로 전환하세요."
+        ),
+    },
     "video_timeout": {
         "en": "Could not process this video. Please try again or send just the audio.",
         "ru": "Не удалось обработать это видео. Попробуйте ещё раз или отправьте только аудио.",
