@@ -6,6 +6,7 @@ import io
 import logging
 import os
 import tempfile
+import time
 import uuid
 
 from telegram import Bot, BusinessConnection, Message, Update, User
@@ -61,6 +62,19 @@ class SecretaryHandler:
         self._file_download_timeout = file_download_timeout
         # business_connection_id -> BusinessConnection
         self._connections: dict[str, BusinessConnection] = {}
+        # Dedup: file_id -> timestamp — prevents double-transcription
+        # when both chat participants have the bot as secretary.
+        self._recent_file_ids: dict[str, float] = {}
+        self._dedup_ttl = 60  # seconds
+
+    def _cleanup_recent_files(self) -> None:
+        now = time.monotonic()
+        expired = [
+            fid for fid, ts in self._recent_file_ids.items()
+            if now - ts > self._dedup_ttl
+        ]
+        for fid in expired:
+            del self._recent_file_ids[fid]
 
     # ------------------------------------------------------------------
     # Connection lifecycle
@@ -111,6 +125,18 @@ class SecretaryHandler:
         # Only handle voice messages and video notes
         if not message.voice and not message.video_note:
             return
+
+        # Dedup: skip if this file was already processed recently
+        # (happens when both chat participants have the bot as secretary).
+        file_id = (
+            message.voice.file_id if message.voice
+            else message.video_note.file_id
+        )
+        self._cleanup_recent_files()
+        if file_id in self._recent_file_ids:
+            logger.debug("Skipping duplicate file_id %s", file_id)
+            return
+        self._recent_file_ids[file_id] = time.monotonic()
 
         # Determine the bot-owner user from the connection
         conn = self._connections.get(biz_conn_id)

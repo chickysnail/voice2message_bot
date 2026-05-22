@@ -602,3 +602,88 @@ async def test_sec_summarize_by_owner(
     await handler.handle_post_transcription_callback(update, ctx)
 
     mock_summarizer.summarize.assert_called_once_with("Hello world transcript")
+
+
+# --- Dedup Tests ---
+
+
+async def test_dedup_skips_second_business_message(
+    handler: SecretaryHandler,
+    mock_transcriber: MagicMock,
+) -> None:
+    """When both users have the bot, the same file_id arrives twice — second should be skipped."""
+    conn_a = _make_business_connection(conn_id="biz_a", user=_make_user(user_id=42))
+    conn_b = _make_business_connection(
+        conn_id="biz_b", user=_make_user(user_id=99, username="otheruser")
+    )
+    handler._connections["biz_a"] = conn_a
+    handler._connections["biz_b"] = conn_b
+
+    msg1 = _make_voice_message(biz_conn_id="biz_a")
+    msg2 = _make_voice_message(biz_conn_id="biz_b")
+    # Same file_id on both messages
+    msg1.voice.file_id = "same_file_abc"
+    msg2.voice.file_id = "same_file_abc"
+
+    update1 = _make_update_with_business_message(msg1)
+    update2 = _make_update_with_business_message(msg2)
+
+    bot = AsyncMock()
+    tg_file = AsyncMock()
+    tg_file.file_path = "audio.ogg"
+    tg_file.download_to_drive = AsyncMock()
+    bot.get_file = AsyncMock(return_value=tg_file)
+
+    sent_msg = MagicMock()
+    sent_msg.message_id = 99
+    sent_msg.chat.id = 100
+    bot.send_message = AsyncMock(return_value=sent_msg)
+    bot.edit_message_text = AsyncMock()
+
+    ctx = _make_context(bot)
+
+    with patch("src.bot.secretary.os.path.exists", return_value=True), \
+         patch("src.bot.secretary.os.remove"):
+        await handler.handle_business_message(update1, ctx)
+        await handler.handle_business_message(update2, ctx)
+
+    # Transcriber should only be called once
+    assert mock_transcriber.transcribe.call_count == 1
+
+
+async def test_dedup_allows_different_file_ids(
+    handler: SecretaryHandler,
+    mock_transcriber: MagicMock,
+) -> None:
+    """Different file_ids should both be transcribed."""
+    conn = _make_business_connection()
+    handler._connections["biz_123"] = conn
+
+    msg1 = _make_voice_message(message_id=1)
+    msg1.voice.file_id = "file_1"
+    msg2 = _make_voice_message(message_id=2)
+    msg2.voice.file_id = "file_2"
+
+    update1 = _make_update_with_business_message(msg1)
+    update2 = _make_update_with_business_message(msg2)
+
+    bot = AsyncMock()
+    tg_file = AsyncMock()
+    tg_file.file_path = "audio.ogg"
+    tg_file.download_to_drive = AsyncMock()
+    bot.get_file = AsyncMock(return_value=tg_file)
+
+    sent_msg = MagicMock()
+    sent_msg.message_id = 99
+    sent_msg.chat.id = 100
+    bot.send_message = AsyncMock(return_value=sent_msg)
+    bot.edit_message_text = AsyncMock()
+
+    ctx = _make_context(bot)
+
+    with patch("src.bot.secretary.os.path.exists", return_value=True), \
+         patch("src.bot.secretary.os.remove"):
+        await handler.handle_business_message(update1, ctx)
+        await handler.handle_business_message(update2, ctx)
+
+    assert mock_transcriber.transcribe.call_count == 2
