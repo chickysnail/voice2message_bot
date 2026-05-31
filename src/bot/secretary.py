@@ -2,7 +2,6 @@
 
 import asyncio
 import html
-import io
 import logging
 import os
 import tempfile
@@ -14,27 +13,20 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from src.bot.keyboards import (
-    CALLBACK_SEC_EXPORT_SRT,
-    CALLBACK_SEC_EXPORT_TXT,
-    CALLBACK_SEC_SAVEFILE,
-    CALLBACK_SEC_SUMMARIZE,
     CALLBACK_SEC_TRANSCRIBE,
-    secretary_file_format_keyboard,
-    secretary_mode_keyboard,
-    secretary_post_transcription_keyboard,
     secretary_transcribe_keyboard,
 )
 from src.bot.locales import t
 from src.bot.services.audio import extract_audio, get_audio_duration
-from src.bot.services.export import generate_srt, generate_txt
 from src.bot.services.notifier import AdminNotifier
-from src.bot.services.summarization import SummarizationClient
 from src.bot.services.transcription import EmptyTranscriptionError, TranscriptionClient
 from src.bot.storage.statistics import StatisticsDB
-from src.bot.storage.transcription_store import TranscriptionStore
 from src.bot.utils.text import format_duration, split_message
 
 logger = logging.getLogger(__name__)
+
+# Untranscribed manual prompts are auto-deleted after this many seconds.
+PROMPT_TTL_SECONDS = 86400  # 1 day
 
 
 class SecretaryHandler:
@@ -43,9 +35,7 @@ class SecretaryHandler:
     def __init__(
         self,
         transcriber: TranscriptionClient,
-        summarizer: SummarizationClient,
         notifier: AdminNotifier,
-        store: TranscriptionStore,
         stats_db: StatisticsDB,
         max_audio_duration: int,
         transcription_timeout: int = 900,
@@ -53,9 +43,7 @@ class SecretaryHandler:
         file_download_timeout: int = 60,
     ) -> None:
         self._transcriber = transcriber
-        self._summarizer = summarizer
         self._notifier = notifier
-        self._store = store
         self._stats_db = stats_db
         self._max_audio_duration = max_audio_duration
         self._transcription_timeout = transcription_timeout
@@ -109,7 +97,6 @@ class SecretaryHandler:
                     chat_id=user.id,
                     text=t("secretary_welcome", lang),
                     parse_mode=ParseMode.HTML,
-                    reply_markup=secretary_mode_keyboard(lang),
                 )
             except Exception:
                 logger.warning(
@@ -207,66 +194,29 @@ class SecretaryHandler:
                 )
                 return
 
-        mode = await self._stats_db.get_secretary_mode(owner_user.id)
         lang = owner_user.language_code or "en"
-
-        if mode == "manual":
-            await self._send_manual_prompt(
-                context.bot, message, biz_conn_id, lang
-            )
-        else:
-            await self._auto_transcribe(
-                context.bot, message, biz_conn_id, owner_user, lang
-            )
+        await self._send_prompt(context.bot, message, biz_conn_id, lang)
 
     # ------------------------------------------------------------------
-    # Auto mode
+    # Prompt + auto-deletion
     # ------------------------------------------------------------------
 
-    async def _auto_transcribe(
-        self,
-        bot: Bot,
-        message: Message,
-        biz_conn_id: str,
-        owner_user: User,
-        lang: str,
-    ) -> None:
-        """Transcribe and reply automatically."""
-
-        chat_id = message.chat.id
-        prefix = t("secretary_prefix", lang)
-
-        processing_msg = await bot.send_message(
-            chat_id=chat_id,
-            text=t("transcribing", lang),
-            reply_to_message_id=message.message_id,
-            business_connection_id=biz_conn_id,
-        )
-
-        await self._do_transcription(
-            bot, message, processing_msg, biz_conn_id,
-            owner_user, lang, prefix,
-        )
-
-    # ------------------------------------------------------------------
-    # Manual mode
-    # ------------------------------------------------------------------
-
-    async def _send_manual_prompt(
+    async def _send_prompt(
         self,
         bot: Bot,
         message: Message,
         biz_conn_id: str,
         lang: str,
     ) -> None:
-        """Send a prompt with a Transcribe button."""
+        """Send a prompt with a Transcribe button and track it for
+        auto-deletion if it is never tapped."""
         chat_id = message.chat.id
         duration = message.voice.duration if message.voice else (
             message.video_note.duration if message.video_note else 0
         )
         dur_str = format_duration(duration) if duration else "?"
 
-        await bot.send_message(
+        prompt = await bot.send_message(
             chat_id=chat_id,
             text=t("secretary_manual_prompt", lang, duration=dur_str),
             reply_to_message_id=message.message_id,
@@ -275,6 +225,32 @@ class SecretaryHandler:
             ),
             business_connection_id=biz_conn_id,
         )
+
+        if prompt is not None:
+            await self._stats_db.add_pending_prompt(
+                biz_conn_id, chat_id, prompt.message_id
+            )
+
+    async def delete_expired_prompts(
+        self, bot: Bot, older_than_seconds: int = PROMPT_TTL_SECONDS
+    ) -> int:
+        """Delete untranscribed prompts older than the TTL. Returns the
+        number of prompts removed from tracking."""
+        rows = await self._stats_db.get_expired_pending_prompts(
+            older_than_seconds
+        )
+        for conn_id, chat_id, message_id in rows:
+            try:
+                await bot.delete_business_messages(conn_id, [message_id])
+            except Exception:
+                logger.warning(
+                    "Could not delete expired prompt %d in chat %d",
+                    message_id, chat_id,
+                )
+            await self._stats_db.remove_pending_prompt(conn_id, message_id)
+        if rows:
+            logger.info("Cleaned up %d expired secretary prompt(s)", len(rows))
+        return len(rows)
 
     async def handle_transcribe_callback(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -307,12 +283,16 @@ class SecretaryHandler:
 
         owner_user = conn.user
         lang = owner_user.language_code or "en"
-        prefix = t("secretary_prefix", lang)
 
         # The callback query message is the prompt we sent
         prompt_msg = query.message
         if prompt_msg is None:
             return
+
+        # This prompt is being transcribed — stop tracking it for deletion.
+        await self._stats_db.remove_pending_prompt(
+            biz_conn_id, prompt_msg.message_id
+        )
 
         # Edit prompt to "Transcribing..."
         await context.bot.edit_message_text(
@@ -335,148 +315,7 @@ class SecretaryHandler:
 
         await self._do_transcription(
             context.bot, original_message, prompt_msg, biz_conn_id,
-            owner_user, lang, prefix,
-        )
-
-    # ------------------------------------------------------------------
-    # Post-transcription callbacks (summarize, save file, export)
-    # ------------------------------------------------------------------
-
-    async def handle_post_transcription_callback(
-        self, update: Update, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        """Handle Summarize / Save as file / Export buttons for secretary transcriptions."""
-        query = update.callback_query
-        if not query or not query.data:
-            return
-
-        parts = query.data.split(":")
-        if len(parts) != 3:
-            return
-
-        action = parts[0]
-        try:
-            original_message_id = int(parts[1])
-            owner_user_id = int(parts[2])
-        except ValueError:
-            return
-
-        await query.answer()
-
-        user = update.effective_user
-        lang = user.language_code or "en" if user else "en"
-
-        if action == CALLBACK_SEC_SUMMARIZE:
-            await self._handle_secretary_summarize(
-                query, owner_user_id, original_message_id, lang
-            )
-        elif action == CALLBACK_SEC_SAVEFILE:
-            await self._handle_secretary_save_file(
-                query, owner_user_id, original_message_id, lang
-            )
-        elif action in (CALLBACK_SEC_EXPORT_TXT, CALLBACK_SEC_EXPORT_SRT):
-            await self._handle_secretary_export(
-                query, owner_user_id, original_message_id, action, lang
-            )
-
-    async def _handle_secretary_summarize(
-        self,
-        query: object,
-        owner_user_id: int,
-        original_message_id: int,
-        lang: str,
-    ) -> None:
-        transcript = self._store.get(owner_user_id, original_message_id)
-        if transcript is None:
-            await query.edit_message_reply_markup(reply_markup=None)
-            if query.message:
-                await query.message.reply_text(t("transcription_expired", lang))
-            return
-
-        await query.edit_message_reply_markup(reply_markup=None)
-
-        try:
-            summary = self._summarizer.summarize(transcript)
-        except RuntimeError as e:
-            if query.message:
-                await query.message.reply_text(t("something_went_wrong", lang))
-            await self._notifier.notify_error(
-                "Secretary: summarization failed",
-                username=f"owner:{owner_user_id}",
-                error_detail=str(e),
-            )
-            return
-
-        if query.message:
-            for chunk in split_message(summary):
-                await query.message.reply_text(chunk)
-
-        logger.info(
-            "Secretary: summarized transcription for owner %d", owner_user_id
-        )
-
-    async def _handle_secretary_save_file(
-        self,
-        query: object,
-        owner_user_id: int,
-        original_message_id: int,
-        lang: str,
-    ) -> None:
-        transcript = self._store.get(owner_user_id, original_message_id)
-        if transcript is None:
-            await query.edit_message_reply_markup(reply_markup=None)
-            if query.message:
-                await query.message.reply_text(t("transcription_expired", lang))
-            return
-
-        await query.edit_message_reply_markup(
-            reply_markup=secretary_file_format_keyboard(
-                original_message_id, owner_user_id
-            ),
-        )
-
-    async def _handle_secretary_export(
-        self,
-        query: object,
-        owner_user_id: int,
-        original_message_id: int,
-        action: str,
-        lang: str,
-    ) -> None:
-        transcript = self._store.get(owner_user_id, original_message_id)
-        if transcript is None:
-            await query.edit_message_reply_markup(reply_markup=None)
-            if query.message:
-                await query.message.reply_text(t("transcription_expired", lang))
-            return
-
-        await query.edit_message_reply_markup(reply_markup=None)
-
-        if action == CALLBACK_SEC_EXPORT_TXT:
-            content = generate_txt(transcript)
-            filename = "transcription.txt"
-        else:
-            words = self._store.get_words(owner_user_id, original_message_id)
-            if not words:
-                if query.message:
-                    await query.message.reply_text(t("srt_no_words", lang))
-                return
-            content = generate_srt(words)
-            if not content:
-                if query.message:
-                    await query.message.reply_text(t("srt_no_timed", lang))
-                return
-            filename = "transcription.srt"
-
-        file_bytes = b"\xef\xbb\xbf" + content.encode("utf-8")
-        if query.message:
-            await query.message.reply_document(
-                document=io.BytesIO(file_bytes),
-                filename=filename,
-            )
-
-        logger.info(
-            "Secretary: exported %s for owner %d", filename, owner_user_id
+            owner_user, lang,
         )
 
     # ------------------------------------------------------------------
@@ -491,7 +330,6 @@ class SecretaryHandler:
         biz_conn_id: str,
         owner_user: User,
         lang: str,
-        prefix: str,
     ) -> None:
         """Download, transcribe, and send the result."""
 
@@ -519,11 +357,10 @@ class SecretaryHandler:
             await bot.edit_message_text(
                 chat_id=chat_id,
                 message_id=status_msg.message_id,
-                text=(
-                    f"{prefix}\n"
-                    + t('audio_too_long', lang,
-                        duration=format_duration(duration),
-                        max_min=max_min)
+                text=t(
+                    'audio_too_long', lang,
+                    duration=format_duration(duration),
+                    max_min=max_min,
                 ),
                 business_connection_id=biz_conn_id,
             )
@@ -542,7 +379,7 @@ class SecretaryHandler:
                 await bot.edit_message_text(
                     chat_id=chat_id,
                     message_id=status_msg.message_id,
-                    text=f"{prefix}\n{t('download_timeout', lang)}",
+                    text=t('download_timeout', lang),
                     business_connection_id=biz_conn_id,
                 )
                 await self._notifier.notify_error(
@@ -563,7 +400,7 @@ class SecretaryHandler:
                 await bot.edit_message_text(
                     chat_id=chat_id,
                     message_id=status_msg.message_id,
-                    text=f"{prefix}\n{t('download_timeout', lang)}",
+                    text=t('download_timeout', lang),
                     business_connection_id=biz_conn_id,
                 )
                 return
@@ -583,7 +420,7 @@ class SecretaryHandler:
                     await bot.edit_message_text(
                         chat_id=chat_id,
                         message_id=status_msg.message_id,
-                        text=f"{prefix}\n{t(msg_key, lang)}",
+                        text=t(msg_key, lang),
                         business_connection_id=biz_conn_id,
                     )
                     await self._notifier.notify_error(
@@ -605,11 +442,10 @@ class SecretaryHandler:
                         await bot.edit_message_text(
                             chat_id=chat_id,
                             message_id=status_msg.message_id,
-                            text=(
-                                f"{prefix}\n"
-                                + t('audio_too_long', lang,
-                                    duration=format_duration(duration),
-                                    max_min=max_min)
+                            text=t(
+                                'audio_too_long', lang,
+                                duration=format_duration(duration),
+                                max_min=max_min,
                             ),
                             business_connection_id=biz_conn_id,
                         )
@@ -636,7 +472,7 @@ class SecretaryHandler:
                     await bot.edit_message_text(
                         chat_id=chat_id,
                         message_id=status_msg.message_id,
-                        text=f"{prefix}\n{t('transcription_timeout', lang)}",
+                        text=t('transcription_timeout', lang),
                         business_connection_id=biz_conn_id,
                     )
                     await self._notifier.notify_error(
@@ -650,7 +486,7 @@ class SecretaryHandler:
                     await bot.edit_message_text(
                         chat_id=chat_id,
                         message_id=status_msg.message_id,
-                        text=f"{prefix}\n{t('no_speech', lang)}",
+                        text=t('no_speech', lang),
                         business_connection_id=biz_conn_id,
                     )
                     return
@@ -658,7 +494,7 @@ class SecretaryHandler:
                     await bot.edit_message_text(
                         chat_id=chat_id,
                         message_id=status_msg.message_id,
-                        text=f"{prefix}\n{t('something_went_wrong', lang)}",
+                        text=t('something_went_wrong', lang),
                         business_connection_id=biz_conn_id,
                     )
                     await self._notifier.notify_error(
@@ -672,47 +508,29 @@ class SecretaryHandler:
             if transcript is None:
                 return
 
-            # Store transcription for summarize/export actions
-            self._store.save(
-                owner_user.id, message.message_id,
-                transcript.text, transcript.words,
-            )
-
             # Record secretary usage
             await self._stats_db.record_secretary_usage(
                 owner_user.id, owner_user.username, duration or 0
             )
 
-            # Send transcription in an expandable blockquote so it
-            # takes less visual space in the chat.
-            keyboard = secretary_post_transcription_keyboard(
-                message.message_id, owner_user.id, lang
-            )
-            escaped_prefix = html.escape(prefix)
+            # Send transcription as a bare expandable blockquote so it
+            # takes minimal visual space in the chat.
             escaped_text = html.escape(transcript.text)
 
             # Split the escaped text first, then wrap each chunk in
             # blockquote tags so HTML is never broken by the splitter.
             bq_overhead = len("<blockquote expandable></blockquote>")
-            first_overhead = len(escaped_prefix) + 1 + bq_overhead
             raw_chunks = split_message(
-                escaped_text, max_length=4096 - first_overhead
+                escaped_text, max_length=4096 - bq_overhead
             )
             for i, chunk in enumerate(raw_chunks):
-                is_last = i == len(raw_chunks) - 1
-                text = (
-                    f"{escaped_prefix}\n"
-                    f"<blockquote expandable>{chunk}</blockquote>"
-                    if i == 0
-                    else f"<blockquote expandable>{chunk}</blockquote>"
-                )
+                text = f"<blockquote expandable>{chunk}</blockquote>"
                 if i == 0:
                     await bot.edit_message_text(
                         chat_id=chat_id,
                         message_id=status_msg.message_id,
                         text=text,
                         parse_mode=ParseMode.HTML,
-                        reply_markup=keyboard if is_last else None,
                         business_connection_id=biz_conn_id,
                     )
                 else:
@@ -720,7 +538,6 @@ class SecretaryHandler:
                         chat_id=chat_id,
                         text=text,
                         parse_mode=ParseMode.HTML,
-                        reply_markup=keyboard if is_last else None,
                         business_connection_id=biz_conn_id,
                     )
 
@@ -738,7 +555,7 @@ class SecretaryHandler:
                 await bot.edit_message_text(
                     chat_id=chat_id,
                     message_id=status_msg.message_id,
-                    text=f"{prefix}\n{t('something_went_wrong', lang)}",
+                    text=t('something_went_wrong', lang),
                     business_connection_id=biz_conn_id,
                 )
             except Exception:

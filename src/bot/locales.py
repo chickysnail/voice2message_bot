@@ -7,11 +7,11 @@ RULES — read before adding or changing messages:
 2. Translations must be CONTEXTUALLY accurate for a transcription bot.
    Do not use literal/dictionary translations. Consider how a native
    speaker would phrase the message in the context of voice-to-text.
-3. Use gender-neutral phrasing where applicable (e.g. Hindi, Arabic).
+3. Use gender-neutral phrasing where applicable (e.g. Hindi).
 4. Keep the same tone across languages: friendly, concise, helpful.
 
-Supported languages (top Telegram markets):
-en, ru, hi, id, pt, uk, ar, fa, de, tr, es, fr, uz, am, ko
+Supported languages:
+en, ru, hi, id, fa
 
 Usage:
     from src.bot.locales import t
@@ -23,496 +23,165 @@ from __future__ import annotations
 # --- all translatable message keys ---
 
 _STRINGS: dict[str, dict[str, str]] = {
-    # /start greeting  ({user} placeholder)
     "greeting": {
         "en": (
-            "Hi {user}! I turn voice messages into text.\n\n"
-            "Just send or forward a voice message, audio, or video — "
-            "I'll transcribe it instantly."
+            "Hi {user}! I turn voice messages into text.\n"
+            "\n"
+            "Just send or forward a voice message, audio, or video — I'll transcribe it instantly."
         ),
         "ru": (
-            "Привет {user}! Я превращаю голосовые сообщения в текст.\n\n"
-            "Просто отправьте или перешлите голосовое, аудио или видео — "
-            "я мгновенно сделаю расшифровку."
+            "Привет {user}! Я превращаю голосовые сообщения в текст.\n"
+            "\n"
+            "Просто отправьте или перешлите голосовое, аудио или видео — я мгновенно сделаю расшифровку."
         ),
         "hi": (
-            "नमस्ते {user}! मैं वॉइस मैसेज को टेक्स्ट में बदलता हूँ।\n\n"
-            "बस वॉइस मैसेज, ऑडियो या वीडियो भेजें या फॉरवर्ड करें — "
-            "मैं तुरंत ट्रांसक्राइब कर दूँगा।"
+            "नमस्ते {user}! मैं वॉइस मैसेज को टेक्स्ट में बदलता हूँ।\n"
+            "\n"
+            "बस वॉइस मैसेज, ऑडियो या वीडियो भेजें या फॉरवर्ड करें — मैं तुरंत ट्रांसक्राइब कर दूँगा।"
         ),
         "id": (
-            "Hai {user}! Saya mengubah pesan suara menjadi teks.\n\n"
-            "Cukup kirim atau teruskan pesan suara, audio, atau video — "
-            "saya akan langsung mentranskripsikannya."
-        ),
-        "pt": (
-            "Olá {user}! Eu transformo mensagens de voz em texto.\n\n"
-            "Basta enviar ou encaminhar um áudio, voz ou vídeo — "
-            "eu transcrevo na hora."
-        ),
-        "uk": (
-            "Привіт {user}! Я перетворюю голосові повідомлення в текст.\n\n"
-            "Просто надішліть або перешліть голосове, аудіо чи відео — "
-            "я миттєво зроблю транскрипцію."
-        ),
-        "ar": (
-            "مرحبًا {user}! أنا أحوّل الرسائل الصوتية إلى نص.\n\n"
-            "فقط أرسل أو أعد توجيه رسالة صوتية أو صوت أو فيديو — "
-            "سأحوّلها إلى نص فوراً."
+            "Hai {user}! Saya mengubah pesan suara menjadi teks.\n"
+            "\n"
+            "Cukup kirim atau teruskan pesan suara, audio, atau video — saya akan langsung mentranskripsikannya."
         ),
         "fa": (
-            "سلام {user}! من پیام‌های صوتی را به متن تبدیل می‌کنم.\n\n"
-            "فقط پیام صوتی، صوت یا ویدیو بفرستید یا فوروارد کنید — "
-            "فوراً رونویسی می‌کنم."
-        ),
-        "de": (
-            "Hallo {user}! Ich verwandle Sprachnachrichten in Text.\n\n"
-            "Senden oder leiten Sie einfach eine Sprachnachricht, "
-            "Audio oder Video weiter — ich transkribiere es sofort."
-        ),
-        "tr": (
-            "Merhaba {user}! Sesli mesajları yazıya dönüştürüyorum.\n\n"
-            "Bir sesli mesaj, ses veya video gönderin veya iletin — "
-            "hemen yazıya dökerim."
-        ),
-        "es": (
-            "¡Hola {user}! Convierto mensajes de voz en texto.\n\n"
-            "Solo envía o reenvía un mensaje de voz, audio o video — "
-            "lo transcribiré al instante."
-        ),
-        "fr": (
-            "Bonjour {user} ! Je transforme les messages vocaux en texte.\n\n"
-            "Envoyez ou transférez simplement un message vocal, "
-            "audio ou vidéo — je le transcrirai instantanément."
-        ),
-        "uz": (
-            "Salom {user}! Men ovozli xabarlarni matnga aylantiraman.\n\n"
-            "Ovozli xabar, audio yoki video yuboring yoki yo'naltiring — "
-            "darhol matn shaklida yozib beraman."
-        ),
-        "am": (
-            "ሰላም {user}! የድምፅ መልእክቶችን ወደ ጽሑፍ እቀይራለሁ።\n\n"
-            "የድምፅ መልእክት፣ ኦዲዮ ወይም ቪዲዮ ይላኩ ወይም ያስተላልፉ — "
-            "ወዲያውኑ ወደ ጽሑፍ እቀይረዋለሁ።"
-        ),
-        "ko": (
-            "안녕하세요 {user}! 음성 메시지를 텍스트로 변환합니다.\n\n"
-            "음성 메시지, 오디오 또는 비디오를 보내거나 전달하세요 — "
-            "즉시 텍스트로 변환해 드립니다."
+            "سلام {user}! من پیام‌های صوتی را به متن تبدیل می‌کنم.\n"
+            "\n"
+            "فقط پیام صوتی، صوت یا ویدیو بفرستید یا فوروارد کنید — فوراً رونویسی می‌کنم."
         ),
     },
-    # /help
     "help": {
         "en": (
-            "🎙 Send me a voice message, audio, video note, or video "
-            "— I'll transcribe it.\n\n"
-            "After transcription you can summarize it or save as "
-            ".txt / .srt file. Multiple speakers are detected "
-            "automatically.\n\n"
-            "/secretary — auto-transcription in your chats\n"
+            "🎙 Send me a voice message, audio, video note, or video — I'll transcribe it.\n"
+            "\n"
+            "After transcription you can summarize it or save as .txt / .srt file. Multiple speakers are detected automatically.\n"
+            "\n"
+            "/secretary — transcribe voice messages in your chats\n"
             "/stats — your usage statistics"
         ),
         "ru": (
-            "🎙 Отправьте мне голосовое, аудио, видеозаметку или видео "
-            "— я сделаю расшифровку.\n\n"
-            "После расшифровки можно получить краткое содержание "
-            "или сохранить в .txt / .srt. Несколько говорящих "
-            "распознаются автоматически.\n\n"
-            "/secretary — авторасшифровка в ваших чатах\n"
+            "🎙 Отправьте мне голосовое, аудио, видеозаметку или видео — я сделаю расшифровку.\n"
+            "\n"
+            "После расшифровки можно получить краткое содержание или сохранить в .txt / .srt. Несколько говорящих распознаются автоматически.\n"
+            "\n"
+            "/secretary — расшифровка голосовых в ваших чатах\n"
             "/stats — статистика использования"
         ),
         "hi": (
-            "🎙 मुझे वॉइस मैसेज, ऑडियो, वीडियो नोट या वीडियो भेजें "
-            "— मैं ट्रांसक्राइब कर दूँगा।\n\n"
-            "ट्रांसक्रिप्शन के बाद सारांश बना सकते हैं या "
-            ".txt / .srt में सेव कर सकते हैं। कई वक्ता अपने आप "
-            "पहचाने जाते हैं।\n\n"
-            "/secretary — चैट में ऑटो-ट्रांसक्रिप्शन\n"
+            "🎙 मुझे वॉइस मैसेज, ऑडियो, वीडियो नोट या वीडियो भेजें — मैं ट्रांसक्राइब कर दूँगा।\n"
+            "\n"
+            "ट्रांसक्रिप्शन के बाद सारांश बना सकते हैं या .txt / .srt में सेव कर सकते हैं। कई वक्ता अपने आप पहचाने जाते हैं।\n"
+            "\n"
+            "/secretary — चैट में वॉइस मैसेज ट्रांसक्राइब करें\n"
             "/stats — उपयोग सांख्यिकी"
         ),
         "id": (
-            "🎙 Kirimkan pesan suara, audio, catatan video, atau video "
-            "— saya akan mentranskripsikannya.\n\n"
-            "Setelah transkripsi Anda bisa meringkas atau menyimpan "
-            "sebagai .txt / .srt. Beberapa pembicara terdeteksi "
-            "secara otomatis.\n\n"
-            "/secretary — transkripsi otomatis di chat Anda\n"
+            "🎙 Kirimkan pesan suara, audio, catatan video, atau video — saya akan mentranskripsikannya.\n"
+            "\n"
+            "Setelah transkripsi Anda bisa meringkas atau menyimpan sebagai .txt / .srt. Beberapa pembicara terdeteksi secara otomatis.\n"
+            "\n"
+            "/secretary — transkripsi pesan suara di chat Anda\n"
             "/stats — statistik penggunaan"
         ),
-        "pt": (
-            "🎙 Envie-me uma mensagem de voz, áudio, nota de vídeo "
-            "ou vídeo — eu transcrevo.\n\n"
-            "Após a transcrição você pode resumir ou salvar em "
-            ".txt / .srt. Múltiplos falantes são detectados "
-            "automaticamente.\n\n"
-            "/secretary — transcrição automática nos seus chats\n"
-            "/stats — estatísticas de uso"
-        ),
-        "uk": (
-            "🎙 Надішліть голосове, аудіо, відеонотатку або відео "
-            "— я зроблю транскрипцію.\n\n"
-            "Після транскрипції можна отримати підсумок або зберегти "
-            "в .txt / .srt. Кілька мовців розпізнаються "
-            "автоматично.\n\n"
-            "/secretary — автотранскрипція у ваших чатах\n"
-            "/stats — статистика використання"
-        ),
-        "ar": (
-            "🎙 أرسل لي رسالة صوتية أو صوت أو ملاحظة فيديو أو فيديو "
-            "— سأحوّلها إلى نص.\n\n"
-            "بعد التحويل يمكنك تلخيصها أو حفظها كملف "
-            ".txt / .srt. يتم كشف المتحدثين المتعددين "
-            "تلقائياً.\n\n"
-            "/secretary — تحويل تلقائي في محادثاتك\n"
-            "/stats — إحصائيات الاستخدام"
-        ),
         "fa": (
-            "🎙 پیام صوتی، صوت، یادداشت ویدیویی یا ویدیو بفرستید "
-            "— رونویسی می‌کنم.\n\n"
-            "بعد از رونویسی می‌توانید خلاصه بگیرید یا به‌صورت "
-            ".txt / .srt ذخیره کنید. چندین گوینده به‌صورت خودکار "
-            "شناسایی می‌شوند.\n\n"
-            "/secretary — رونویسی خودکار در چت‌ها\n"
+            "🎙 پیام صوتی، صوت، یادداشت ویدیویی یا ویدیو بفرستید — رونویسی می‌کنم.\n"
+            "\n"
+            "بعد از رونویسی می‌توانید خلاصه بگیرید یا به‌صورت .txt / .srt ذخیره کنید. چندین گوینده به‌صورت خودکار شناسایی می‌شوند.\n"
+            "\n"
+            "/secretary — رونویسی پیام‌های صوتی در چت‌ها\n"
             "/stats — آمار استفاده"
         ),
-        "de": (
-            "🎙 Senden Sie mir eine Sprachnachricht, Audio, Videonachricht "
-            "oder Video — ich transkribiere es.\n\n"
-            "Nach der Transkription können Sie zusammenfassen oder "
-            "als .txt / .srt speichern. Mehrere Sprecher werden "
-            "automatisch erkannt.\n\n"
-            "/secretary — Auto-Transkription in Ihren Chats\n"
-            "/stats — Nutzungsstatistiken"
-        ),
-        "tr": (
-            "🎙 Bana sesli mesaj, ses, video notu veya video gönderin "
-            "— yazıya dökerim.\n\n"
-            "Dönüştürmeden sonra özetleyebilir veya .txt / .srt "
-            "olarak kaydedebilirsiniz. Birden fazla konuşmacı otomatik "
-            "algılanır.\n\n"
-            "/secretary — sohbetlerde otomatik dönüştürme\n"
-            "/stats — kullanım istatistikleri"
-        ),
-        "es": (
-            "🎙 Envíame un mensaje de voz, audio, nota de video "
-            "o video — lo transcribiré.\n\n"
-            "Después puedes resumir o guardar como .txt / .srt. "
-            "Se detectan múltiples hablantes automáticamente.\n\n"
-            "/secretary — transcripción automática en tus chats\n"
-            "/stats — estadísticas de uso"
-        ),
-        "fr": (
-            "🎙 Envoyez-moi un message vocal, audio, note vidéo "
-            "ou vidéo — je le transcrirai.\n\n"
-            "Après la transcription vous pouvez résumer ou enregistrer "
-            "en .txt / .srt. Les locuteurs multiples sont détectés "
-            "automatiquement.\n\n"
-            "/secretary — transcription auto dans vos chats\n"
-            "/stats — statistiques d'utilisation"
-        ),
-        "uz": (
-            "🎙 Ovozli xabar, audio, video eslatma yoki video yuboring "
-            "— matn shaklida yozib beraman.\n\n"
-            "Transkripsiyadan keyin xulosa olishingiz yoki .txt / .srt "
-            "shaklida saqlashingiz mumkin. Bir nechta so'zlovchilar "
-            "avtomatik aniqlanadi.\n\n"
-            "/secretary — chatlarda avtomatik transkripsiya\n"
-            "/stats — foydalanish statistikasi"
-        ),
-        "am": (
-            "🎙 የድምፅ መልእክት፣ ኦዲዮ፣ የቪዲዮ ማስታወሻ ወይም ቪዲዮ "
-            "ይላኩልኝ — ወደ ጽሑፍ እቀይረዋለሁ።\n\n"
-            "ከተቀየረ በኋላ ማጠቃለያ ማግኘት ወይም በ .txt / .srt "
-            "ማስቀመጥ ይችላሉ። ብዙ ተናጋሪዎች በራስ-ሰር "
-            "ይታወቃሉ።\n\n"
-            "/secretary — በቻቶች ውስጥ ራስ-ሰር ጽሑፍ መቀየር\n"
-            "/stats — የአጠቃቀም ስታቲስቲክስ"
-        ),
-        "ko": (
-            "🎙 음성 메시지, 오디오, 비디오 노트 또는 비디오를 "
-            "보내주세요 — 텍스트로 변환합니다.\n\n"
-            "변환 후 요약하거나 .txt / .srt로 저장할 수 있습니다. "
-            "여러 화자가 자동으로 감지됩니다.\n\n"
-            "/secretary — 채팅에서 자동 변환\n"
-            "/stats — 사용 통계"
-        ),
     },
-    # "Transcribing..." processing message
     "transcribing": {
         "en": "Transcribing...",
         "ru": "Расшифровываю...",
         "hi": "ट्रांसक्राइब हो रहा है...",
         "id": "Sedang mentranskripsikan...",
-        "pt": "Transcrevendo...",
-        "uk": "Транскрибую...",
-        "ar": "جارٍ التحويل...",
         "fa": "در حال رونویسی...",
-        "de": "Transkribiere...",
-        "tr": "Yazıya dökülüyor...",
-        "es": "Transcribiendo...",
-        "fr": "Transcription en cours...",
-        "uz": "Matn shaklida yozilmoqda...",
-        "am": "ወደ ጽሑፍ በመቀየር ላይ...",
-        "ko": "텍스트 변환 중...",
     },
-    # File too large (20 MB limit)
     "file_too_large": {
         "en": (
-            "This file is too large to download. "
-            "Telegram limits bot file downloads to 20 MB.\n"
-            "Voice messages and video notes are compressed "
-            "by Telegram and usually work fine — this limit "
-            "mainly affects large audio/video files sent "
-            "as attachments.\n"
-            "You can try compressing or trimming the file "
-            "before sending."
+            "This file is too large to download. Telegram limits bot file downloads to 20 MB.\n"
+            "Voice messages and video notes are compressed by Telegram and usually work fine — this limit mainly affects large audio/video files sent as attachments.\n"
+            "You can try compressing or trimming the file before sending."
         ),
         "ru": (
-            "Этот файл слишком большой для загрузки. "
-            "Telegram ограничивает загрузку файлов ботами до 20 МБ.\n"
-            "Голосовые сообщения и видеозаметки сжимаются "
-            "Telegram и обычно работают нормально — это ограничение "
-            "в основном касается больших аудио/видео файлов, "
-            "отправленных как вложения.\n"
+            "Этот файл слишком большой для загрузки. Telegram ограничивает загрузку файлов ботами до 20 МБ.\n"
+            "Голосовые сообщения и видеозаметки сжимаются Telegram и обычно работают нормально — это ограничение в основном касается больших аудио/видео файлов, отправленных как вложения.\n"
             "Попробуйте сжать или обрезать файл перед отправкой."
         ),
         "hi": (
-            "यह फाइल डाउनलोड करने के लिए बहुत बड़ी है। "
-            "Telegram बॉट फाइल डाउनलोड को 20 MB तक सीमित करता है।\n"
-            "वॉइस मैसेज और वीडियो नोट Telegram द्वारा संपीड़ित होते हैं "
-            "और आमतौर पर ठीक काम करते हैं।\n"
+            "यह फाइल डाउनलोड करने के लिए बहुत बड़ी है। Telegram बॉट फाइल डाउनलोड को 20 MB तक सीमित करता है।\n"
+            "वॉइस मैसेज और वीडियो नोट Telegram द्वारा संपीड़ित होते हैं और आमतौर पर ठीक काम करते हैं।\n"
             "भेजने से पहले फाइल को संपीड़ित या ट्रिम करने का प्रयास करें।"
         ),
         "id": (
-            "File ini terlalu besar untuk diunduh. "
-            "Telegram membatasi unduhan file bot hingga 20 MB.\n"
-            "Pesan suara dan catatan video dikompresi oleh Telegram "
-            "dan biasanya berfungsi dengan baik.\n"
+            "File ini terlalu besar untuk diunduh. Telegram membatasi unduhan file bot hingga 20 MB.\n"
+            "Pesan suara dan catatan video dikompresi oleh Telegram dan biasanya berfungsi dengan baik.\n"
             "Coba kompres atau potong file sebelum mengirim."
         ),
-        "pt": (
-            "Este arquivo é muito grande para baixar. "
-            "O Telegram limita downloads de bots a 20 MB.\n"
-            "Mensagens de voz e notas de vídeo são comprimidas "
-            "pelo Telegram e geralmente funcionam bem.\n"
-            "Tente comprimir ou cortar o arquivo antes de enviar."
-        ),
-        "uk": (
-            "Цей файл занадто великий для завантаження. "
-            "Telegram обмежує завантаження файлів ботами до 20 МБ.\n"
-            "Голосові повідомлення та відеонотатки стискаються "
-            "Telegram і зазвичай працюють нормально.\n"
-            "Спробуйте стиснути або обрізати файл перед відправкою."
-        ),
-        "ar": (
-            "هذا الملف كبير جداً للتنزيل. "
-            "يحدد Telegram تنزيلات البوت بـ 20 ميغابايت.\n"
-            "الرسائل الصوتية وملاحظات الفيديو مضغوطة بواسطة Telegram "
-            "وعادةً تعمل بشكل جيد.\n"
-            "حاول ضغط الملف أو قصه قبل الإرسال."
-        ),
         "fa": (
-            "این فایل برای دانلود خیلی بزرگ است. "
-            "تلگرام دانلود فایل توسط ربات را به ۲۰ مگابایت محدود می‌کند.\n"
-            "پیام‌های صوتی و یادداشت‌های ویدیویی توسط تلگرام فشرده می‌شوند "
-            "و معمولاً به خوبی کار می‌کنند.\n"
+            "این فایل برای دانلود خیلی بزرگ است. تلگرام دانلود فایل توسط ربات را به ۲۰ مگابایت محدود می‌کند.\n"
+            "پیام‌های صوتی و یادداشت‌های ویدیویی توسط تلگرام فشرده می‌شوند و معمولاً به خوبی کار می‌کنند.\n"
             "قبل از ارسال، فایل را فشرده یا برش دهید."
         ),
-        "de": (
-            "Diese Datei ist zu groß zum Herunterladen. "
-            "Telegram begrenzt Bot-Downloads auf 20 MB.\n"
-            "Sprachnachrichten und Videonachrichten werden von Telegram "
-            "komprimiert und funktionieren normalerweise problemlos.\n"
-            "Versuchen Sie die Datei vor dem Senden zu komprimieren oder zu kürzen."
-        ),
-        "tr": (
-            "Bu dosya indirmek için çok büyük. "
-            "Telegram bot dosya indirmelerini 20 MB ile sınırlar.\n"
-            "Sesli mesajlar ve video notları Telegram tarafından sıkıştırılır "
-            "ve genellikle sorunsuz çalışır.\n"
-            "Göndermeden önce dosyayı sıkıştırmayı veya kırpmayı deneyin."
-        ),
-        "es": (
-            "Este archivo es demasiado grande para descargar. "
-            "Telegram limita las descargas de bots a 20 MB.\n"
-            "Los mensajes de voz y notas de video son comprimidos "
-            "por Telegram y generalmente funcionan bien.\n"
-            "Intenta comprimir o recortar el archivo antes de enviarlo."
-        ),
-        "fr": (
-            "Ce fichier est trop volumineux pour être téléchargé. "
-            "Telegram limite les téléchargements de bots à 20 Mo.\n"
-            "Les messages vocaux et notes vidéo sont compressés "
-            "par Telegram et fonctionnent généralement bien.\n"
-            "Essayez de compresser ou raccourcir le fichier avant de l'envoyer."
-        ),
-        "uz": (
-            "Bu fayl yuklab olish uchun juda katta. "
-            "Telegram bot fayl yuklanishlarini 20 MB bilan cheklaydi.\n"
-            "Ovozli xabarlar va video eslatmalar Telegram tomonidan "
-            "siqiladi va odatda yaxshi ishlaydi.\n"
-            "Yuborishdan oldin faylni siqish yoki qirqishga harakat qiling."
-        ),
-        "am": (
-            "ይህ ፋይል ለማውረድ በጣም ትልቅ ነው። "
-            "Telegram የቦት ፋይል ማውረዶችን ወደ 20 MB ይገድባል።\n"
-            "የድምፅ መልእክቶች እና የቪዲዮ ማስታወሻዎች በ Telegram ተጨምቀው "
-            "ብዙ ጊዜ ጥሩ ይሰራሉ።\n"
-            "ከመላክዎ በፊት ፋይሉን ለመጭመቅ ወይም ለመቁረጥ ይሞክሩ።"
-        ),
-        "ko": (
-            "이 파일은 다운로드하기에 너무 큽니다. "
-            "Telegram은 봇 파일 다운로드를 20MB로 제한합니다.\n"
-            "음성 메시지와 비디오 노트는 Telegram에서 압축되어 "
-            "보통 잘 작동합니다.\n"
-            "보내기 전에 파일을 압축하거나 자르세요."
-        ),
     },
-    # Audio too long
     "audio_too_long": {
         "en": "This audio is too long ({duration}). Max supported duration is {max_min} minutes.",
         "ru": "Это аудио слишком длинное ({duration}). Максимальная поддерживаемая длительность — {max_min} минут.",
         "hi": "यह ऑडियो बहुत लंबा है ({duration})। अधिकतम समर्थित अवधि {max_min} मिनट है।",
         "id": "Audio ini terlalu panjang ({duration}). Durasi maksimal yang didukung adalah {max_min} menit.",
-        "pt": "Este áudio é muito longo ({duration}). A duração máxima suportada é {max_min} minutos.",
-        "uk": "Це аудіо занадто довге ({duration}). Максимальна підтримувана тривалість — {max_min} хвилин.",
-        "ar": "هذا الصوت طويل جداً ({duration}). الحد الأقصى المدعوم هو {max_min} دقيقة.",
         "fa": "این صوت خیلی طولانی است ({duration}). حداکثر مدت پشتیبانی شده {max_min} دقیقه است.",
-        "de": "Dieses Audio ist zu lang ({duration}). Maximale unterstützte Dauer ist {max_min} Minuten.",
-        "tr": "Bu ses çok uzun ({duration}). Desteklenen maksimum süre {max_min} dakikadır.",
-        "es": "Este audio es demasiado largo ({duration}). La duración máxima soportada es {max_min} minutos.",
-        "fr": "Cet audio est trop long ({duration}). La durée maximale supportée est de {max_min} minutes.",
-        "uz": "Bu audio juda uzun ({duration}). Qo'llab-quvvatlanadigan maksimal davomiylik {max_min} daqiqa.",
-        "am": "ይህ ኦዲዮ በጣም ረጅም ነው ({duration})። ከፍተኛ የሚደገፍ ርዝመት {max_min} ደቂቃ ነው።",
-        "ko": "이 오디오가 너무 깁니다 ({duration}). 최대 지원 시간은 {max_min}분입니다.",
     },
-    # No speech detected
     "no_speech": {
         "en": "No speech was detected in this audio. The recording may be silent or too short.",
         "ru": "В этом аудио не обнаружена речь. Запись может быть беззвучной или слишком короткой.",
         "hi": "इस ऑडियो में कोई भाषण नहीं मिला। रिकॉर्डिंग शायद साइलेंट या बहुत छोटी है।",
         "id": "Tidak ada ucapan yang terdeteksi dalam audio ini. Rekaman mungkin kosong atau terlalu pendek.",
-        "pt": "Nenhuma fala foi detectada neste áudio. A gravação pode estar silenciosa ou muito curta.",
-        "uk": "У цьому аудіо не виявлено мовлення. Запис може бути беззвучним або занадто коротким.",
-        "ar": "لم يتم اكتشاف أي كلام في هذا الصوت. قد يكون التسجيل صامتاً أو قصيراً جداً.",
         "fa": "هیچ گفتاری در این صوت شناسایی نشد. ضبط ممکن است ساکت یا خیلی کوتاه باشد.",
-        "de": "In diesem Audio wurde keine Sprache erkannt. Die Aufnahme ist möglicherweise stumm oder zu kurz.",
-        "tr": "Bu ses kaydında konuşma algılanmadı. Kayıt sessiz veya çok kısa olabilir.",
-        "es": "No se detectó habla en este audio. La grabación puede estar en silencio o ser muy corta.",
-        "fr": "Aucune parole détectée dans cet audio. L'enregistrement est peut-être silencieux ou trop court.",
-        "uz": "Ushbu audioda nutq aniqlanmadi. Yozuv sokin yoki juda qisqa bo'lishi mumkin.",
-        "am": "በዚህ ኦዲዮ ውስጥ ንግግር አልተገኘም። ቀረጻው ጸጥ ያለ ወይም በጣም አጭር ሊሆን ይችላል።",
-        "ko": "이 오디오에서 음성이 감지되지 않았습니다. 녹음이 무음이거나 너무 짧을 수 있습니다.",
     },
-    # Something went wrong (bot/API error)
     "something_went_wrong": {
         "en": "Something went wrong on our end. Please try again later.",
         "ru": "Что-то пошло не так с нашей стороны. Пожалуйста, попробуйте позже.",
         "hi": "हमारी तरफ कुछ गलत हो गया। कृपया बाद में पुनः प्रयास करें।",
         "id": "Terjadi kesalahan di pihak kami. Silakan coba lagi nanti.",
-        "pt": "Algo deu errado do nosso lado. Por favor, tente novamente mais tarde.",
-        "uk": "Щось пішло не так з нашого боку. Будь ласка, спробуйте пізніше.",
-        "ar": "حدث خطأ من جانبنا. يرجى المحاولة مرة أخرى لاحقاً.",
         "fa": "مشکلی از سمت ما پیش آمد. لطفاً بعداً دوباره امتحان کنید.",
-        "de": "Bei uns ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.",
-        "tr": "Bizim tarafımızda bir sorun oluştu. Lütfen daha sonra tekrar deneyin.",
-        "es": "Algo salió mal de nuestro lado. Por favor, inténtelo de nuevo más tarde.",
-        "fr": "Un problème est survenu de notre côté. Veuillez réessayer plus tard.",
-        "uz": "Bizning tomonda xatolik yuz berdi. Iltimos, keyinroq qayta urinib ko'ring.",
-        "am": "ከኛ በኩል ችግር ተፈጠረ። እባክዎ ቆይተው እንደገና ይሞክሩ።",
-        "ko": "저희 측에서 문제가 발생했습니다. 나중에 다시 시도해 주세요.",
     },
-    # Could not extract audio from video
     "extraction_failed": {
         "en": "Could not extract audio from this video.",
         "ru": "Не удалось извлечь аудио из этого видео.",
         "hi": "इस वीडियो से ऑडियो नहीं निकाला जा सका।",
         "id": "Tidak dapat mengekstrak audio dari video ini.",
-        "pt": "Não foi possível extrair o áudio deste vídeo.",
-        "uk": "Не вдалося витягти аудіо з цього відео.",
-        "ar": "تعذر استخراج الصوت من هذا الفيديو.",
         "fa": "استخراج صدا از این ویدیو ممکن نشد.",
-        "de": "Audio konnte aus diesem Video nicht extrahiert werden.",
-        "tr": "Bu videodan ses çıkarılamadı.",
-        "es": "No se pudo extraer el audio de este video.",
-        "fr": "Impossible d'extraire l'audio de cette vidéo.",
-        "uz": "Ushbu videodan audio chiqarib bo'lmadi.",
-        "am": "ከዚህ ቪዲዮ ኦዲዮ ማውጣት አልተቻለም።",
-        "ko": "이 비디오에서 오디오를 추출할 수 없습니다.",
     },
-    # Transcription expired
     "transcription_expired": {
         "en": "This transcription has expired.",
         "ru": "Эта расшифровка истекла.",
         "hi": "यह ट्रांसक्रिप्शन समाप्त हो गया है।",
         "id": "Transkripsi ini telah kedaluwarsa.",
-        "pt": "Esta transcrição expirou.",
-        "uk": "Ця розшифровка більше недоступна.",
-        "ar": "انتهت صلاحية هذا التحويل النصي.",
         "fa": "این رونویسی منقضی شده است.",
-        "de": "Diese Transkription ist abgelaufen.",
-        "tr": "Bu transkripsiyon süresi doldu.",
-        "es": "Esta transcripción ha expirado.",
-        "fr": "Cette transcription a expiré.",
-        "uz": "Ushbu transkripsiya muddati tugagan.",
-        "am": "ይህ ጽሑፍ ጊዜው አልፎበታል።",
-        "ko": "이 텍스트 변환이 만료되었습니다.",
     },
-    # No usage recorded yet
     "no_usage": {
         "en": "No usage recorded yet.",
         "ru": "Статистика использования пока отсутствует.",
         "hi": "अभी तक कोई उपयोग दर्ज नहीं हुआ।",
         "id": "Belum ada penggunaan yang tercatat.",
-        "pt": "Nenhum uso registrado ainda.",
-        "uk": "Використання ще не зафіксовано.",
-        "ar": "لم يتم تسجيل أي استخدام بعد.",
         "fa": "هنوز استفاده‌ای ثبت نشده است.",
-        "de": "Noch keine Nutzung aufgezeichnet.",
-        "tr": "Henüz kullanım kaydı yok.",
-        "es": "Aún no se ha registrado uso.",
-        "fr": "Aucune utilisation enregistrée pour le moment.",
-        "uz": "Hali foydalanish qayd etilmagan.",
-        "am": "እስካሁን ምንም አጠቃቀም አልተመዘገበም።",
-        "ko": "아직 사용 기록이 없습니다.",
     },
-    # SRT not available fallback
     "srt_no_words": {
         "en": "Word-level data is not available for SRT export. Try saving as .txt instead.",
         "ru": "Данные на уровне слов недоступны для экспорта SRT. Попробуйте сохранить как .txt.",
         "hi": "SRT निर्यात के लिए शब्द-स्तरीय डेटा उपलब्ध नहीं है। .txt में सेव करें।",
         "id": "Data tingkat kata tidak tersedia untuk ekspor SRT. Coba simpan sebagai .txt.",
-        "pt": "Dados por palavra não disponíveis para exportação SRT. Tente salvar como .txt.",
-        "uk": "Дані на рівні слів недоступні для експорту SRT. Спробуйте зберегти як .txt.",
-        "ar": "بيانات التوقيت للكلمات غير متاحة لإنشاء ملف SRT. جرب الحفظ كـ .txt.",
         "fa": "داده‌های سطح کلمه برای صادرات SRT در دسترس نیست. به‌جای آن به‌صورت .txt ذخیره کنید.",
-        "de": "Wort-Daten für SRT-Export nicht verfügbar. Versuchen Sie .txt.",
-        "tr": "SRT dışa aktarımı için kelime düzeyi veri mevcut değil. .txt olarak kaydetmeyi deneyin.",
-        "es": "Los datos a nivel de palabra no están disponibles para exportar SRT. Intente guardar como .txt.",
-        "fr": "Les données mot par mot ne sont pas disponibles pour l'export SRT. Essayez .txt.",
-        "uz": "SRT eksport uchun so'z darajasidagi ma'lumotlar mavjud emas. .txt sifatida saqlang.",
-        "am": "ለ SRT ወደ ውጭ ለመላክ የቃል ደረጃ ውሂብ የለም። እንደ .txt ያስቀምጡ።",
-        "ko": "SRT 내보내기에 필요한 단어 수준 데이터가 없습니다. .txt로 저장해 보세요.",
     },
-    # SRT no timed words
     "srt_no_timed": {
         "en": "Could not generate subtitles — no timed words found. Try saving as .txt instead.",
         "ru": "Не удалось создать субтитры — не найдены слова с временными метками. Попробуйте .txt.",
         "hi": "सबटाइटल नहीं बनाए जा सके — समयबद्ध शब्द नहीं मिले। .txt में सेव करें।",
         "id": "Tidak dapat membuat subtitle — tidak ditemukan kata bertanda waktu. Coba .txt.",
-        "pt": "Não foi possível gerar legendas — palavras com marcação temporal não encontradas. Tente .txt.",
-        "uk": "Не вдалося створити субтитри — не знайдено слів з часовими мітками. Спробуйте .txt.",
-        "ar": "تعذر إنشاء ملف الترجمة — لم يتم العثور على كلمات ذات توقيت. جرب .txt.",
         "fa": "ساخت زیرنویس ممکن نشد — کلمات زمان‌بندی شده یافت نشد. .txt را امتحان کنید.",
-        "de": "Untertitel konnten nicht erstellt werden — keine Zeitstempel gefunden. Versuchen Sie .txt.",
-        "tr": "Altyazı oluşturulamadı — zamanlı kelime bulunamadı. .txt olarak deneyin.",
-        "es": "No se pudieron generar subtítulos — no se encontraron palabras con marca temporal. Intente .txt.",
-        "fr": "Impossible de générer les sous-titres — aucun mot horodaté trouvé. Essayez .txt.",
-        "uz": "Subtitrlarni yaratib bo'lmadi — vaqt belgilangan so'zlar topilmadi. .txt ni sinab ko'ring.",
-        "am": "ንዑስ ጽሑፎችን ማመንጨት አልተቻለም — ጊዜ የተሰጣቸው ቃላት አልተገኙም። .txt ይሞክሩ።",
-        "ko": "자막을 생성할 수 없습니다 — 시간 정보가 있는 단어를 찾을 수 없습니다. .txt로 저장해 보세요.",
     },
-    # Stats header
     "your_stats": {
         "en": (
             "Your stats:\n"
@@ -542,27 +211,6 @@ _STRINGS: dict[str, dict[str, str]] = {
             "Pertama digunakan: {first_used}\n"
             "Terakhir digunakan: {last_used}"
         ),
-        "pt": (
-            "Suas estatísticas:\n"
-            "Transcrições: {transcriptions}\n"
-            "Total de áudio: {duration}\n"
-            "Primeiro uso: {first_used}\n"
-            "Último uso: {last_used}"
-        ),
-        "uk": (
-            "Ваша статистика:\n"
-            "Транскрипцій: {transcriptions}\n"
-            "Всього аудіо: {duration}\n"
-            "Перше використання: {first_used}\n"
-            "Останнє використання: {last_used}"
-        ),
-        "ar": (
-            "إحصائياتك:\n"
-            "التحويلات: {transcriptions}\n"
-            "إجمالي مدة الصوت: {duration}\n"
-            "أول استخدام: {first_used}\n"
-            "آخر استخدام: {last_used}"
-        ),
         "fa": (
             "آمار شما:\n"
             "رونویسی‌ها: {transcriptions}\n"
@@ -570,796 +218,202 @@ _STRINGS: dict[str, dict[str, str]] = {
             "اولین استفاده: {first_used}\n"
             "آخرین استفاده: {last_used}"
         ),
-        "de": (
-            "Ihre Statistiken:\n"
-            "Transkriptionen: {transcriptions}\n"
-            "Audio gesamt: {duration}\n"
-            "Erste Nutzung: {first_used}\n"
-            "Letzte Nutzung: {last_used}"
-        ),
-        "tr": (
-            "İstatistikleriniz:\n"
-            "Transkripsiyonlar: {transcriptions}\n"
-            "Toplam ses: {duration}\n"
-            "İlk kullanım: {first_used}\n"
-            "Son kullanım: {last_used}"
-        ),
-        "es": (
-            "Tus estadísticas:\n"
-            "Transcripciones: {transcriptions}\n"
-            "Audio total: {duration}\n"
-            "Primer uso: {first_used}\n"
-            "Último uso: {last_used}"
-        ),
-        "fr": (
-            "Vos statistiques :\n"
-            "Transcriptions : {transcriptions}\n"
-            "Audio total : {duration}\n"
-            "Première utilisation : {first_used}\n"
-            "Dernière utilisation : {last_used}"
-        ),
-        "uz": (
-            "Statistikangiz:\n"
-            "Transkripsiyalar: {transcriptions}\n"
-            "Jami audio: {duration}\n"
-            "Birinchi foydalanish: {first_used}\n"
-            "Oxirgi foydalanish: {last_used}"
-        ),
-        "am": (
-            "የእርስዎ ስታቲስቲክስ:\n"
-            "ጽሑፎች: {transcriptions}\n"
-            "ጠቅላላ ኦዲዮ: {duration}\n"
-            "የመጀመሪያ አጠቃቀም: {first_used}\n"
-            "የመጨረሻ አጠቃቀም: {last_used}"
-        ),
-        "ko": (
-            "사용 통계:\n"
-            "변환 횟수: {transcriptions}\n"
-            "총 오디오: {duration}\n"
-            "처음 사용: {first_used}\n"
-            "마지막 사용: {last_used}"
-        ),
     },
-    # Transcription timeout
     "transcription_timeout": {
         "en": "Transcription is taking too long. This can happen with very long recordings. Please try again — if the problem persists, try a shorter clip.",
         "ru": "Расшифровка занимает слишком много времени. Это может произойти с очень длинными записями. Попробуйте ещё раз — если проблема сохранится, попробуйте более короткий фрагмент.",
         "hi": "ट्रांसक्रिप्शन में बहुत समय लग रहा है। यह बहुत लंबी रिकॉर्डिंग के साथ हो सकता है। कृपया दोबारा कोशिश करें — अगर समस्या बनी रहे, तो छोटी क्लिप भेजें।",
         "id": "Transkripsi memakan waktu terlalu lama. Ini bisa terjadi dengan rekaman yang sangat panjang. Silakan coba lagi — jika masalah berlanjut, coba klip yang lebih pendek.",
-        "pt": "A transcrição está demorando demais. Isso pode acontecer com gravações muito longas. Tente novamente — se o problema persistir, tente um trecho mais curto.",
-        "uk": "Транскрипція займає занадто багато часу. Це може статися з дуже довгими записами. Спробуйте ще раз — якщо проблема залишиться, спробуйте коротший фрагмент.",
-        "ar": "التحويل النصي يستغرق وقتاً طويلاً. قد يحدث هذا مع التسجيلات الطويلة جداً. حاول مرة أخرى — إذا استمرت المشكلة، جرب مقطعاً أقصر.",
         "fa": "رونویسی بیش از حد طول می‌کشد. این ممکن است با ضبط‌های خیلی طولانی اتفاق بیفتد. لطفاً دوباره امتحان کنید — اگر مشکل ادامه داشت، یک کلیپ کوتاه‌تر بفرستید.",
-        "de": "Die Transkription dauert zu lange. Das kann bei sehr langen Aufnahmen passieren. Bitte versuchen Sie es erneut — wenn das Problem bestehen bleibt, versuchen Sie einen kürzeren Ausschnitt.",
-        "tr": "Yazıya dökme çok uzun sürüyor. Bu çok uzun kayıtlarda olabilir. Lütfen tekrar deneyin — sorun devam ederse daha kısa bir klip deneyin.",
-        "es": "La transcripción está tardando demasiado. Esto puede ocurrir con grabaciones muy largas. Inténtelo de nuevo — si el problema persiste, pruebe con un fragmento más corto.",
-        "fr": "La transcription prend trop de temps. Cela peut arriver avec des enregistrements très longs. Réessayez — si le problème persiste, essayez un extrait plus court.",
-        "uz": "Transkripsiya juda uzoq vaqt olmoqda. Bu juda uzun yozuvlarda bo'lishi mumkin. Qayta urinib ko'ring — muammo davom etsa, qisqaroq qismni yuboring.",
-        "am": "ወደ ጽሑፍ መቀየር በጣም ረዥም ጊዜ እየወሰደ ነው። ይህ ከረጅም ቀረጻዎች ጋር ሊከሰት ይችላል። እባክዎ እንደገና ይሞክሩ — ችግሩ ከቀጠለ አጭር ክሊፕ ይሞክሩ።",
-        "ko": "텍스트 변환에 시간이 너무 오래 걸리고 있습니다. 매우 긴 녹음에서 발생할 수 있습니다. 다시 시도해 주세요 — 문제가 계속되면 더 짧은 클립을 보내 보세요.",
     },
-    # File download timeout
     "download_timeout": {
         "en": "Could not download the file from Telegram. Please try sending it again.",
         "ru": "Не удалось загрузить файл из Telegram. Попробуйте отправить его ещё раз.",
         "hi": "Telegram से फाइल डाउनलोड नहीं हो सकी। कृपया इसे दोबारा भेजें।",
         "id": "Tidak dapat mengunduh file dari Telegram. Silakan coba kirim ulang.",
-        "pt": "Não foi possível baixar o arquivo do Telegram. Tente enviá-lo novamente.",
-        "uk": "Не вдалося завантажити файл з Telegram. Спробуйте надіслати його ще раз.",
-        "ar": "تعذر تنزيل الملف من Telegram. حاول إرساله مرة أخرى.",
         "fa": "دانلود فایل از تلگرام ممکن نشد. لطفاً دوباره ارسال کنید.",
-        "de": "Die Datei konnte nicht von Telegram heruntergeladen werden. Bitte senden Sie sie erneut.",
-        "tr": "Dosya Telegram'dan indirilemedi. Lütfen tekrar göndermeyi deneyin.",
-        "es": "No se pudo descargar el archivo de Telegram. Intente enviarlo de nuevo.",
-        "fr": "Impossible de télécharger le fichier depuis Telegram. Veuillez le renvoyer.",
-        "uz": "Faylni Telegramdan yuklab bo'lmadi. Uni qayta yuborib ko'ring.",
-        "am": "ፋይሉን ከ Telegram ማውረድ አልተቻለም። እባክዎ እንደገና ይላኩት።",
-        "ko": "Telegram에서 파일을 다운로드할 수 없습니다. 다시 보내 보세요.",
     },
-    # --- Secretary mode ---
-    # Prefix for secretary transcription messages
-    "secretary_prefix": {
-        "en": "📝 Transcription:",
-        "ru": "📝 Расшифровка:",
-        "hi": "📝 ट्रांसक्रिप्शन:",
-        "id": "📝 Transkripsi:",
-        "pt": "📝 Transcrição:",
-        "uk": "📝 Транскрипція:",
-        "ar": "📝 النص:",
-        "fa": "📝 رونویسی:",
-        "de": "📝 Transkription:",
-        "tr": "📝 Yazıya dökme:",
-        "es": "📝 Transcripción:",
-        "fr": "📝 Transcription :",
-        "uz": "📝 Transkripsiya:",
-        "am": "📝 ጽሑፍ:",
-        "ko": "📝 텍스트 변환:",
-    },
-    # Manual mode prompt ({duration} placeholder)
     "secretary_manual_prompt": {
         "en": "🎙 Voice message ({duration})",
         "ru": "🎙 Голосовое сообщение ({duration})",
         "hi": "🎙 वॉइस मैसेज ({duration})",
         "id": "🎙 Pesan suara ({duration})",
-        "pt": "🎙 Mensagem de voz ({duration})",
-        "uk": "🎙 Голосове повідомлення ({duration})",
-        "ar": "🎙 رسالة صوتية ({duration})",
         "fa": "🎙 پیام صوتی ({duration})",
-        "de": "🎙 Sprachnachricht ({duration})",
-        "tr": "🎙 Sesli mesaj ({duration})",
-        "es": "🎙 Mensaje de voz ({duration})",
-        "fr": "🎙 Message vocal ({duration})",
-        "uz": "🎙 Ovozli xabar ({duration})",
-        "am": "🎙 የድምፅ መልእክት ({duration})",
-        "ko": "🎙 음성 메시지 ({duration})",
     },
-    # /secretary mode set ({mode} placeholder)
-    "secretary_mode_set": {
-        "en": "Secretary mode set to: {mode}",
-        "ru": "Режим секретаря установлен: {mode}",
-        "hi": "सेक्रेटरी मोड सेट किया गया: {mode}",
-        "id": "Mode sekretaris diatur ke: {mode}",
-        "pt": "Modo secretário definido para: {mode}",
-        "uk": "Режим секретаря встановлено: {mode}",
-        "ar": "تم ضبط وضع السكرتير على: {mode}",
-        "fa": "حالت منشی تنظیم شد: {mode}",
-        "de": "Sekretär-Modus eingestellt auf: {mode}",
-        "tr": "Sekreter modu ayarlandı: {mode}",
-        "es": "Modo secretario configurado: {mode}",
-        "fr": "Mode secrétaire défini sur : {mode}",
-        "uz": "Kotib rejimi o'rnatildi: {mode}",
-        "am": "የጸሐፊ ሁነታ ተቀናብሯል: {mode}",
-        "ko": "비서 모드 설정: {mode}",
-    },
-    # /secretary current mode ({mode} placeholder)
-    "secretary_mode_current": {
-        "en": "Secretary mode: {mode}\nUse /secretary auto or /secretary manual to change.",
-        "ru": "Режим секретаря: {mode}\nИспользуйте /secretary auto или /secretary manual для изменения.",
-        "hi": "सेक्रेटरी मोड: {mode}\nबदलने के लिए /secretary auto या /secretary manual का उपयोग करें।",
-        "id": "Mode sekretaris: {mode}\nGunakan /secretary auto atau /secretary manual untuk mengubah.",
-        "pt": "Modo secretário: {mode}\nUse /secretary auto ou /secretary manual para alterar.",
-        "uk": "Режим секретаря: {mode}\nВикористовуйте /secretary auto або /secretary manual для зміни.",
-        "ar": "وضع السكرتير: {mode}\nاستخدم /secretary auto أو /secretary manual للتغيير.",
-        "fa": "حالت منشی: {mode}\nبرای تغییر از /secretary auto یا /secretary manual استفاده کنید.",
-        "de": "Sekretär-Modus: {mode}\nVerwenden Sie /secretary auto oder /secretary manual zum Ändern.",
-        "tr": "Sekreter modu: {mode}\nDeğiştirmek için /secretary auto veya /secretary manual kullanın.",
-        "es": "Modo secretario: {mode}\nUsa /secretary auto o /secretary manual para cambiar.",
-        "fr": "Mode secrétaire : {mode}\nUtilisez /secretary auto ou /secretary manual pour changer.",
-        "uz": "Kotib rejimi: {mode}\nO'zgartirish uchun /secretary auto yoki /secretary manual dan foydalaning.",
-        "am": "የጸሐፊ ሁነታ: {mode}\nለመቀየር /secretary auto ወይም /secretary manual ይጠቀሙ።",
-        "ko": "비서 모드: {mode}\n변경하려면 /secretary auto 또는 /secretary manual을 사용하세요.",
-    },
-    # Stats: direct usage line
     "stats_direct": {
         "en": "Direct: {transcriptions} transcriptions, {duration}",
         "ru": "Прямые: {transcriptions} расшифровок, {duration}",
         "hi": "प्रत्यक्ष: {transcriptions} ट्रांसक्रिप्शन, {duration}",
         "id": "Langsung: {transcriptions} transkripsi, {duration}",
-        "pt": "Direto: {transcriptions} transcrições, {duration}",
-        "uk": "Прямі: {transcriptions} транскрипцій, {duration}",
-        "ar": "مباشر: {transcriptions} تحويلات, {duration}",
         "fa": "مستقیم: {transcriptions} رونویسی, {duration}",
-        "de": "Direkt: {transcriptions} Transkriptionen, {duration}",
-        "tr": "Doğrudan: {transcriptions} dönüştürme, {duration}",
-        "es": "Directo: {transcriptions} transcripciones, {duration}",
-        "fr": "Direct : {transcriptions} transcriptions, {duration}",
-        "uz": "To'g'ridan-to'g'ri: {transcriptions} transkripsiya, {duration}",
-        "am": "ቀጥተኛ: {transcriptions} ጽሑፎች, {duration}",
-        "ko": "직접: {transcriptions}건, {duration}",
     },
-    # Stats: secretary usage line
     "stats_secretary": {
         "en": "Secretary: {transcriptions} transcriptions, {duration}",
         "ru": "Секретарь: {transcriptions} расшифровок, {duration}",
         "hi": "सेक्रेटरी: {transcriptions} ट्रांसक्रिप्शन, {duration}",
         "id": "Sekretaris: {transcriptions} transkripsi, {duration}",
-        "pt": "Secretário: {transcriptions} transcrições, {duration}",
-        "uk": "Секретар: {transcriptions} транскрипцій, {duration}",
-        "ar": "سكرتير: {transcriptions} تحويلات, {duration}",
         "fa": "منشی: {transcriptions} رونویسی, {duration}",
-        "de": "Sekretär: {transcriptions} Transkriptionen, {duration}",
-        "tr": "Sekreter: {transcriptions} dönüştürme, {duration}",
-        "es": "Secretario: {transcriptions} transcripciones, {duration}",
-        "fr": "Secrétaire : {transcriptions} transcriptions, {duration}",
-        "uz": "Kotib: {transcriptions} transkripsiya, {duration}",
-        "am": "ጸሐፊ: {transcriptions} ጽሑፎች, {duration}",
-        "ko": "비서: {transcriptions}건, {duration}",
     },
-    # Stats: total line
     "stats_total": {
         "en": "Total: {transcriptions} transcriptions, {duration}",
         "ru": "Всего: {transcriptions} расшифровок, {duration}",
         "hi": "कुल: {transcriptions} ट्रांसक्रिप्शन, {duration}",
         "id": "Total: {transcriptions} transkripsi, {duration}",
-        "pt": "Total: {transcriptions} transcrições, {duration}",
-        "uk": "Всього: {transcriptions} транскрипцій, {duration}",
-        "ar": "الإجمالي: {transcriptions} تحويلات, {duration}",
         "fa": "مجموع: {transcriptions} رونویسی, {duration}",
-        "de": "Gesamt: {transcriptions} Transkriptionen, {duration}",
-        "tr": "Toplam: {transcriptions} dönüştürme, {duration}",
-        "es": "Total: {transcriptions} transcripciones, {duration}",
-        "fr": "Total : {transcriptions} transcriptions, {duration}",
-        "uz": "Jami: {transcriptions} transkripsiya, {duration}",
-        "am": "ጠቅላላ: {transcriptions} ጽሑፎች, {duration}",
-        "ko": "합계: {transcriptions}건, {duration}",
     },
-    # Stats: date range line
     "stats_dates": {
-        "en": "First used: {first_used}\nLast used: {last_used}",
-        "ru": "Первое использование: {first_used}\nПоследнее: {last_used}",
-        "hi": "पहली बार: {first_used}\nआखिरी बार: {last_used}",
-        "id": "Pertama digunakan: {first_used}\nTerakhir: {last_used}",
-        "pt": "Primeiro uso: {first_used}\nÚltimo: {last_used}",
-        "uk": "Перше використання: {first_used}\nОстаннє: {last_used}",
-        "ar": "أول استخدام: {first_used}\nآخر استخدام: {last_used}",
-        "fa": "اولین استفاده: {first_used}\nآخرین: {last_used}",
-        "de": "Erstverwendung: {first_used}\nLetzte: {last_used}",
-        "tr": "İlk kullanım: {first_used}\nSon: {last_used}",
-        "es": "Primer uso: {first_used}\nÚltimo: {last_used}",
-        "fr": "Première utilisation : {first_used}\nDernière : {last_used}",
-        "uz": "Birinchi foydalanish: {first_used}\nOxirgi: {last_used}",
-        "am": "የመጀመሪያ አጠቃቀም: {first_used}\nመጨረሻ: {last_used}",
-        "ko": "첫 사용: {first_used}\n마지막: {last_used}",
+        "en": (
+            "First used: {first_used}\n"
+            "Last used: {last_used}"
+        ),
+        "ru": (
+            "Первое использование: {first_used}\n"
+            "Последнее: {last_used}"
+        ),
+        "hi": (
+            "पहली बार: {first_used}\n"
+            "आखिरी बार: {last_used}"
+        ),
+        "id": (
+            "Pertama digunakan: {first_used}\n"
+            "Terakhir: {last_used}"
+        ),
+        "fa": (
+            "اولین استفاده: {first_used}\n"
+            "آخرین: {last_used}"
+        ),
     },
-    # Video processing timeout
-    # Button labels
     "btn_summarize": {
         "en": "Summarize",
         "ru": "Краткое содержание",
         "hi": "सारांश",
         "id": "Ringkasan",
-        "pt": "Resumir",
-        "uk": "Підсумок",
-        "ar": "تلخيص",
         "fa": "خلاصه",
-        "de": "Zusammenfassen",
-        "tr": "Özetle",
-        "es": "Resumir",
-        "fr": "Résumer",
-        "uz": "Xulosa",
-        "am": "ማጠቃለያ",
-        "ko": "요약",
     },
     "btn_save_file": {
         "en": "Save as file",
         "ru": "Сохранить как файл",
         "hi": "फाइल में सेव",
         "id": "Simpan sebagai file",
-        "pt": "Salvar como arquivo",
-        "uk": "Зберегти як файл",
-        "ar": "حفظ كملف",
         "fa": "ذخیره به‌عنوان فایل",
-        "de": "Als Datei speichern",
-        "tr": "Dosya olarak kaydet",
-        "es": "Guardar como archivo",
-        "fr": "Enregistrer en fichier",
-        "uz": "Fayl sifatida saqlash",
-        "am": "እንደ ፋይል ያስቀምጡ",
-        "ko": "파일로 저장",
     },
     "btn_transcribe": {
         "en": "📝 Transcribe",
         "ru": "📝 Расшифровать",
         "hi": "📝 ट्रांसक्राइब",
         "id": "📝 Transkripsikan",
-        "pt": "📝 Transcrever",
-        "uk": "📝 Транскрибувати",
-        "ar": "📝 تحويل إلى نص",
         "fa": "📝 رونویسی",
-        "de": "📝 Transkribieren",
-        "tr": "📝 Yazıya dök",
-        "es": "📝 Transcribir",
-        "fr": "📝 Transcrire",
-        "uz": "📝 Matn shaklida yozish",
-        "am": "📝 ወደ ጽሑፍ ቀይር",
-        "ko": "📝 텍스트 변환",
     },
-    # /secretary inline button labels
-    "btn_mode_auto": {
-        "en": "🔄 Auto",
-        "ru": "🔄 Авто",
-        "hi": "🔄 ऑटो",
-        "id": "🔄 Otomatis",
-        "pt": "🔄 Automático",
-        "uk": "🔄 Авто",
-        "ar": "🔄 تلقائي",
-        "fa": "🔄 خودکار",
-        "de": "🔄 Automatisch",
-        "tr": "🔄 Otomatik",
-        "es": "🔄 Automático",
-        "fr": "🔄 Automatique",
-        "uz": "🔄 Avtomatik",
-        "am": "🔄 ራስ-ሰር",
-        "ko": "🔄 자동",
-    },
-    "btn_mode_manual": {
-        "en": "👆 Manual",
-        "ru": "👆 Вручную",
-        "hi": "👆 मैनुअल",
-        "id": "👆 Manual",
-        "pt": "👆 Manual",
-        "uk": "👆 Вручну",
-        "ar": "👆 يدوي",
-        "fa": "👆 دستی",
-        "de": "👆 Manuell",
-        "tr": "👆 Manuel",
-        "es": "👆 Manual",
-        "fr": "👆 Manuel",
-        "uz": "👆 Qo'lda",
-        "am": "👆 በእጅ",
-        "ko": "👆 수동",
-    },
-    # Secretary settings message (shown with inline buttons)
-    "secretary_settings": {
-        "en": (
-            "🤖 Secretary mode transcribes voice messages "
-            "in your private chats automatically.\n\n"
-            "Current mode: {mode}\n\n"
-            "🔄 Auto — transcribe every voice message instantly\n"
-            "👆 Manual — show a button, transcribe on tap"
-        ),
-        "ru": (
-            "🤖 Режим секретаря автоматически расшифровывает "
-            "голосовые сообщения в ваших личных чатах.\n\n"
-            "Текущий режим: {mode}\n\n"
-            "🔄 Авто — расшифровывать каждое голосовое сразу\n"
-            "👆 Вручную — показать кнопку, расшифровать по нажатию"
-        ),
-        "hi": (
-            "🤖 सेक्रेटरी मोड आपकी प्राइवेट चैट में वॉइस मैसेज "
-            "को स्वचालित रूप से ट्रांसक्राइब करता है।\n\n"
-            "वर्तमान मोड: {mode}\n\n"
-            "🔄 ऑटो — हर वॉइस मैसेज तुरंत ट्रांसक्राइब करें\n"
-            "👆 मैनुअल — बटन दिखाएं, टैप पर ट्रांसक्राइब करें"
-        ),
-        "id": (
-            "🤖 Mode sekretaris mentranskripsikan pesan suara "
-            "di chat pribadi Anda secara otomatis.\n\n"
-            "Mode saat ini: {mode}\n\n"
-            "🔄 Otomatis — transkripsi setiap pesan suara langsung\n"
-            "👆 Manual — tampilkan tombol, transkripsi saat ditekan"
-        ),
-        "pt": (
-            "🤖 O modo secretário transcreve mensagens de voz "
-            "nos seus chats privados automaticamente.\n\n"
-            "Modo atual: {mode}\n\n"
-            "🔄 Automático — transcrever toda mensagem de voz na hora\n"
-            "👆 Manual — mostrar botão, transcrever ao tocar"
-        ),
-        "uk": (
-            "🤖 Режим секретаря автоматично транскрибує "
-            "голосові повідомлення у ваших приватних чатах.\n\n"
-            "Поточний режим: {mode}\n\n"
-            "🔄 Авто — транскрибувати кожне голосове одразу\n"
-            "👆 Вручну — показати кнопку, транскрибувати по натисканню"
-        ),
-        "ar": (
-            "🤖 وضع السكرتير يحوّل الرسائل الصوتية "
-            "في محادثاتك الخاصة إلى نص تلقائياً.\n\n"
-            "الوضع الحالي: {mode}\n\n"
-            "🔄 تلقائي — تحويل كل رسالة صوتية فوراً\n"
-            "👆 يدوي — عرض زر، تحويل عند الضغط"
-        ),
-        "fa": (
-            "🤖 حالت منشی پیام‌های صوتی را "
-            "در چت‌های خصوصی شما به‌صورت خودکار رونویسی می‌کند.\n\n"
-            "حالت فعلی: {mode}\n\n"
-            "🔄 خودکار — هر پیام صوتی را فوراً رونویسی کن\n"
-            "👆 دستی — دکمه نشان بده، با لمس رونویسی کن"
-        ),
-        "de": (
-            "🤖 Der Sekretär-Modus transkribiert Sprachnachrichten "
-            "in Ihren privaten Chats automatisch.\n\n"
-            "Aktueller Modus: {mode}\n\n"
-            "🔄 Automatisch — jede Sprachnachricht sofort transkribieren\n"
-            "👆 Manuell — Schaltfläche anzeigen, bei Tippen transkribieren"
-        ),
-        "tr": (
-            "🤖 Sekreter modu özel sohbetlerinizdeki sesli mesajları "
-            "otomatik olarak yazıya döker.\n\n"
-            "Mevcut mod: {mode}\n\n"
-            "🔄 Otomatik — her sesli mesajı anında yazıya dök\n"
-            "👆 Manuel — buton göster, dokunarak yazıya dök"
-        ),
-        "es": (
-            "🤖 El modo secretario transcribe mensajes de voz "
-            "en tus chats privados automáticamente.\n\n"
-            "Modo actual: {mode}\n\n"
-            "🔄 Automático — transcribir cada mensaje de voz al instante\n"
-            "👆 Manual — mostrar botón, transcribir al tocar"
-        ),
-        "fr": (
-            "🤖 Le mode secrétaire transcrit les messages vocaux "
-            "dans vos conversations privées automatiquement.\n\n"
-            "Mode actuel : {mode}\n\n"
-            "🔄 Automatique — transcrire chaque message vocal instantanément\n"
-            "👆 Manuel — afficher un bouton, transcrire au toucher"
-        ),
-        "uz": (
-            "🤖 Kotib rejimi shaxsiy chatlaringizdagi ovozli xabarlarni "
-            "avtomatik ravishda matn shaklida yozadi.\n\n"
-            "Joriy rejim: {mode}\n\n"
-            "🔄 Avtomatik — har bir ovozli xabarni darhol yozish\n"
-            "👆 Qo'lda — tugma ko'rsatish, bosish orqali yozish"
-        ),
-        "am": (
-            "🤖 የጸሐፊ ሁነታ በግል ውይይቶችዎ ውስጥ የድምፅ መልእክቶችን "
-            "በራስ-ሰር ወደ ጽሑፍ ይቀይራል።\n\n"
-            "የአሁኑ ሁነታ: {mode}\n\n"
-            "🔄 ራስ-ሰር — እያንዳንዱን የድምፅ መልእክት ወዲያውኑ ይቀይሩ\n"
-            "👆 በእጅ — ቁልፍ ያሳዩ፣ በመንካት ይቀይሩ"
-        ),
-        "ko": (
-            "🤖 비서 모드는 개인 채팅에서 음성 메시지를 "
-            "자동으로 텍스트로 변환합니다.\n\n"
-            "현재 모드: {mode}\n\n"
-            "🔄 자동 — 모든 음성 메시지를 즉시 변환\n"
-            "👆 수동 — 버튼 표시, 탭하여 변환"
-        ),
-    },
-    # Secretary setup instructions (shown from /start button)
     "secretary_setup": {
         "en": (
-            "✨ <b>Transcribe voice messages right in your DMs</b>\n\n"
-            "Go to your <b>Account → Chat Automation</b> in Telegram "
-            "settings and add this bot. Once connected, I can transcribe "
-            "voice messages and video notes in your private chats.\n\n"
-            "You can switch between auto and manual mode anytime "
-            "with /secretary."
+            "✨ <b>Transcribe voice messages right in your DMs</b>\n"
+            "\n"
+            "Go to your <b>Account → Chat Automation</b> in Telegram settings and add this bot. Once connected, I'll add a “Transcribe” button under voice messages and video notes in your private chats."
         ),
         "ru": (
-            "✨ <b>Автоматическая расшифровка в ваших чатах</b>\n\n"
-            "Перейдите в <b>Аккаунт → Автоматизация чатов</b> "
-            "в настройках Telegram и добавьте этого бота. После "
-            "подключения все голосовые и видеозаметки в личных "
-            "сообщениях будут расшифрованы автоматически.\n\n"
-            "Переключайтесь между авто и ручным режимом "
-            "командой /secretary."
+            "✨ <b>Расшифровывайте голосовые прямо в личных чатах</b>\n"
+            "\n"
+            "Откройте <b>Аккаунт → Чат-автоматизация</b> в настройках Telegram и добавьте этого бота. После подключения я буду добавлять кнопку «Расшифровать» под голосовыми сообщениями и видеосообщениями в ваших личных чатах."
         ),
         "hi": (
-            "✨ <b>अपनी चैट में वॉइस मैसेज ऑटो-ट्रांसक्राइब करें</b>\n\n"
-            "Telegram सेटिंग्स में <b>Account → Chat Automation</b> "
-            "में जाएं और इस बॉट को जोड़ें। कनेक्ट होने के बाद, "
-            "आपके DM में हर वॉइस मैसेज और वीडियो नोट अपने आप "
-            "ट्रांसक्राइब होगा।\n\n"
-            "ऑटो और मैनुअल मोड के बीच कभी भी /secretary से बदलें।"
+            "✨ <b>अपनी DM में ही वॉइस मैसेज ट्रांसक्राइब करें</b>\n"
+            "\n"
+            "Telegram सेटिंग्स में <b>Account → Chat Automation</b> पर जाएँ और इस बॉट को जोड़ें। कनेक्ट होने के बाद, मैं आपकी निजी चैट में वॉइस मैसेज और वीडियो नोट के नीचे एक “ट्रांसक्राइब” बटन जोड़ूँगा।"
         ),
         "id": (
-            "✨ <b>Transkripsi otomatis pesan suara di chat Anda</b>\n\n"
-            "Buka <b>Akun → Otomatisasi Chat</b> di pengaturan "
-            "Telegram dan tambahkan bot ini. Setelah terhubung, "
-            "setiap pesan suara dan catatan video di DM Anda akan "
-            "ditranskripsi otomatis.\n\n"
-            "Beralih antara mode otomatis dan manual kapan saja "
-            "dengan /secretary."
-        ),
-        "pt": (
-            "✨ <b>Transcreva mensagens de voz automaticamente</b>\n\n"
-            "Vá em <b>Conta → Automação de Chats</b> nas "
-            "configurações do Telegram e adicione este bot. Depois "
-            "de conectado, toda mensagem de voz e nota de vídeo nas "
-            "suas conversas será transcrita automaticamente.\n\n"
-            "Alterne entre modo automático e manual a qualquer momento "
-            "com /secretary."
-        ),
-        "uk": (
-            "✨ <b>Автоматична транскрипція у ваших чатах</b>\n\n"
-            "Перейдіть у <b>Акаунт → Автоматизація чатів</b> "
-            "у налаштуваннях Telegram і додайте цього бота. Після "
-            "підключення всі голосові та відеонотатки у приватних "
-            "повідомленнях будуть транскрибовані автоматично.\n\n"
-            "Переключайтесь між авто та ручним режимом "
-            "командою /secretary."
-        ),
-        "ar": (
-            "✨ <b>تحويل الرسائل الصوتية تلقائياً في محادثاتك</b>\n\n"
-            "اذهب إلى <b>الحساب → أتمتة المحادثات</b> في إعدادات "
-            "Telegram وأضف هذا البوت. بعد الاتصال، سيتم تحويل "
-            "كل رسالة صوتية وملاحظة فيديو في رسائلك إلى نص "
-            "تلقائياً.\n\n"
-            "بدّل بين الوضع التلقائي واليدوي في أي وقت "
-            "بأمر /secretary."
+            "✨ <b>Transkripsikan pesan suara langsung di DM Anda</b>\n"
+            "\n"
+            "Buka <b>Account → Chat Automation</b> di pengaturan Telegram dan tambahkan bot ini. Setelah terhubung, saya akan menambahkan tombol “Transkripsi” di bawah pesan suara dan video note di chat pribadi Anda."
         ),
         "fa": (
-            "✨ <b>رونویسی خودکار پیام‌های صوتی در چت‌هایتان</b>\n\n"
-            "در تنظیمات تلگرام به <b>حساب → اتوماسیون چت</b> "
-            "بروید و این ربات را اضافه کنید. پس از اتصال، هر پیام "
-            "صوتی و یادداشت ویدیویی در پیام‌های شما به‌صورت خودکار "
-            "رونویسی می‌شود.\n\n"
-            "هر زمان با /secretary بین حالت خودکار و دستی جابه‌جا شوید."
-        ),
-        "de": (
-            "✨ <b>Sprachnachrichten automatisch transkribieren</b>\n\n"
-            "Gehen Sie in den Telegram-Einstellungen zu "
-            "<b>Konto → Chat-Automatisierung</b> und fügen Sie "
-            "diesen Bot hinzu. Nach der Verbindung wird jede "
-            "Sprachnachricht und Videonachricht in Ihren DMs "
-            "automatisch transkribiert.\n\n"
-            "Wechseln Sie jederzeit zwischen Automatik und Manuell "
-            "mit /secretary."
-        ),
-        "tr": (
-            "✨ <b>Sohbetlerinizde sesli mesajları otomatik yazıya dökün</b>\n\n"
-            "Telegram ayarlarında <b>Hesap → Sohbet Otomasyonu</b>'na "
-            "gidin ve bu botu ekleyin. Bağlandıktan sonra, DM'lerinizdeki "
-            "her sesli mesaj ve video notu otomatik olarak yazıya "
-            "dökülür.\n\n"
-            "Otomatik ve manuel mod arasında istediğiniz zaman "
-            "/secretary ile geçiş yapın."
-        ),
-        "es": (
-            "✨ <b>Transcribe mensajes de voz automáticamente</b>\n\n"
-            "Ve a <b>Cuenta → Automatización de chats</b> en los "
-            "ajustes de Telegram y añade este bot. Una vez conectado, "
-            "cada mensaje de voz y nota de video en tus conversaciones "
-            "se transcribirá automáticamente.\n\n"
-            "Cambia entre modo automático y manual en cualquier momento "
-            "con /secretary."
-        ),
-        "fr": (
-            "✨ <b>Transcrivez les messages vocaux automatiquement</b>\n\n"
-            "Allez dans <b>Compte → Automatisation des chats</b> "
-            "dans les paramètres Telegram et ajoutez ce bot. Une fois "
-            "connecté, chaque message vocal et note vidéo dans vos "
-            "conversations sera transcrit automatiquement.\n\n"
-            "Basculez entre le mode automatique et manuel à tout moment "
-            "avec /secretary."
-        ),
-        "uz": (
-            "✨ <b>Chatlaringizda ovozli xabarlarni avtomatik yozing</b>\n\n"
-            "Telegram sozlamalarida <b>Hisob → Chat avtomatlashtirish</b>ga "
-            "boring va bu botni qo'shing. Ulanganidan keyin, "
-            "DM'laringizdagi har bir ovozli xabar va video eslatma "
-            "avtomatik ravishda matn shaklida yoziladi.\n\n"
-            "Istalgan vaqtda /secretary bilan avtomatik va qo'lda "
-            "rejim o'rtasida almashing."
-        ),
-        "am": (
-            "✨ <b>በቻቶችዎ ውስጥ የድምፅ መልእክቶችን በራስ-ሰር ይቀይሩ</b>\n\n"
-            "በTelegram ቅንብሮች ውስጥ ወደ <b>መለያ → የቻት አውቶሜሽን</b> "
-            "ይሂዱ እና ይህን ቦት ያክሉ። ከተገናኘ በኋላ፣ በDM ውስጥ ያለው "
-            "እያንዳንዱ የድምፅ መልእክት እና የቪዲዮ ማስታወሻ በራስ-ሰር "
-            "ወደ ጽሑፍ ይቀየራል።\n\n"
-            "በማንኛውም ጊዜ /secretary በመጠቀም በራስ-ሰር "
-            "እና በእጅ ሁነታ መካከል ይቀያይሩ።"
-        ),
-        "ko": (
-            "✨ <b>채팅에서 음성 메시지를 자동으로 변환하세요</b>\n\n"
-            "Telegram 설정에서 <b>계정 → 채팅 자동화</b>로 가서 "
-            "이 봇을 추가하세요. 연결되면 DM의 모든 음성 메시지와 "
-            "비디오 노트가 자동으로 텍스트로 변환됩니다.\n\n"
-            "언제든지 /secretary로 자동 모드와 수동 모드를 "
-            "전환할 수 있습니다."
+            "✨ <b>پیام‌های صوتی را همان‌جا در دایرکت رونویسی کنید</b>\n"
+            "\n"
+            "در تنظیمات تلگرام به <b>Account → Chat Automation</b> بروید و این بات را اضافه کنید. پس از اتصال، زیر پیام‌های صوتی و ویدیو نوت‌ها در گفت‌وگوهای خصوصی‌تان یک دکمهٔ «رونویسی» اضافه می‌کنم."
         ),
     },
-    # Button label for secretary setup in /start
+    "secretary_connected": {
+        "en": (
+            "✅ Transcription is already set up in your DMs.\n"
+            "\n"
+            "I add a “Transcribe” button under voice messages and video notes in your private chats. To turn it off, remove this bot from Account → Chat Automation in Telegram settings."
+        ),
+        "ru": (
+            "✅ Транскрипция уже настроена в ваших личных чатах.\n"
+            "\n"
+            "Я добавляю кнопку «Расшифровать» под голосовыми сообщениями и видеосообщениями. Чтобы отключить, удалите бота в разделе Аккаунт → Чат-автоматизация в настройках Telegram."
+        ),
+        "hi": (
+            "✅ आपकी DM में ट्रांसक्रिप्शन पहले से सेट है।\n"
+            "\n"
+            "मैं आपकी निजी चैट में वॉइस मैसेज और वीडियो नोट के नीचे एक “ट्रांसक्राइब” बटन जोड़ता हूँ। बंद करने के लिए, Telegram सेटिंग्स में Account → Chat Automation से इस बॉट को हटाएँ।"
+        ),
+        "id": (
+            "✅ Transkripsi sudah aktif di DM Anda.\n"
+            "\n"
+            "Saya menambahkan tombol “Transkripsi” di bawah pesan suara dan video note di chat pribadi Anda. Untuk menonaktifkan, hapus bot ini dari Account → Chat Automation di pengaturan Telegram."
+        ),
+        "fa": (
+            "✅ رونویسی از قبل در دایرکت شما فعال است.\n"
+            "\n"
+            "زیر پیام‌های صوتی و ویدیو نوت‌ها در گفت‌وگوهای خصوصی یک دکمهٔ «رونویسی» اضافه می‌کنم. برای خاموش‌کردن، این بات را از Account → Chat Automation در تنظیمات تلگرام حذف کنید."
+        ),
+    },
     "btn_secretary_setup": {
         "en": "✨ Set up transcription in DMs",
         "ru": "✨ Настроить расшифровку в чатах",
         "hi": "✨ DM में ट्रांसक्रिप्शन सेट करें",
         "id": "✨ Atur transkripsi di DM",
-        "pt": "✨ Configurar transcrição nos DMs",
-        "uk": "✨ Налаштувати транскрипцію в чатах",
-        "ar": "✨ إعداد التحويل في المحادثات",
         "fa": "✨ تنظیم رونویسی در چت‌ها",
-        "de": "✨ Transkription in DMs einrichten",
-        "tr": "✨ DM'lerde dönüştürmeyi kur",
-        "es": "✨ Configurar transcripción en DMs",
-        "fr": "✨ Configurer la transcription en DM",
-        "uz": "✨ DMda transkripsiyani sozlash",
-        "am": "✨ በDM ውስጥ ጽሑፍ ቀየር ያዘጋጁ",
-        "ko": "✨ DM 음성 변환 설정",
     },
-    # Button label for secretary settings (shown in /start when already connected)
     "btn_secretary_settings": {
-        "en": "⚙️ Secretary settings",
-        "ru": "⚙️ Настройки секретаря",
-        "hi": "⚙️ सेक्रेटरी सेटिंग्स",
-        "id": "⚙️ Pengaturan sekretaris",
-        "pt": "⚙️ Configurações do secretário",
-        "uk": "⚙️ Налаштування секретаря",
-        "ar": "⚙️ إعدادات السكرتير",
-        "fa": "⚙️ تنظیمات منشی",
-        "de": "⚙️ Sekretär-Einstellungen",
-        "tr": "⚙️ Sekreter ayarları",
-        "es": "⚙️ Ajustes de secretario",
-        "fr": "⚙️ Paramètres secrétaire",
-        "uz": "⚙️ Kotib sozlamalari",
-        "am": "⚙️ የጸሐፊ ቅንብሮች",
-        "ko": "⚙️ 비서 설정",
+        "en": "✅ Transcription is set up",
+        "ru": "✅ Транскрипция настроена",
+        "hi": "✅ ट्रांसक्रिप्शन सेट है",
+        "id": "✅ Transkripsi sudah aktif",
+        "fa": "✅ رونویسی فعال است",
     },
-    # Nudge for plain text messages
     "text_nudge": {
         "en": "I work with voice messages, audio, and video. Send or forward one and I'll transcribe it!",
         "ru": "Я работаю с голосовыми, аудио и видео. Отправьте или перешлите — и я расшифрую!",
         "hi": "मैं वॉइस मैसेज, ऑडियो और वीडियो के साथ काम करता हूँ। भेजें या फॉरवर्ड करें और मैं ट्रांसक्राइब कर दूँगा!",
         "id": "Saya bekerja dengan pesan suara, audio, dan video. Kirim atau teruskan dan saya akan mentranskripsikannya!",
-        "pt": "Eu trabalho com mensagens de voz, áudio e vídeo. Envie ou encaminhe e eu transcrevo!",
-        "uk": "Я працюю з голосовими, аудіо та відео. Надішліть або перешліть — і я транскрибую!",
-        "ar": "أعمل مع الرسائل الصوتية والصوت والفيديو. أرسل أو أعد توجيه وسأحوّله إلى نص!",
         "fa": "من با پیام‌های صوتی، صوت و ویدیو کار می‌کنم. بفرستید یا فوروارد کنید و رونویسی می‌کنم!",
-        "de": "Ich arbeite mit Sprachnachrichten, Audio und Video. Senden oder weiterleiten — ich transkribiere!",
-        "tr": "Sesli mesajlar, ses ve video ile çalışıyorum. Gönderin veya iletin, yazıya dökerim!",
-        "es": "Trabajo con mensajes de voz, audio y video. ¡Envía o reenvía uno y lo transcribiré!",
-        "fr": "Je travaille avec les messages vocaux, l'audio et la vidéo. Envoyez ou transférez et je transcrirai !",
-        "uz": "Men ovozli xabarlar, audio va video bilan ishlayman. Yuboring yoki yo'naltiring — matn shaklida yozib beraman!",
-        "am": "የድምፅ መልእክቶች፣ ኦዲዮ እና ቪዲዮ እሠራለሁ። ይላኩ ወይም ያስተላልፉ — ወደ ጽሑፍ እቀይረዋለሁ!",
-        "ko": "음성 메시지, 오디오, 비디오와 함께 작동합니다. 보내거나 전달하면 텍스트로 변환해 드립니다!",
     },
-    # Welcome message when user first connects the bot as secretary
     "secretary_welcome": {
         "en": (
-            "✅ <b>Secretary mode is active!</b>\n\n"
-            "I'll now work in your private chats. When someone sends "
-            "a voice message or video note, I can transcribe it.\n\n"
-            "<b>Choose your mode:</b>\n"
-            "👆 <b>Manual</b> (default) — I'll show a Transcribe button. "
-            "Either you or the other person taps it.\n"
-            "🔄 <b>Auto</b> — I transcribe every voice message instantly, "
-            "no button needed.\n\n"
-            "You can switch anytime with /secretary."
+            "✅ <b>Transcription is set up!</b>\n"
+            "\n"
+            "When someone sends a voice message or video note in your private chats, I'll add a “Transcribe” button. You or the other person can tap it to see the text.\n"
+            "\n"
+            "Untranscribed prompts are removed automatically after a day."
         ),
         "ru": (
-            "✅ <b>Режим секретаря активирован!</b>\n\n"
-            "Теперь я работаю в ваших личных чатах. Когда кто-то "
-            "отправит голосовое или видеозаметку, я могу расшифровать.\n\n"
-            "<b>Выберите режим:</b>\n"
-            "👆 <b>Ручной</b> (по умолчанию) — покажу кнопку «Расшифровать». "
-            "Нажать может любой из собеседников.\n"
-            "🔄 <b>Авто</b> — расшифровываю каждое голосовое мгновенно, "
-            "без кнопки.\n\n"
-            "Переключить можно командой /secretary."
+            "✅ <b>Транскрипция настроена!</b>\n"
+            "\n"
+            "Когда в ваших личных чатах кто-то пришлёт голосовое сообщение или видеосообщение, я добавлю кнопку «Расшифровать». Вы или собеседник можете нажать её, чтобы увидеть текст.\n"
+            "\n"
+            "Нерасшифрованные сообщения автоматически удаляются через сутки."
         ),
         "hi": (
-            "✅ <b>सेक्रेटरी मोड सक्रिय है!</b>\n\n"
-            "अब मैं आपकी प्राइवेट चैट में काम करूँगा। जब कोई वॉइस "
-            "मैसेज या वीडियो नोट भेजेगा, मैं ट्रांसक्राइब कर सकता हूँ।\n\n"
-            "<b>अपना मोड चुनें:</b>\n"
-            "👆 <b>मैनुअल</b> (डिफ़ॉल्ट) — ट्रांसक्राइब बटन दिखाऊँगा। "
-            "आप या सामने वाला दबा सकता है।\n"
-            "🔄 <b>ऑटो</b> — हर वॉइस मैसेज तुरंत ट्रांसक्राइब, "
-            "बटन की ज़रूरत नहीं।\n\n"
-            "/secretary से कभी भी बदलें।"
+            "✅ <b>ट्रांसक्रिप्शन सेट हो गया!</b>\n"
+            "\n"
+            "जब आपकी निजी चैट में कोई वॉइस मैसेज या वीडियो नोट भेजेगा, तो मैं एक “ट्रांसक्राइब” बटन जोड़ूँगा। टेक्स्ट देखने के लिए आप या सामने वाला उसे टैप कर सकते हैं।\n"
+            "\n"
+            "बिना ट्रांसक्राइब किए प्रॉम्प्ट एक दिन बाद अपने आप हट जाते हैं।"
         ),
         "id": (
-            "✅ <b>Mode sekretaris aktif!</b>\n\n"
-            "Sekarang saya bekerja di chat pribadi Anda. Saat seseorang "
-            "mengirim pesan suara atau catatan video, saya bisa "
-            "mentranskripsikannya.\n\n"
-            "<b>Pilih mode Anda:</b>\n"
-            "👆 <b>Manual</b> (default) — saya tampilkan tombol Transkripsi. "
-            "Anda atau lawan bicara bisa menekannya.\n"
-            "🔄 <b>Otomatis</b> — saya transkripsi setiap pesan suara "
-            "langsung, tanpa tombol.\n\n"
-            "Ganti kapan saja dengan /secretary."
-        ),
-        "pt": (
-            "✅ <b>Modo secretário ativado!</b>\n\n"
-            "Agora trabalho nos seus chats privados. Quando alguém "
-            "enviar uma mensagem de voz ou nota de vídeo, posso "
-            "transcrever.\n\n"
-            "<b>Escolha seu modo:</b>\n"
-            "👆 <b>Manual</b> (padrão) — mostro um botão Transcrever. "
-            "Você ou a outra pessoa pode pressionar.\n"
-            "🔄 <b>Automático</b> — transcrevo cada mensagem de voz "
-            "instantaneamente, sem botão.\n\n"
-            "Mude a qualquer momento com /secretary."
-        ),
-        "uk": (
-            "✅ <b>Режим секретаря активовано!</b>\n\n"
-            "Тепер я працюю у ваших приватних чатах. Коли хтось "
-            "надішле голосове або відеонотатку, я можу транскрибувати.\n\n"
-            "<b>Оберіть режим:</b>\n"
-            "👆 <b>Ручний</b> (за замовчуванням) — покажу кнопку "
-            "«Транскрибувати». Натиснути може будь-хто.\n"
-            "🔄 <b>Авто</b> — транскрибую кожне голосове миттєво, "
-            "без кнопки.\n\n"
-            "Перемикайте командою /secretary."
-        ),
-        "ar": (
-            "✅ <b>وضع السكرتير مفعّل!</b>\n\n"
-            "سأعمل الآن في محادثاتك الخاصة. عندما يرسل شخص رسالة "
-            "صوتية أو ملاحظة فيديو، يمكنني تحويلها إلى نص.\n\n"
-            "<b>اختر الوضع:</b>\n"
-            "👆 <b>يدوي</b> (افتراضي) — سأعرض زر تحويل. "
-            "أنت أو الشخص الآخر يضغط عليه.\n"
-            "🔄 <b>تلقائي</b> — أحوّل كل رسالة صوتية فوراً "
-            "بدون زر.\n\n"
-            "بدّل في أي وقت بأمر /secretary."
+            "✅ <b>Transkripsi sudah aktif!</b>\n"
+            "\n"
+            "Ketika seseorang mengirim pesan suara atau video note di chat pribadi Anda, saya akan menambahkan tombol “Transkripsi”. Anda atau lawan bicara bisa menekannya untuk melihat teksnya.\n"
+            "\n"
+            "Prompt yang belum ditranskripsi akan dihapus otomatis setelah satu hari."
         ),
         "fa": (
-            "✅ <b>حالت منشی فعال شد!</b>\n\n"
-            "حالا در چت‌های خصوصی شما کار می‌کنم. وقتی کسی پیام "
-            "صوتی یا یادداشت ویدیویی بفرستد، می‌توانم رونویسی کنم.\n\n"
-            "<b>حالت خود را انتخاب کنید:</b>\n"
-            "👆 <b>دستی</b> (پیش‌فرض) — دکمه رونویسی نشان می‌دهم. "
-            "شما یا طرف مقابل می‌تواند بزند.\n"
-            "🔄 <b>خودکار</b> — هر پیام صوتی را فوراً رونویسی "
-            "می‌کنم، بدون دکمه.\n\n"
-            "هر زمان با /secretary تغییر دهید."
-        ),
-        "de": (
-            "✅ <b>Sekretär-Modus ist aktiv!</b>\n\n"
-            "Ich arbeite jetzt in Ihren privaten Chats. Wenn jemand "
-            "eine Sprachnachricht oder Videonachricht sendet, kann ich "
-            "sie transkribieren.\n\n"
-            "<b>Wählen Sie Ihren Modus:</b>\n"
-            "👆 <b>Manuell</b> (Standard) — Ich zeige einen "
-            "Transkribieren-Button. Sie oder Ihr Gesprächspartner "
-            "tippt darauf.\n"
-            "🔄 <b>Automatisch</b> — Ich transkribiere jede "
-            "Sprachnachricht sofort, ohne Button.\n\n"
-            "Jederzeit wechseln mit /secretary."
-        ),
-        "tr": (
-            "✅ <b>Sekreter modu aktif!</b>\n\n"
-            "Artık özel sohbetlerinizde çalışıyorum. Birisi sesli "
-            "mesaj veya video notu gönderdiğinde yazıya dökebilirim.\n\n"
-            "<b>Modunuzu seçin:</b>\n"
-            "👆 <b>Manuel</b> (varsayılan) — Dönüştür butonu "
-            "gösteririm. Siz veya karşı taraf basabilir.\n"
-            "🔄 <b>Otomatik</b> — Her sesli mesajı anında yazıya "
-            "dökerim, butona gerek yok.\n\n"
-            "İstediğiniz zaman /secretary ile değiştirin."
-        ),
-        "es": (
-            "✅ <b>¡Modo secretario activo!</b>\n\n"
-            "Ahora trabajo en tus chats privados. Cuando alguien "
-            "envíe un mensaje de voz o nota de video, puedo "
-            "transcribirlo.\n\n"
-            "<b>Elige tu modo:</b>\n"
-            "👆 <b>Manual</b> (predeterminado) — muestro un botón "
-            "Transcribir. Tú o la otra persona lo presiona.\n"
-            "🔄 <b>Automático</b> — transcribo cada mensaje de voz "
-            "al instante, sin botón.\n\n"
-            "Cambia en cualquier momento con /secretary."
-        ),
-        "fr": (
-            "✅ <b>Mode secrétaire activé !</b>\n\n"
-            "Je travaille maintenant dans vos chats privés. Quand "
-            "quelqu'un envoie un message vocal ou une note vidéo, "
-            "je peux le transcrire.\n\n"
-            "<b>Choisissez votre mode :</b>\n"
-            "👆 <b>Manuel</b> (par défaut) — j'affiche un bouton "
-            "Transcrire. Vous ou l'autre personne appuie dessus.\n"
-            "🔄 <b>Automatique</b> — je transcris chaque message "
-            "vocal instantanément, sans bouton.\n\n"
-            "Changez à tout moment avec /secretary."
-        ),
-        "uz": (
-            "✅ <b>Kotib rejimi faol!</b>\n\n"
-            "Endi shaxsiy chatlaringizda ishlayman. Kimdir ovozli "
-            "xabar yoki video eslatma yuborganda, matn shaklida "
-            "yozib bera olaman.\n\n"
-            "<b>Rejimni tanlang:</b>\n"
-            "👆 <b>Qo'lda</b> (standart) — Transkripsiya tugmasini "
-            "ko'rsataman. Siz yoki suhbatdosh bosishi mumkin.\n"
-            "🔄 <b>Avtomatik</b> — har bir ovozli xabarni darhol "
-            "yozaman, tugma kerak emas.\n\n"
-            "Istalgan vaqtda /secretary bilan almashing."
-        ),
-        "am": (
-            "✅ <b>የጸሐፊ ሁነታ ገባሪ ነው!</b>\n\n"
-            "አሁን በግል ቻቶችዎ ውስጥ እሠራለሁ። ማንም የድምፅ "
-            "መልእክት ወይም የቪዲዮ ማስታወሻ ሲልክ ወደ ጽሑፍ "
-            "መቀየር እችላለሁ።\n\n"
-            "<b>ሁነታዎን ይምረጡ:</b>\n"
-            "👆 <b>በእጅ</b> (ነባሪ) — ወደ ጽሑፍ ቀይር ቁልፍ "
-            "አሳያለሁ። እርስዎ ወይም ሌላው ሰው ይጫኑት።\n"
-            "🔄 <b>ራስ-ሰር</b> — ሁሉንም የድምፅ መልእክት ወዲያውኑ "
-            "እቀይራለሁ፣ ቁልፍ አያስፈልግም።\n\n"
-            "በማንኛውም ጊዜ /secretary ይቀያይሩ።"
-        ),
-        "ko": (
-            "✅ <b>비서 모드가 활성화되었습니다!</b>\n\n"
-            "이제 비공개 채팅에서 작동합니다. 누군가 음성 메시지나 "
-            "비디오 노트를 보내면 텍스트로 변환할 수 있습니다.\n\n"
-            "<b>모드를 선택하세요:</b>\n"
-            "👆 <b>수동</b> (기본) — 변환 버튼을 표시합니다. "
-            "당신이나 상대방이 누를 수 있습니다.\n"
-            "🔄 <b>자동</b> — 모든 음성 메시지를 즉시 변환합니다. "
-            "버튼이 필요 없습니다.\n\n"
-            "언제든 /secretary로 전환하세요."
+            "✅ <b>رونویسی فعال شد!</b>\n"
+            "\n"
+            "وقتی کسی در گفت‌وگوهای خصوصی شما پیام صوتی یا ویدیو نوت بفرستد، یک دکمهٔ «رونویسی» اضافه می‌کنم. شما یا طرف مقابل می‌توانید برای دیدن متن روی آن بزنید.\n"
+            "\n"
+            "پیام‌های رونویسی‌نشده پس از یک روز به‌طور خودکار حذف می‌شوند."
         ),
     },
     "video_timeout": {
@@ -1367,19 +421,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ru": "Не удалось обработать это видео. Попробуйте ещё раз или отправьте только аудио.",
         "hi": "इस वीडियो को प्रोसेस नहीं किया जा सका। कृपया दोबारा कोशिश करें या सिर्फ ऑडियो भेजें।",
         "id": "Tidak dapat memproses video ini. Silakan coba lagi atau kirim audionya saja.",
-        "pt": "Não foi possível processar este vídeo. Tente novamente ou envie apenas o áudio.",
-        "uk": "Не вдалося обробити це відео. Спробуйте ще раз або надішліть лише аудіо.",
-        "ar": "تعذرت معالجة هذا الفيديو. حاول مرة أخرى أو أرسل الصوت فقط.",
         "fa": "پردازش این ویدیو ممکن نشد. لطفاً دوباره امتحان کنید یا فقط صوت را بفرستید.",
-        "de": "Dieses Video konnte nicht verarbeitet werden. Bitte versuchen Sie es erneut oder senden Sie nur die Audiodatei.",
-        "tr": "Bu video işlenemedi. Lütfen tekrar deneyin veya sadece sesi gönderin.",
-        "es": "No se pudo procesar este video. Inténtelo de nuevo o envíe solo el audio.",
-        "fr": "Impossible de traiter cette vidéo. Réessayez ou envoyez uniquement l'audio.",
-        "uz": "Bu videoni qayta ishlab bo'lmadi. Qayta urinib ko'ring yoki faqat audioni yuboring.",
-        "am": "ይህን ቪዲዮ ማስተናገድ አልተቻለም። እባክዎ እንደገና ይሞክሩ ወይም ኦዲዮውን ብቻ ይላኩ።",
-        "ko": "이 비디오를 처리할 수 없습니다. 다시 시도하거나 오디오만 보내 보세요.",
     },
 }
+
 
 DEFAULT_LANG = "en"
 

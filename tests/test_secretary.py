@@ -6,16 +6,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.bot.secretary import SecretaryHandler
+from src.bot.secretary import PROMPT_TTL_SECONDS, SecretaryHandler
 from src.bot.services.notifier import AdminNotifier
-from src.bot.services.summarization import SummarizationClient
 from src.bot.services.transcription import (
     EmptyTranscriptionError,
     TranscriptionClient,
     TranscriptionResult,
 )
 from src.bot.storage.statistics import StatisticsDB
-from src.bot.storage.transcription_store import TranscriptionStore
 
 
 @pytest.fixture
@@ -46,30 +44,14 @@ def mock_notifier() -> AsyncMock:
 
 
 @pytest.fixture
-def store() -> TranscriptionStore:
-    return TranscriptionStore(ttl_seconds=600)
-
-
-@pytest.fixture
-def mock_summarizer() -> MagicMock:
-    s = MagicMock(spec=SummarizationClient)
-    s.summarize.return_value = "This is a summary."
-    return s
-
-
-@pytest.fixture
 def handler(
     mock_transcriber: MagicMock,
-    mock_summarizer: MagicMock,
     mock_notifier: AsyncMock,
-    store: TranscriptionStore,
     db: StatisticsDB,
 ) -> SecretaryHandler:
     return SecretaryHandler(
         transcriber=mock_transcriber,
-        summarizer=mock_summarizer,
         notifier=mock_notifier,
-        store=store,
         stats_db=db,
         max_audio_duration=3600,
         transcription_timeout=30,
@@ -114,6 +96,7 @@ def _make_voice_message(
     voice.duration = duration
     msg.voice = voice
     msg.video_note = None
+    msg.from_user = None
     return msg
 
 
@@ -162,8 +145,6 @@ async def test_handle_connection_enabled(
     bot.send_message.assert_called_once()
     call_kwargs = bot.send_message.call_args.kwargs
     assert call_kwargs["chat_id"] == 42
-    welcome_text = str(call_kwargs["text"]).lower()
-    assert "secretary" in welcome_text or "active" in welcome_text
 
 
 async def test_handle_connection_disabled(
@@ -193,50 +174,39 @@ async def test_handle_connection_none(handler: SecretaryHandler) -> None:
     assert len(handler._connections) == 0
 
 
-# --- Auto Mode Tests ---
+# --- Manual prompt tests (manual is the only mode) ---
 
 
-async def test_auto_mode_transcribes_voice(
-    handler: SecretaryHandler,
-    mock_transcriber: MagicMock,
-    db: StatisticsDB,
+async def test_business_message_sends_prompt(
+    handler: SecretaryHandler, mock_transcriber: MagicMock, db: StatisticsDB
 ) -> None:
-    # Set up connection and explicitly enable auto mode
     conn = _make_business_connection()
     handler._connections["biz_123"] = conn
-    await db.set_secretary_mode(42, "auto")
 
     message = _make_voice_message()
     update = _make_update_with_business_message(message)
 
     bot = AsyncMock()
-    tg_file = AsyncMock()
-    tg_file.file_path = "audio.ogg"
-    tg_file.download_to_drive = AsyncMock()
-    bot.get_file = AsyncMock(return_value=tg_file)
-
     sent_msg = MagicMock()
     sent_msg.message_id = 99
     sent_msg.chat.id = 100
     bot.send_message = AsyncMock(return_value=sent_msg)
-    bot.edit_message_text = AsyncMock()
-
     ctx = _make_context(bot)
 
-    with patch("src.bot.secretary.os.path.exists", return_value=True), \
-         patch("src.bot.secretary.os.remove"):
-        await handler.handle_business_message(update, ctx)
+    await handler.handle_business_message(update, ctx)
 
-    # Should have called transcriber
-    mock_transcriber.transcribe.assert_called_once()
+    # Should send a prompt with a Transcribe button, NOT transcribe
+    bot.send_message.assert_called_once()
+    call_kwargs = bot.send_message.call_args.kwargs
+    assert "sec_transcribe" in str(call_kwargs["reply_markup"])
+    mock_transcriber.transcribe.assert_not_called()
 
-    # Should have recorded secretary usage
-    stats = await db.get_secretary_stats(42)
-    assert stats is not None
-    assert stats[0] == 1  # 1 transcription
+    # Prompt should be tracked for auto-deletion
+    expired = await db.get_expired_pending_prompts(0)
+    assert ("biz_123", 100, 99) in expired
 
 
-async def test_auto_mode_skips_non_audio(handler: SecretaryHandler) -> None:
+async def test_business_message_skips_non_audio(handler: SecretaryHandler) -> None:
     conn = _make_business_connection()
     handler._connections["biz_123"] = conn
 
@@ -249,33 +219,7 @@ async def test_auto_mode_skips_non_audio(handler: SecretaryHandler) -> None:
     ctx = _make_context()
 
     await handler.handle_business_message(update, ctx)
-    # No transcription should happen — bot methods should not be called
     ctx.bot.send_message.assert_not_called()
-
-
-# --- Manual Mode Tests ---
-
-
-async def test_manual_mode_sends_prompt(
-    handler: SecretaryHandler, db: StatisticsDB
-) -> None:
-    conn = _make_business_connection()
-    handler._connections["biz_123"] = conn
-    await db.set_secretary_mode(42, "manual")
-
-    message = _make_voice_message()
-    update = _make_update_with_business_message(message)
-
-    bot = AsyncMock()
-    ctx = _make_context(bot)
-
-    await handler.handle_business_message(update, ctx)
-
-    # Should send a prompt with keyboard, not transcribe
-    bot.send_message.assert_called_once()
-    call_kwargs = bot.send_message.call_args
-    assert "reply_markup" in call_kwargs.kwargs
-    assert "sec_transcribe" in str(call_kwargs.kwargs["reply_markup"])
 
 
 async def test_transcribe_callback_flow(
@@ -286,21 +230,18 @@ async def test_transcribe_callback_flow(
     conn = _make_business_connection()
     handler._connections["biz_123"] = conn
 
-    # Simulate the callback query
+    # Track a pending prompt that the callback should remove
+    await db.add_pending_prompt("biz_123", 100, 99)
+
     update = MagicMock()
     query = MagicMock()
     query.data = "sec_transcribe:1:biz_123"
     query.answer = AsyncMock()
 
-    # The prompt message that will be edited
     prompt_msg = MagicMock()
     prompt_msg.chat.id = 100
     prompt_msg.message_id = 99
-
-    # The original voice message (reply_to_message of the prompt)
-    original_msg = _make_voice_message()
-    prompt_msg.reply_to_message = original_msg
-
+    prompt_msg.reply_to_message = _make_voice_message()
     query.message = prompt_msg
     update.callback_query = query
 
@@ -318,10 +259,25 @@ async def test_transcribe_callback_flow(
          patch("src.bot.secretary.os.remove"):
         await handler.handle_transcribe_callback(update, ctx)
 
-    # Should have edited the prompt to "Transcribing..."
-    # and then to the transcription text
-    assert bot.edit_message_text.call_count >= 2
     mock_transcriber.transcribe.assert_called_once()
+
+    # The final message is a bare expandable blockquote — no prefix, no buttons
+    final_call = bot.edit_message_text.call_args
+    text = final_call.kwargs["text"]
+    assert text.startswith("<blockquote expandable>")
+    assert text.endswith("</blockquote>")
+    assert "reply_markup" not in final_call.kwargs or final_call.kwargs.get(
+        "reply_markup"
+    ) is None
+
+    # Pending prompt should be removed once transcription starts
+    expired = await db.get_expired_pending_prompts(0)
+    assert ("biz_123", 100, 99) not in expired
+
+    # Usage recorded
+    stats = await db.get_secretary_stats(42)
+    assert stats is not None
+    assert stats[0] == 1
 
 
 async def test_transcribe_callback_invalid_data(handler: SecretaryHandler) -> None:
@@ -333,28 +289,124 @@ async def test_transcribe_callback_invalid_data(handler: SecretaryHandler) -> No
 
     ctx = _make_context()
     await handler.handle_transcribe_callback(update, ctx)
-    # Should return early without doing anything
     query.answer.assert_not_called()
 
 
-# --- Secretary Mode Settings Tests ---
+async def test_transcribe_callback_handles_empty_transcription(
+    handler: SecretaryHandler,
+    mock_transcriber: MagicMock,
+) -> None:
+    conn = _make_business_connection()
+    handler._connections["biz_123"] = conn
+    mock_transcriber.transcribe.side_effect = EmptyTranscriptionError("no speech")
+
+    update = MagicMock()
+    query = MagicMock()
+    query.data = "sec_transcribe:1:biz_123"
+    query.answer = AsyncMock()
+    prompt_msg = MagicMock()
+    prompt_msg.chat.id = 100
+    prompt_msg.message_id = 99
+    prompt_msg.reply_to_message = _make_voice_message()
+    query.message = prompt_msg
+    update.callback_query = query
+
+    bot = AsyncMock()
+    tg_file = AsyncMock()
+    tg_file.file_path = "audio.ogg"
+    tg_file.download_to_drive = AsyncMock()
+    bot.get_file = AsyncMock(return_value=tg_file)
+    bot.edit_message_text = AsyncMock()
+    ctx = _make_context(bot)
+
+    with patch("src.bot.secretary.os.path.exists", return_value=True), \
+         patch("src.bot.secretary.os.remove"):
+        await handler.handle_transcribe_callback(update, ctx)
+
+    last_call = str(bot.edit_message_text.call_args)
+    assert "speech" in last_call.lower() or "no_speech" in last_call
 
 
-async def test_secretary_mode_default_manual(db: StatisticsDB) -> None:
-    mode = await db.get_secretary_mode(42)
-    assert mode == "manual"
+async def test_transcribe_callback_audio_too_long(
+    handler: SecretaryHandler,
+    db: StatisticsDB,
+) -> None:
+    handler._max_audio_duration = 60  # 1 minute max
+    conn = _make_business_connection()
+    handler._connections["biz_123"] = conn
+
+    update = MagicMock()
+    query = MagicMock()
+    query.data = "sec_transcribe:1:biz_123"
+    query.answer = AsyncMock()
+    prompt_msg = MagicMock()
+    prompt_msg.chat.id = 100
+    prompt_msg.message_id = 99
+    prompt_msg.reply_to_message = _make_voice_message(duration=120)  # too long
+    query.message = prompt_msg
+    update.callback_query = query
+
+    bot = AsyncMock()
+    bot.edit_message_text = AsyncMock()
+    ctx = _make_context(bot)
+
+    await handler.handle_transcribe_callback(update, ctx)
+
+    call_text = str(bot.edit_message_text.call_args)
+    assert "too long" in call_text.lower() or "audio_too_long" in call_text
 
 
-async def test_secretary_mode_set_manual(db: StatisticsDB) -> None:
-    await db.set_secretary_mode(42, "manual")
-    mode = await db.get_secretary_mode(42)
-    assert mode == "manual"
+# --- Prompt auto-deletion tests ---
 
 
-async def test_secretary_mode_set_auto(db: StatisticsDB) -> None:
-    await db.set_secretary_mode(42, "auto")
-    mode = await db.get_secretary_mode(42)
-    assert mode == "auto"
+async def test_delete_expired_prompts_removes_old(
+    handler: SecretaryHandler, db: StatisticsDB
+) -> None:
+    await db.add_pending_prompt("biz_123", 100, 5)
+    await db.add_pending_prompt("biz_123", 100, 6)
+
+    bot = AsyncMock()
+    bot.delete_business_messages = AsyncMock()
+
+    # Use a 0s threshold so the just-added prompts count as expired
+    deleted = await handler.delete_expired_prompts(bot, older_than_seconds=0)
+
+    assert deleted == 2
+    assert bot.delete_business_messages.await_count == 2
+    # DB should be cleared
+    assert await db.get_expired_pending_prompts(0) == []
+
+
+async def test_delete_expired_prompts_keeps_fresh(
+    handler: SecretaryHandler, db: StatisticsDB
+) -> None:
+    await db.add_pending_prompt("biz_123", 100, 5)
+
+    bot = AsyncMock()
+    bot.delete_business_messages = AsyncMock()
+
+    # Fresh prompt should not be deleted with the real TTL
+    deleted = await handler.delete_expired_prompts(
+        bot, older_than_seconds=PROMPT_TTL_SECONDS
+    )
+
+    assert deleted == 0
+    bot.delete_business_messages.assert_not_called()
+
+
+async def test_delete_expired_prompts_cleans_db_even_on_api_error(
+    handler: SecretaryHandler, db: StatisticsDB
+) -> None:
+    await db.add_pending_prompt("biz_123", 100, 5)
+
+    bot = AsyncMock()
+    bot.delete_business_messages = AsyncMock(side_effect=Exception("boom"))
+
+    deleted = await handler.delete_expired_prompts(bot, older_than_seconds=0)
+
+    # Even if the Telegram API call fails, we stop tracking the prompt
+    assert deleted == 1
+    assert await db.get_expired_pending_prompts(0) == []
 
 
 # --- Secretary Stats Tests ---
@@ -389,86 +441,6 @@ async def test_secretary_stats_get_all(db: StatisticsDB) -> None:
     assert len(all_stats) == 2
 
 
-# --- Error Handling Tests ---
-
-
-async def test_auto_mode_handles_empty_transcription(
-    handler: SecretaryHandler,
-    mock_transcriber: MagicMock,
-    db: StatisticsDB,
-) -> None:
-    conn = _make_business_connection()
-    handler._connections["biz_123"] = conn
-    await db.set_secretary_mode(42, "auto")
-
-    mock_transcriber.transcribe.side_effect = EmptyTranscriptionError("no speech")
-
-    message = _make_voice_message()
-    update = _make_update_with_business_message(message)
-
-    bot = AsyncMock()
-    tg_file = AsyncMock()
-    tg_file.file_path = "audio.ogg"
-    tg_file.download_to_drive = AsyncMock()
-    bot.get_file = AsyncMock(return_value=tg_file)
-
-    sent_msg = MagicMock()
-    sent_msg.message_id = 99
-    sent_msg.chat.id = 100
-    bot.send_message = AsyncMock(return_value=sent_msg)
-    bot.edit_message_text = AsyncMock()
-
-    ctx = _make_context(bot)
-
-    with patch("src.bot.secretary.os.path.exists", return_value=True), \
-         patch("src.bot.secretary.os.remove"):
-        await handler.handle_business_message(update, ctx)
-
-    # Should edit message with "no speech" text
-    bot.edit_message_text.assert_called()
-    last_call = bot.edit_message_text.call_args
-    assert "no_speech" in str(last_call) or "speech" in str(last_call).lower()
-
-
-async def test_auto_mode_audio_too_long(
-    handler: SecretaryHandler,
-) -> None:
-    h = SecretaryHandler(
-        transcriber=MagicMock(),
-        summarizer=MagicMock(),
-        notifier=AsyncMock(),
-        store=TranscriptionStore(),
-        stats_db=MagicMock(),
-        max_audio_duration=60,  # 1 minute max
-    )
-
-    conn = _make_business_connection()
-    h._connections["biz_123"] = conn
-
-    message = _make_voice_message(duration=120)  # 2 minutes — too long
-    update = _make_update_with_business_message(message)
-
-    bot = AsyncMock()
-    sent_msg = MagicMock()
-    sent_msg.message_id = 99
-    sent_msg.chat.id = 100
-    bot.send_message = AsyncMock(return_value=sent_msg)
-    bot.edit_message_text = AsyncMock()
-
-    # Need to mock get_secretary_mode
-    h._stats_db = AsyncMock()
-    h._stats_db.get_secretary_mode = AsyncMock(return_value="auto")
-
-    ctx = _make_context(bot)
-
-    await h.handle_business_message(update, ctx)
-
-    # Should edit with "too long" message
-    bot.edit_message_text.assert_called_once()
-    call_text = str(bot.edit_message_text.call_args)
-    assert "audio_too_long" in call_text or "too long" in call_text.lower()
-
-
 # --- Notifier Tests ---
 
 
@@ -494,223 +466,64 @@ async def test_notify_secretary_event_no_admins() -> None:
     bot.send_message.assert_not_called()
 
 
-# --- Post-Transcription Callback Tests ---
-
-
-def _make_callback_update(
-    callback_data: str,
-    user_id: int = 99,
-    username: str = "otheruser",
-    lang: str = "en",
-) -> MagicMock:
-    """Create an update with a callback query, simulating a button press."""
-    update = MagicMock()
-    query = MagicMock()
-    query.data = callback_data
-    query.answer = AsyncMock()
-    query.message = MagicMock()
-    query.message.reply_text = AsyncMock()
-    query.message.reply_document = AsyncMock()
-    query.edit_message_reply_markup = AsyncMock()
-    update.callback_query = query
-
-    user = MagicMock()
-    user.id = user_id
-    user.username = username
-    user.language_code = lang
-    update.effective_user = user
-    return update
-
-
-async def test_sec_summarize_by_other_user(
-    handler: SecretaryHandler,
-    mock_summarizer: MagicMock,
-    store: TranscriptionStore,
-) -> None:
-    """Other person clicks Summarize — should find transcription via owner_user_id."""
-    owner_id = 42
-    msg_id = 1
-    store.save(owner_id, msg_id, "Hello world transcript")
-
-    # Other user (id=99) clicks the sec_summarize button
-    update = _make_callback_update(f"sec_summarize:{msg_id}:{owner_id}")
-    ctx = _make_context()
-
-    await handler.handle_post_transcription_callback(update, ctx)
-
-    mock_summarizer.summarize.assert_called_once_with("Hello world transcript")
-    update.callback_query.message.reply_text.assert_called()
-
-
-async def test_sec_summarize_expired(
-    handler: SecretaryHandler,
-    store: TranscriptionStore,
-) -> None:
-    """Summarize with no stored transcription — should show expired message."""
-    update = _make_callback_update("sec_summarize:1:42")
-    ctx = _make_context()
-
-    await handler.handle_post_transcription_callback(update, ctx)
-
-    update.callback_query.message.reply_text.assert_called_once()
-    call_text = str(update.callback_query.message.reply_text.call_args)
-    assert "expired" in call_text.lower() or "transcription_expired" in call_text
-
-
-async def test_sec_savefile_shows_format_keyboard(
-    handler: SecretaryHandler,
-    store: TranscriptionStore,
-) -> None:
-    """Save as file button should show format selection keyboard."""
-    owner_id = 42
-    msg_id = 1
-    store.save(owner_id, msg_id, "Hello world transcript")
-
-    update = _make_callback_update(f"sec_savefile:{msg_id}:{owner_id}")
-    ctx = _make_context()
-
-    await handler.handle_post_transcription_callback(update, ctx)
-
-    update.callback_query.edit_message_reply_markup.assert_called()
-    markup = str(update.callback_query.edit_message_reply_markup.call_args)
-    assert "sec_export_txt" in markup
-    assert "sec_export_srt" in markup
-
-
-async def test_sec_export_txt(
-    handler: SecretaryHandler,
-    store: TranscriptionStore,
-) -> None:
-    """Export as .txt should send a document."""
-    owner_id = 42
-    msg_id = 1
-    store.save(owner_id, msg_id, "Hello world transcript")
-
-    update = _make_callback_update(f"sec_export_txt:{msg_id}:{owner_id}")
-    ctx = _make_context()
-
-    await handler.handle_post_transcription_callback(update, ctx)
-
-    update.callback_query.message.reply_document.assert_called_once()
-    call_kwargs = update.callback_query.message.reply_document.call_args.kwargs
-    assert call_kwargs["filename"] == "transcription.txt"
-
-
-async def test_sec_summarize_by_owner(
-    handler: SecretaryHandler,
-    mock_summarizer: MagicMock,
-    store: TranscriptionStore,
-) -> None:
-    """Owner clicks Summarize — should also work with embedded owner_id."""
-    owner_id = 42
-    msg_id = 1
-    store.save(owner_id, msg_id, "Hello world transcript")
-
-    # Owner themselves clicks (user_id matches owner_id)
-    update = _make_callback_update(
-        f"sec_summarize:{msg_id}:{owner_id}", user_id=owner_id
-    )
-    ctx = _make_context()
-
-    await handler.handle_post_transcription_callback(update, ctx)
-
-    mock_summarizer.summarize.assert_called_once_with("Hello world transcript")
-
-
 # --- Dedup Tests ---
 
 
 async def test_dedup_skips_second_business_message(
-    handler: SecretaryHandler,
-    mock_transcriber: MagicMock,
-    db: StatisticsDB,
+    handler: SecretaryHandler, db: StatisticsDB
 ) -> None:
-    """When both users have the bot, the same file_id arrives twice — second should be skipped."""
+    """Same file_id arriving via two connections — only one prompt is sent."""
     conn_a = _make_business_connection(conn_id="biz_a", user=_make_user(user_id=42))
     conn_b = _make_business_connection(
         conn_id="biz_b", user=_make_user(user_id=99, username="otheruser")
     )
     handler._connections["biz_a"] = conn_a
     handler._connections["biz_b"] = conn_b
-    await db.set_secretary_mode(42, "auto")
-    await db.set_secretary_mode(99, "auto")
 
     msg1 = _make_voice_message(biz_conn_id="biz_a")
     msg2 = _make_voice_message(biz_conn_id="biz_b")
-    # Same file_id on both messages
     msg1.voice.file_id = "same_file_abc"
     msg2.voice.file_id = "same_file_abc"
 
-    update1 = _make_update_with_business_message(msg1)
-    update2 = _make_update_with_business_message(msg2)
-
     bot = AsyncMock()
-    tg_file = AsyncMock()
-    tg_file.file_path = "audio.ogg"
-    tg_file.download_to_drive = AsyncMock()
-    bot.get_file = AsyncMock(return_value=tg_file)
-
     sent_msg = MagicMock()
     sent_msg.message_id = 99
     sent_msg.chat.id = 100
     bot.send_message = AsyncMock(return_value=sent_msg)
-    bot.edit_message_text = AsyncMock()
-
     ctx = _make_context(bot)
 
-    with patch("src.bot.secretary.os.path.exists", return_value=True), \
-         patch("src.bot.secretary.os.remove"):
-        await handler.handle_business_message(update1, ctx)
-        await handler.handle_business_message(update2, ctx)
+    await handler.handle_business_message(_make_update_with_business_message(msg1), ctx)
+    await handler.handle_business_message(_make_update_with_business_message(msg2), ctx)
 
-    # Transcriber should only be called once
-    assert mock_transcriber.transcribe.call_count == 1
+    assert bot.send_message.call_count == 1
 
 
 async def test_dedup_allows_different_file_ids(
-    handler: SecretaryHandler,
-    mock_transcriber: MagicMock,
-    db: StatisticsDB,
+    handler: SecretaryHandler, db: StatisticsDB
 ) -> None:
-    """Different file_ids should both be transcribed."""
     conn = _make_business_connection()
     handler._connections["biz_123"] = conn
-    await db.set_secretary_mode(42, "auto")
 
     msg1 = _make_voice_message(message_id=1)
     msg1.voice.file_id = "file_1"
     msg2 = _make_voice_message(message_id=2)
     msg2.voice.file_id = "file_2"
 
-    update1 = _make_update_with_business_message(msg1)
-    update2 = _make_update_with_business_message(msg2)
-
     bot = AsyncMock()
-    tg_file = AsyncMock()
-    tg_file.file_path = "audio.ogg"
-    tg_file.download_to_drive = AsyncMock()
-    bot.get_file = AsyncMock(return_value=tg_file)
-
     sent_msg = MagicMock()
     sent_msg.message_id = 99
     sent_msg.chat.id = 100
     bot.send_message = AsyncMock(return_value=sent_msg)
-    bot.edit_message_text = AsyncMock()
-
     ctx = _make_context(bot)
 
-    with patch("src.bot.secretary.os.path.exists", return_value=True), \
-         patch("src.bot.secretary.os.remove"):
-        await handler.handle_business_message(update1, ctx)
-        await handler.handle_business_message(update2, ctx)
+    await handler.handle_business_message(_make_update_with_business_message(msg1), ctx)
+    await handler.handle_business_message(_make_update_with_business_message(msg2), ctx)
 
-    assert mock_transcriber.transcribe.call_count == 2
+    assert bot.send_message.call_count == 2
 
 
 async def test_smart_dedup_skips_outgoing_when_recipient_connected(
-    handler: SecretaryHandler,
-    mock_transcriber: MagicMock,
-    db: StatisticsDB,
+    handler: SecretaryHandler, db: StatisticsDB
 ) -> None:
     """Owner sends voice → skip if recipient also has the bot connected."""
     owner = _make_user(user_id=42)
@@ -718,105 +531,67 @@ async def test_smart_dedup_skips_outgoing_when_recipient_connected(
 
     conn = _make_business_connection(conn_id="biz_a", user=owner)
     handler._connections["biz_a"] = conn
-
-    # Recipient is also connected as secretary (in DB)
     await db.save_secretary_connection(recipient_id, "biz_b", "otheruser")
 
     msg = _make_voice_message(biz_conn_id="biz_a", chat_id=recipient_id)
-    msg.from_user = owner  # Owner sent this message (outgoing)
+    msg.from_user = owner  # Owner sent this (outgoing)
     msg.voice.file_id = "outgoing_file"
 
-    update = _make_update_with_business_message(msg)
-    ctx = _make_context()
+    bot = AsyncMock()
+    bot.send_message = AsyncMock()
+    ctx = _make_context(bot)
 
-    await handler.handle_business_message(update, ctx)
+    await handler.handle_business_message(_make_update_with_business_message(msg), ctx)
 
-    # Should be skipped — recipient's connection will handle it
-    mock_transcriber.transcribe.assert_not_called()
+    bot.send_message.assert_not_called()
 
 
 async def test_smart_dedup_allows_outgoing_when_recipient_not_connected(
-    handler: SecretaryHandler,
-    mock_transcriber: MagicMock,
-    db: StatisticsDB,
+    handler: SecretaryHandler, db: StatisticsDB
 ) -> None:
-    """Owner sends voice → transcribe if recipient does NOT have the bot."""
     owner = _make_user(user_id=42)
     recipient_id = 99
 
     conn = _make_business_connection(conn_id="biz_a", user=owner)
     handler._connections["biz_a"] = conn
-    await db.set_secretary_mode(42, "auto")
-
-    # Recipient is NOT connected as secretary
 
     msg = _make_voice_message(biz_conn_id="biz_a", chat_id=recipient_id)
     msg.from_user = owner
     msg.voice.file_id = "outgoing_file_2"
 
-    update = _make_update_with_business_message(msg)
-
     bot = AsyncMock()
-    tg_file = AsyncMock()
-    tg_file.file_path = "audio.ogg"
-    tg_file.download_to_drive = AsyncMock()
-    bot.get_file = AsyncMock(return_value=tg_file)
-
     sent_msg = MagicMock()
     sent_msg.message_id = 99
     sent_msg.chat.id = recipient_id
     bot.send_message = AsyncMock(return_value=sent_msg)
-    bot.edit_message_text = AsyncMock()
-
     ctx = _make_context(bot)
 
-    with patch("src.bot.secretary.os.path.exists", return_value=True), \
-         patch("src.bot.secretary.os.remove"):
-        await handler.handle_business_message(update, ctx)
+    await handler.handle_business_message(_make_update_with_business_message(msg), ctx)
 
-    # Should transcribe since recipient doesn't have the bot
-    mock_transcriber.transcribe.assert_called_once()
+    bot.send_message.assert_called_once()
 
 
 async def test_smart_dedup_always_transcribes_incoming(
-    handler: SecretaryHandler,
-    mock_transcriber: MagicMock,
-    db: StatisticsDB,
+    handler: SecretaryHandler, db: StatisticsDB
 ) -> None:
-    """Incoming voice from other person → always transcribe."""
     owner = _make_user(user_id=42)
     sender = _make_user(user_id=99, username="otheruser")
 
     conn = _make_business_connection(conn_id="biz_a", user=owner)
     handler._connections["biz_a"] = conn
-    await db.set_secretary_mode(42, "auto")
-
-    # Sender is also connected (doesn't matter for incoming)
     await db.save_secretary_connection(99, "biz_b", "otheruser")
 
     msg = _make_voice_message(biz_conn_id="biz_a", chat_id=99)
     msg.from_user = sender  # Other person sent this (incoming to owner)
     msg.voice.file_id = "incoming_file"
 
-    update = _make_update_with_business_message(msg)
-
     bot = AsyncMock()
-    tg_file = AsyncMock()
-    tg_file.file_path = "audio.ogg"
-    tg_file.download_to_drive = AsyncMock()
-    bot.get_file = AsyncMock(return_value=tg_file)
-
     sent_msg = MagicMock()
     sent_msg.message_id = 99
     sent_msg.chat.id = 99
     bot.send_message = AsyncMock(return_value=sent_msg)
-    bot.edit_message_text = AsyncMock()
-
     ctx = _make_context(bot)
 
-    with patch("src.bot.secretary.os.path.exists", return_value=True), \
-         patch("src.bot.secretary.os.remove"):
-        await handler.handle_business_message(update, ctx)
+    await handler.handle_business_message(_make_update_with_business_message(msg), ctx)
 
-    # Should transcribe — incoming messages are always processed
-    mock_transcriber.transcribe.assert_called_once()
+    bot.send_message.assert_called_once()

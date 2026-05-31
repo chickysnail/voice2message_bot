@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
@@ -15,7 +16,7 @@ from telegram.ext import (
 
 from src.bot.config import Settings
 from src.bot.handlers import BotHandlers
-from src.bot.secretary import SecretaryHandler
+from src.bot.secretary import PROMPT_TTL_SECONDS, SecretaryHandler
 from src.bot.services.notifier import AdminNotifier
 from src.bot.services.summarization import OpenAISummarizer
 from src.bot.services.transcription import ElevenLabsTranscriber
@@ -91,9 +92,7 @@ def main() -> None:
 
     secretary = SecretaryHandler(
         transcriber=transcriber,
-        summarizer=summarizer,
         notifier=notifier,
-        store=store,
         stats_db=stats_db,
         max_audio_duration=settings.max_audio_duration,
         transcription_timeout=settings.transcription_timeout,
@@ -137,12 +136,6 @@ def main() -> None:
             pattern=r"^sec_transcribe:",
         )
     )
-    application.add_handler(
-        CallbackQueryHandler(
-            secretary.handle_post_transcription_callback,
-            pattern=r"^sec_(summarize|savefile|export_txt|export_srt):",
-        )
-    )
     application.add_handler(CallbackQueryHandler(handlers.handle_callback))
 
     # Text message handler — nudge users who send plain text
@@ -154,9 +147,21 @@ def main() -> None:
     )
 
     health_runner: web.AppRunner | None = None
+    cleanup_task: asyncio.Task[None] | None = None
+
+    async def prompt_cleanup_loop(app: Application) -> None:  # type: ignore[type-arg]
+        """Periodically delete untranscribed prompts older than the TTL."""
+        while True:
+            try:
+                await secretary.delete_expired_prompts(
+                    app.bot, PROMPT_TTL_SECONDS
+                )
+            except Exception:
+                logger.exception("Prompt cleanup sweep failed")
+            await asyncio.sleep(3600)
 
     async def post_init(app: Application) -> None:  # type: ignore[type-arg]
-        nonlocal health_runner
+        nonlocal health_runner, cleanup_task
         await stats_db.initialize()
 
         # Start health check server
@@ -179,9 +184,14 @@ def main() -> None:
         # Restore secretary connections from DB
         await secretary.load_connections_from_db(app.bot)
 
+        # Start the background sweep that auto-deletes stale prompts.
+        cleanup_task = asyncio.create_task(prompt_cleanup_loop(app))
+
         logger.info("Bot started. Admin IDs: %s", settings.admin_user_ids)
 
     async def post_shutdown(app: Application) -> None:  # type: ignore[type-arg]
+        if cleanup_task is not None:
+            cleanup_task.cancel()
         if health_runner:
             await health_runner.cleanup()
         await stats_db.close()

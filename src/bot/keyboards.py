@@ -7,12 +7,6 @@ CALLBACK_SAVE_FILE = "savefile"
 CALLBACK_EXPORT_TXT = "export_txt"
 CALLBACK_EXPORT_SRT = "export_srt"
 CALLBACK_SEC_TRANSCRIBE = "sec_transcribe"
-CALLBACK_SEC_SUMMARIZE = "sec_summarize"
-CALLBACK_SEC_SAVEFILE = "sec_savefile"
-CALLBACK_SEC_EXPORT_TXT = "sec_export_txt"
-CALLBACK_SEC_EXPORT_SRT = "sec_export_srt"
-CALLBACK_SEC_MODE_AUTO = "sec_mode_auto"
-CALLBACK_SEC_MODE_MANUAL = "sec_mode_manual"
 CALLBACK_SECRETARY_SETUP = "secretary_setup"
 
 
@@ -50,58 +44,6 @@ def file_format_keyboard(message_id: int) -> InlineKeyboardMarkup:
     ])
 
 
-def secretary_post_transcription_keyboard(
-    message_id: int, owner_user_id: int, lang: str = "en"
-) -> InlineKeyboardMarkup:
-    """Post-transcription keyboard for secretary mode.
-
-    Embeds owner_user_id so callbacks can look up the transcription
-    regardless of who clicks the button.
-    """
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(
-                t("btn_summarize", lang),
-                callback_data=(
-                    f"{CALLBACK_SEC_SUMMARIZE}:{message_id}"
-                    f":{owner_user_id}"
-                ),
-            ),
-            InlineKeyboardButton(
-                t("btn_save_file", lang),
-                callback_data=(
-                    f"{CALLBACK_SEC_SAVEFILE}:{message_id}"
-                    f":{owner_user_id}"
-                ),
-            ),
-        ]
-    ])
-
-
-def secretary_file_format_keyboard(
-    message_id: int, owner_user_id: int
-) -> InlineKeyboardMarkup:
-    """File format keyboard for secretary mode."""
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(
-                ".txt",
-                callback_data=(
-                    f"{CALLBACK_SEC_EXPORT_TXT}:{message_id}"
-                    f":{owner_user_id}"
-                ),
-            ),
-            InlineKeyboardButton(
-                ".srt",
-                callback_data=(
-                    f"{CALLBACK_SEC_EXPORT_SRT}:{message_id}"
-                    f":{owner_user_id}"
-                ),
-            ),
-        ]
-    ])
-
-
 def secretary_transcribe_keyboard(
     message_id: int, business_connection_id: str, lang: str = "en"
 ) -> InlineKeyboardMarkup:
@@ -114,22 +56,6 @@ def secretary_transcribe_keyboard(
                     f"{CALLBACK_SEC_TRANSCRIBE}:{message_id}"
                     f":{business_connection_id}"
                 ),
-            ),
-        ]
-    ])
-
-
-def secretary_mode_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
-    """Inline buttons for switching secretary mode."""
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(
-                t("btn_mode_auto", lang),
-                callback_data=CALLBACK_SEC_MODE_AUTO,
-            ),
-            InlineKeyboardButton(
-                t("btn_mode_manual", lang),
-                callback_data=CALLBACK_SEC_MODE_MANUAL,
             ),
         ]
     ])
