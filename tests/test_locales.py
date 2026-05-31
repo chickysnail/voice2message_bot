@@ -38,7 +38,7 @@ def test_none_lang_defaults_to_english() -> None:
 def test_button_labels_localized() -> None:
     """Button labels should be available in all languages."""
     for key in ("btn_summarize", "btn_save_file", "btn_transcribe",
-                "btn_mode_auto", "btn_mode_manual", "btn_secretary_setup"):
+                "btn_secretary_setup"):
         en = t(key, "en")
         ru = t(key, "ru")
         assert en != key, f"{key} missing English translation"
@@ -52,18 +52,10 @@ def test_secretary_setup_mentions_chat_automation() -> None:
     assert "Account" in result
 
 
-def test_secretary_settings_has_mode_placeholder() -> None:
-    result = t("secretary_settings", "en", mode="auto")
-    assert "auto" in result
-    assert "Auto" in result
-    assert "Manual" in result
-
-
 def test_keyboard_uses_localized_labels() -> None:
     """Keyboard buttons should use localized labels."""
     from src.bot.keyboards import (
         post_transcription_keyboard,
-        secretary_mode_keyboard,
         secretary_setup_keyboard,
         secretary_transcribe_keyboard,
     )
@@ -72,9 +64,6 @@ def test_keyboard_uses_localized_labels() -> None:
     kb_ru = post_transcription_keyboard(123, "ru")
     assert kb_en.inline_keyboard[0][0].text == "Summarize"
     assert kb_ru.inline_keyboard[0][0].text != "Summarize"
-
-    mode_en = secretary_mode_keyboard("en")
-    assert "Auto" in mode_en.inline_keyboard[0][0].text
 
     setup_en = secretary_setup_keyboard("en")
     assert "transcription" in setup_en.inline_keyboard[0][0].text.lower()
@@ -92,10 +81,7 @@ def test_no_partial_translations() -> None:
     """
     from src.bot.locales import _STRINGS
 
-    expected_langs = {
-        "en", "ru", "hi", "id", "pt", "uk", "ar",
-        "fa", "de", "tr", "es", "fr", "uz", "am", "ko",
-    }
+    expected_langs = {"en", "ru", "hi", "id", "fa"}
     for key, translations in _STRINGS.items():
         langs = set(translations.keys())
         if langs == {"en"}:

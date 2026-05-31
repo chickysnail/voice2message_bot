@@ -33,13 +33,6 @@ class StatisticsDB:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # Secretary mode settings (auto/manual per user)
-        await self._db.execute("""
-            CREATE TABLE IF NOT EXISTS secretary_settings (
-                user_id INTEGER PRIMARY KEY,
-                mode TEXT NOT NULL DEFAULT 'auto'
-            )
-        """)
         # Secretary usage stats (separate from direct usage)
         await self._db.execute("""
             CREATE TABLE IF NOT EXISTS secretary_statistics (
@@ -58,6 +51,16 @@ class StatisticsDB:
                 connection_id TEXT NOT NULL,
                 username TEXT,
                 connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Untranscribed manual prompts awaiting auto-deletion.
+        await self._db.execute("""
+            CREATE TABLE IF NOT EXISTS secretary_pending_prompts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                connection_id TEXT NOT NULL,
+                chat_id INTEGER NOT NULL,
+                message_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
         await self._db.commit()
@@ -159,28 +162,53 @@ class StatisticsDB:
 
         return total, by_type, last_error
 
-    # --- Secretary mode settings ---
+    # --- Secretary pending prompts (auto-deletion) ---
 
-    async def get_secretary_mode(self, user_id: int) -> str:
-        """Returns 'auto' or 'manual'. Defaults to 'manual'."""
-        assert self._db is not None
-        async with self._db.execute(
-            "SELECT mode FROM secretary_settings WHERE user_id = ?",
-            (user_id,),
-        ) as cursor:
-            row = await cursor.fetchone()
-        return row[0] if row else "manual"
-
-    async def set_secretary_mode(self, user_id: int, mode: str) -> None:
+    async def add_pending_prompt(
+        self, connection_id: str, chat_id: int, message_id: int
+    ) -> None:
+        """Record an untranscribed prompt so it can be auto-deleted later."""
         assert self._db is not None
         await self._db.execute(
             """
-            INSERT INTO secretary_settings (user_id, mode) VALUES (?, ?)
-            ON CONFLICT(user_id) DO UPDATE SET mode = ?
+            INSERT INTO secretary_pending_prompts
+                (connection_id, chat_id, message_id)
+            VALUES (?, ?, ?)
             """,
-            (user_id, mode, mode),
+            (connection_id, chat_id, message_id),
         )
         await self._db.commit()
+
+    async def remove_pending_prompt(
+        self, connection_id: str, message_id: int
+    ) -> None:
+        """Remove a prompt once it has been transcribed or deleted."""
+        assert self._db is not None
+        await self._db.execute(
+            """
+            DELETE FROM secretary_pending_prompts
+            WHERE connection_id = ? AND message_id = ?
+            """,
+            (connection_id, message_id),
+        )
+        await self._db.commit()
+
+    async def get_expired_pending_prompts(
+        self, older_than_seconds: int
+    ) -> list[tuple[str, int, int]]:
+        """Return (connection_id, chat_id, message_id) for prompts older
+        than the given age."""
+        assert self._db is not None
+        async with self._db.execute(
+            """
+            SELECT connection_id, chat_id, message_id
+            FROM secretary_pending_prompts
+            WHERE created_at <= datetime('now', ?)
+            """,
+            (f"-{int(older_than_seconds)} seconds",),
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [(r[0], r[1], r[2]) for r in rows]
 
     # --- Secretary usage stats ---
 

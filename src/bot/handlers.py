@@ -14,13 +14,10 @@ from src.bot.keyboards import (
     CALLBACK_EXPORT_SRT,
     CALLBACK_EXPORT_TXT,
     CALLBACK_SAVE_FILE,
-    CALLBACK_SEC_MODE_AUTO,
-    CALLBACK_SEC_MODE_MANUAL,
     CALLBACK_SECRETARY_SETUP,
     CALLBACK_SUMMARIZE,
     file_format_keyboard,
     post_transcription_keyboard,
-    secretary_mode_keyboard,
     secretary_settings_keyboard,
     secretary_setup_keyboard,
 )
@@ -420,26 +417,10 @@ class BotHandlers:
             connected = await self._stats_db.is_user_secretary_connected(
                 user.id
             )
-            if connected:
-                current = await self._stats_db.get_secretary_mode(user.id)
-                await query.edit_message_text(
-                    t("secretary_settings", lang, mode=current),
-                    reply_markup=secretary_mode_keyboard(lang),
-                )
-            else:
-                await query.edit_message_text(
-                    t("secretary_setup", lang),
-                    parse_mode=ParseMode.HTML,
-                )
-            return
-
-        # Handle secretary mode buttons (no colon, single token)
-        if data in (CALLBACK_SEC_MODE_AUTO, CALLBACK_SEC_MODE_MANUAL):
-            new_mode = "auto" if data == CALLBACK_SEC_MODE_AUTO else "manual"
-            await self._stats_db.set_secretary_mode(user.id, new_mode)
+            key = "secretary_connected" if connected else "secretary_setup"
             await query.edit_message_text(
-                t("secretary_settings", lang, mode=new_mode),
-                reply_markup=secretary_mode_keyboard(lang),
+                t(key, lang),
+                parse_mode=ParseMode.HTML,
             )
             return
 
@@ -589,7 +570,7 @@ class BotHandlers:
     async def secretary_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
-        """Handle /secretary command — show setup or mode picker."""
+        """Handle /secretary command — show setup or connected status."""
         if not update.message or not update.effective_user:
             return
 
@@ -597,17 +578,10 @@ class BotHandlers:
         lang = user.language_code or "en"
 
         connected = await self._stats_db.is_user_secretary_connected(user.id)
-        if not connected:
-            await update.message.reply_text(
-                t("secretary_setup", lang),
-                parse_mode=ParseMode.HTML,
-            )
-            return
-
-        current = await self._stats_db.get_secretary_mode(user.id)
+        key = "secretary_connected" if connected else "secretary_setup"
         await update.message.reply_text(
-            t("secretary_settings", lang, mode=current),
-            reply_markup=secretary_mode_keyboard(lang),
+            t(key, lang),
+            parse_mode=ParseMode.HTML,
         )
 
     async def stats_command(
