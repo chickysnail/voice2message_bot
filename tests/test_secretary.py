@@ -177,6 +177,46 @@ async def test_handle_connection_none(handler: SecretaryHandler) -> None:
 # --- Manual prompt tests (manual is the only mode) ---
 
 
+async def test_business_message_skips_when_can_reply_false(
+    handler: SecretaryHandler, db: StatisticsDB
+) -> None:
+    """If the connection doesn't allow replies, skip silently."""
+    conn = _make_business_connection()
+    conn.can_reply = False
+    handler._connections["biz_123"] = conn
+
+    message = _make_voice_message()
+    update = _make_update_with_business_message(message)
+
+    bot = AsyncMock()
+    ctx = _make_context(bot)
+
+    await handler.handle_business_message(update, ctx)
+
+    bot.send_message.assert_not_called()
+
+
+async def test_business_message_handles_peer_invalid(
+    handler: SecretaryHandler, db: StatisticsDB
+) -> None:
+    """Business_peer_invalid is caught gracefully, no crash."""
+    from telegram.error import BadRequest
+
+    conn = _make_business_connection()
+    conn.can_reply = True
+    handler._connections["biz_123"] = conn
+
+    message = _make_voice_message()
+    update = _make_update_with_business_message(message)
+
+    bot = AsyncMock()
+    bot.send_message = AsyncMock(side_effect=BadRequest("Business_peer_invalid"))
+    ctx = _make_context(bot)
+
+    # Should NOT raise — error is caught and logged
+    await handler.handle_business_message(update, ctx)
+
+
 async def test_business_message_sends_prompt(
     handler: SecretaryHandler, mock_transcriber: MagicMock, db: StatisticsDB
 ) -> None:

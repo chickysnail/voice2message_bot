@@ -10,6 +10,7 @@ import uuid
 
 from telegram import Bot, BusinessConnection, Message, Update, User
 from telegram.constants import ParseMode
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 from src.bot.keyboards import (
@@ -181,6 +182,15 @@ class SecretaryHandler:
 
         owner_user = conn.user
 
+        # Skip if the connection doesn't allow replies (user didn't grant
+        # the "Reply to messages" permission in Chat Automation).
+        if not getattr(conn, "can_reply", True):
+            logger.debug(
+                "Connection %s does not allow replies, skipping",
+                biz_conn_id,
+            )
+            return
+
         # Smart dedup: if the owner sent this message (outgoing) and the
         # other person also has the bot as secretary, skip — the
         # recipient's connection will handle it as an incoming message.
@@ -195,7 +205,7 @@ class SecretaryHandler:
                 return
 
         lang = owner_user.language_code or "en"
-        await self._send_prompt(context.bot, message, biz_conn_id, lang)
+        await self._safe_send_prompt(context.bot, message, biz_conn_id, lang)
 
     # ------------------------------------------------------------------
     # Prompt + auto-deletion
@@ -230,6 +240,27 @@ class SecretaryHandler:
             await self._stats_db.add_pending_prompt(
                 biz_conn_id, chat_id, prompt.message_id
             )
+
+    async def _safe_send_prompt(
+        self,
+        bot: Bot,
+        message: Message,
+        biz_conn_id: str,
+        lang: str,
+    ) -> None:
+        """Wrapper around _send_prompt that handles Business_peer_invalid
+        gracefully (e.g. stale connection after reconnect)."""
+        try:
+            await self._send_prompt(bot, message, biz_conn_id, lang)
+        except BadRequest as e:
+            if "business_peer_invalid" in str(e).lower():
+                logger.warning(
+                    "Business_peer_invalid for connection %s, chat %d — "
+                    "the connection may have been recently reconnected",
+                    biz_conn_id, message.chat.id,
+                )
+            else:
+                raise
 
     async def delete_expired_prompts(
         self, bot: Bot, older_than_seconds: int = PROMPT_TTL_SECONDS
