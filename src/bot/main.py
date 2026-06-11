@@ -106,6 +106,7 @@ def main() -> None:
     application.add_handler(CommandHandler("stats", handlers.stats_command))
     application.add_handler(CommandHandler("logs", handlers.logs_command))
     application.add_handler(CommandHandler("secretary", handlers.secretary_command))
+    application.add_handler(CommandHandler("broadcast", handlers.broadcast_command))
 
     audio_filter = (
         filters.VOICE
