@@ -416,6 +416,22 @@ _STRINGS: dict[str, dict[str, str]] = {
             "پیام‌های رونویسی‌نشده پس از یک روز به‌طور خودکار حذف می‌شوند."
         ),
     },
+    "broadcast_secretary": {
+        "en": (
+            "🎙 <b>New: transcribe voice messages right in your chats</b>\n"
+            "\n"
+            "You can now add me to your private chats so a “Transcribe” button "
+            "appears under voice messages and video notes — no need to forward "
+            "anything to me.\n"
+            "\n"
+            "Set it up in 3 taps (see the screenshots below):\n"
+            "1. Telegram <b>Settings → Account → Chat Automation</b>\n"
+            "2. Add <b>@cant_listen_right_now_bot</b>\n"
+            "3. Enable the <b>Manage Messages</b> permissions\n"
+            "\n"
+            "That's it — I'll start adding the Transcribe button automatically."
+        ),
+    },
     "video_timeout": {
         "en": "Could not process this video. Please try again or send just the audio.",
         "ru": "Не удалось обработать это видео. Попробуйте ещё раз или отправьте только аудио.",

@@ -122,6 +122,22 @@ class StatisticsDB:
             rows = await cursor.fetchall()
         return [(r[0], r[1], r[2], r[3], r[4], r[5]) for r in rows]
 
+    async def get_all_user_ids(self) -> list[int]:
+        """Return distinct user IDs the bot can DM (everyone who has
+        interacted with it directly or via secretary mode)."""
+        assert self._db is not None
+        async with self._db.execute(
+            """
+            SELECT user_id FROM user_statistics
+            UNION
+            SELECT user_id FROM secretary_statistics
+            UNION
+            SELECT user_id FROM secretary_connections
+            """
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [r[0] for r in rows]
+
     async def record_error(
         self,
         error_type: str,

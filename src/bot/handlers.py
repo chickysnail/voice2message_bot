@@ -4,8 +4,9 @@ import logging
 import os
 import tempfile
 import uuid
+from pathlib import Path
 
-from telegram import Update
+from telegram import InputMediaPhoto, Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
@@ -32,6 +33,19 @@ from src.bot.storage.transcription_store import TranscriptionStore
 from src.bot.utils.text import format_duration, split_message
 
 logger = logging.getLogger(__name__)
+
+_ASSETS_DIR = Path(__file__).parent / "assets"
+SECRETARY_SETUP_IMAGES = [
+    _ASSETS_DIR / f"secretary_setup_{i}.jpg" for i in (1, 2, 3)
+]
+
+
+def _secretary_setup_media() -> list[InputMediaPhoto]:
+    """Build the 3-image album that illustrates secretary setup."""
+    return [
+        InputMediaPhoto(media=path.read_bytes())
+        for path in SECRETARY_SETUP_IMAGES
+    ]
 
 
 class BotHandlers:
@@ -582,6 +596,63 @@ class BotHandlers:
         await update.message.reply_text(
             t(key, lang),
             parse_mode=ParseMode.HTML,
+        )
+        # Show the visual setup guide below the text for users who
+        # haven't connected the bot yet.
+        if not connected:
+            await update.message.reply_media_group(_secretary_setup_media())
+
+    async def broadcast_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Admin-only: announce secretary mode to all known users.
+
+        `/broadcast` shows a preview and the recipient count.
+        `/broadcast confirm` sends it.
+        """
+        if not update.message or not update.effective_user:
+            return
+        if update.effective_user.id not in self._admin_ids:
+            return
+
+        user_ids = await self._stats_db.get_all_user_ids()
+        args = context.args or []
+        confirm = bool(args) and args[0] == "confirm"
+
+        if not confirm:
+            await update.message.reply_text(
+                f"📢 Preview below — will be sent to {len(user_ids)} users.\n"
+                "Send /broadcast confirm to send it."
+            )
+            await update.message.reply_text(
+                t("broadcast_secretary", "en"),
+                parse_mode=ParseMode.HTML,
+            )
+            await update.message.reply_media_group(_secretary_setup_media())
+            return
+
+        sent = 0
+        failed = 0
+        for uid in user_ids:
+            try:
+                await context.bot.send_message(
+                    chat_id=uid,
+                    text=t("broadcast_secretary", "en"),
+                    parse_mode=ParseMode.HTML,
+                )
+                await context.bot.send_media_group(
+                    chat_id=uid,
+                    media=_secretary_setup_media(),
+                )
+                sent += 1
+            except Exception as e:
+                failed += 1
+                logger.warning("Broadcast to %d failed: %s", uid, e)
+            # Stay well under Telegram's per-second message limits.
+            await asyncio.sleep(0.05)
+
+        await update.message.reply_text(
+            f"📢 Broadcast complete. Sent: {sent}, failed: {failed}."
         )
 
     async def stats_command(

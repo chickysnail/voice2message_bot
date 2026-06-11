@@ -55,6 +55,21 @@ async def test_get_all_stats(db: StatisticsDB) -> None:
     assert len(all_stats) == 2
 
 
+async def test_get_all_user_ids_unions_sources(db: StatisticsDB) -> None:
+    await db.record_usage(user_id=1, username="direct", audio_duration=10)
+    await db.record_secretary_usage(user_id=2, username="sec", audio_duration=10)
+    await db.save_secretary_connection(3, "conn_3", "connected")
+    # Overlap: user 1 is also connected — should be deduplicated.
+    await db.save_secretary_connection(1, "conn_1", "direct")
+
+    ids = await db.get_all_user_ids()
+    assert set(ids) == {1, 2, 3}
+
+
+async def test_get_all_user_ids_empty(db: StatisticsDB) -> None:
+    assert await db.get_all_user_ids() == []
+
+
 async def test_record_error(db: StatisticsDB) -> None:
     await db.record_error("Transcription", "alice", "API timeout")
     total, by_type, last_error = await db.get_error_stats()
