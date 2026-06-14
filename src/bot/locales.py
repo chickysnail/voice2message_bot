@@ -432,6 +432,9 @@ _STRINGS: dict[str, dict[str, str]] = {
             "That's it — I'll start adding the Transcribe button automatically."
         ),
     },
+    "secretary_promo": {
+        "en": "Or add me as your secretary and transcribe the messages right in your chats!",
+    },
     "video_timeout": {
         "en": "Could not process this video. Please try again or send just the audio.",
         "ru": "Не удалось обработать это видео. Попробуйте ещё раз или отправьте только аудио.",
