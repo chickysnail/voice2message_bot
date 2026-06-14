@@ -11,6 +11,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
+    PreCheckoutQueryHandler,
     filters,
 )
 
@@ -137,7 +138,22 @@ def main() -> None:
             pattern=r"^sec_transcribe:",
         )
     )
+    application.add_handler(
+        CallbackQueryHandler(
+            handlers.handle_donate_callback,
+            pattern=r"^donate:",
+        )
+    )
     application.add_handler(CallbackQueryHandler(handlers.handle_callback))
+
+    # Payment handlers (Telegram Stars donations)
+    application.add_handler(PreCheckoutQueryHandler(handlers.handle_pre_checkout))
+    application.add_handler(
+        MessageHandler(
+            filters.SUCCESSFUL_PAYMENT,
+            handlers.handle_successful_payment,
+        )
+    )
 
     # Text message handler — nudge users who send plain text
     application.add_handler(
