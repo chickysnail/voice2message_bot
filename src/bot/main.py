@@ -1,10 +1,13 @@
+import asyncio
 import logging
 from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 
 from aiohttp import web
+from telegram import Update
 from telegram.ext import (
     Application,
+    BusinessConnectionHandler,
     CallbackQueryHandler,
     CommandHandler,
     MessageHandler,
@@ -13,6 +16,7 @@ from telegram.ext import (
 
 from src.bot.config import Settings
 from src.bot.handlers import BotHandlers
+from src.bot.secretary import PROMPT_TTL_SECONDS, SecretaryHandler
 from src.bot.services.notifier import AdminNotifier
 from src.bot.services.summarization import OpenAISummarizer
 from src.bot.services.transcription import ElevenLabsTranscriber
@@ -86,11 +90,23 @@ def main() -> None:
         file_download_timeout=settings.file_download_timeout,
     )
 
+    secretary = SecretaryHandler(
+        transcriber=transcriber,
+        notifier=notifier,
+        stats_db=stats_db,
+        max_audio_duration=settings.max_audio_duration,
+        transcription_timeout=settings.transcription_timeout,
+        ffmpeg_timeout=settings.ffmpeg_timeout,
+        file_download_timeout=settings.file_download_timeout,
+    )
+
     # Register handlers
     application.add_handler(CommandHandler("start", handlers.start))
     application.add_handler(CommandHandler("help", handlers.help_command))
     application.add_handler(CommandHandler("stats", handlers.stats_command))
     application.add_handler(CommandHandler("logs", handlers.logs_command))
+    application.add_handler(CommandHandler("secretary", handlers.secretary_command))
+    application.add_handler(CommandHandler("broadcast", handlers.broadcast_command))
 
     audio_filter = (
         filters.VOICE
@@ -98,14 +114,55 @@ def main() -> None:
         | filters.AUDIO
         | filters.VIDEO
         | filters.Document.AUDIO
-    )
+    ) & filters.UpdateType.MESSAGE
     application.add_handler(MessageHandler(audio_filter, handlers.handle_audio))
+
+    # Secretary (business) handlers
+    application.add_handler(
+        BusinessConnectionHandler(secretary.handle_business_connection)
+    )
+    business_audio_filter = (
+        filters.VOICE | filters.VIDEO_NOTE
+    ) & filters.UpdateType.BUSINESS_MESSAGE
+    application.add_handler(
+        MessageHandler(business_audio_filter, secretary.handle_business_message)
+    )
+
+    # Pattern-filtered callback handler must be registered before the
+    # general one — python-telegram-bot only runs the first matching
+    # handler in a group.
+    application.add_handler(
+        CallbackQueryHandler(
+            secretary.handle_transcribe_callback,
+            pattern=r"^sec_transcribe:",
+        )
+    )
     application.add_handler(CallbackQueryHandler(handlers.handle_callback))
 
+    # Text message handler — nudge users who send plain text
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND & filters.UpdateType.MESSAGE,
+            handlers.handle_text,
+        )
+    )
+
     health_runner: web.AppRunner | None = None
+    cleanup_task: asyncio.Task[None] | None = None
+
+    async def prompt_cleanup_loop(app: Application) -> None:  # type: ignore[type-arg]
+        """Periodically delete untranscribed prompts older than the TTL."""
+        while True:
+            try:
+                await secretary.delete_expired_prompts(
+                    app.bot, PROMPT_TTL_SECONDS
+                )
+            except Exception:
+                logger.exception("Prompt cleanup sweep failed")
+            await asyncio.sleep(3600)
 
     async def post_init(app: Application) -> None:  # type: ignore[type-arg]
-        nonlocal health_runner
+        nonlocal health_runner, cleanup_task
         await stats_db.initialize()
 
         # Start health check server
@@ -125,9 +182,17 @@ def main() -> None:
                     admin_id,
                 )
 
+        # Restore secretary connections from DB
+        await secretary.load_connections_from_db(app.bot)
+
+        # Start the background sweep that auto-deletes stale prompts.
+        cleanup_task = asyncio.create_task(prompt_cleanup_loop(app))
+
         logger.info("Bot started. Admin IDs: %s", settings.admin_user_ids)
 
     async def post_shutdown(app: Application) -> None:  # type: ignore[type-arg]
+        if cleanup_task is not None:
+            cleanup_task.cancel()
         if health_runner:
             await health_runner.cleanup()
         await stats_db.close()
@@ -136,7 +201,7 @@ def main() -> None:
     application.post_shutdown = post_shutdown
 
     logger.info("Starting bot...")
-    application.run_polling()
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":

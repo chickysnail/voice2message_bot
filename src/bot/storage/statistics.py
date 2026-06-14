@@ -33,6 +33,36 @@ class StatisticsDB:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # Secretary usage stats (separate from direct usage)
+        await self._db.execute("""
+            CREATE TABLE IF NOT EXISTS secretary_statistics (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                total_transcriptions INTEGER DEFAULT 0,
+                total_audio_duration_seconds INTEGER DEFAULT 0,
+                first_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Active secretary connections (persisted across restarts)
+        await self._db.execute("""
+            CREATE TABLE IF NOT EXISTS secretary_connections (
+                user_id INTEGER PRIMARY KEY,
+                connection_id TEXT NOT NULL,
+                username TEXT,
+                connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Untranscribed manual prompts awaiting auto-deletion.
+        await self._db.execute("""
+            CREATE TABLE IF NOT EXISTS secretary_pending_prompts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                connection_id TEXT NOT NULL,
+                chat_id INTEGER NOT NULL,
+                message_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         await self._db.commit()
 
     async def close(self) -> None:
@@ -92,6 +122,22 @@ class StatisticsDB:
             rows = await cursor.fetchall()
         return [(r[0], r[1], r[2], r[3], r[4], r[5]) for r in rows]
 
+    async def get_all_user_ids(self) -> list[int]:
+        """Return distinct user IDs the bot can DM (everyone who has
+        interacted with it directly or via secretary mode)."""
+        assert self._db is not None
+        async with self._db.execute(
+            """
+            SELECT user_id FROM user_statistics
+            UNION
+            SELECT user_id FROM secretary_statistics
+            UNION
+            SELECT user_id FROM secretary_connections
+            """
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [r[0] for r in rows]
+
     async def record_error(
         self,
         error_type: str,
@@ -131,3 +177,153 @@ class StatisticsDB:
         last_error = last_row[0] if last_row else None
 
         return total, by_type, last_error
+
+    # --- Secretary pending prompts (auto-deletion) ---
+
+    async def add_pending_prompt(
+        self, connection_id: str, chat_id: int, message_id: int
+    ) -> None:
+        """Record an untranscribed prompt so it can be auto-deleted later."""
+        assert self._db is not None
+        await self._db.execute(
+            """
+            INSERT INTO secretary_pending_prompts
+                (connection_id, chat_id, message_id)
+            VALUES (?, ?, ?)
+            """,
+            (connection_id, chat_id, message_id),
+        )
+        await self._db.commit()
+
+    async def remove_pending_prompt(
+        self, connection_id: str, message_id: int
+    ) -> None:
+        """Remove a prompt once it has been transcribed or deleted."""
+        assert self._db is not None
+        await self._db.execute(
+            """
+            DELETE FROM secretary_pending_prompts
+            WHERE connection_id = ? AND message_id = ?
+            """,
+            (connection_id, message_id),
+        )
+        await self._db.commit()
+
+    async def get_expired_pending_prompts(
+        self, older_than_seconds: int
+    ) -> list[tuple[str, int, int]]:
+        """Return (connection_id, chat_id, message_id) for prompts older
+        than the given age."""
+        assert self._db is not None
+        async with self._db.execute(
+            """
+            SELECT connection_id, chat_id, message_id
+            FROM secretary_pending_prompts
+            WHERE created_at <= datetime('now', ?)
+            """,
+            (f"-{int(older_than_seconds)} seconds",),
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [(r[0], r[1], r[2]) for r in rows]
+
+    # --- Secretary usage stats ---
+
+    async def record_secretary_usage(
+        self, user_id: int, username: str | None, audio_duration: int
+    ) -> None:
+        assert self._db is not None
+        await self._db.execute(
+            """
+            INSERT INTO secretary_statistics
+                (user_id, username, total_transcriptions,
+                 total_audio_duration_seconds, first_used_at, last_used_at)
+            VALUES (?, ?, 1, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET
+                username = COALESCE(?, username),
+                total_transcriptions = total_transcriptions + 1,
+                total_audio_duration_seconds = total_audio_duration_seconds + ?,
+                last_used_at = CURRENT_TIMESTAMP
+            """,
+            (user_id, username, audio_duration, username, audio_duration),
+        )
+        await self._db.commit()
+
+    async def get_secretary_stats(
+        self, user_id: int
+    ) -> tuple[int, int, str | None, str | None] | None:
+        """Returns (total_transcriptions, total_duration, first_used, last_used) or None."""
+        assert self._db is not None
+        async with self._db.execute(
+            """
+            SELECT total_transcriptions, total_audio_duration_seconds,
+                   first_used_at, last_used_at
+            FROM secretary_statistics WHERE user_id = ?
+            """,
+            (user_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        return (row[0], row[1], row[2], row[3])
+
+    async def get_all_secretary_stats(
+        self,
+    ) -> list[tuple[int, str | None, int, int, str | None, str | None]]:
+        """Returns list of (user_id, username, transcriptions, duration, first, last)."""
+        assert self._db is not None
+        async with self._db.execute(
+            """
+            SELECT user_id, username, total_transcriptions,
+                   total_audio_duration_seconds, first_used_at, last_used_at
+            FROM secretary_statistics ORDER BY last_used_at DESC
+            """
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [(r[0], r[1], r[2], r[3], r[4], r[5]) for r in rows]
+
+    # --- Secretary connections ---
+
+    async def save_secretary_connection(
+        self, user_id: int, connection_id: str, username: str | None
+    ) -> None:
+        assert self._db is not None
+        await self._db.execute(
+            """
+            INSERT INTO secretary_connections
+                (user_id, connection_id, username)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                connection_id = ?, username = COALESCE(?, username),
+                connected_at = CURRENT_TIMESTAMP
+            """,
+            (user_id, connection_id, username, connection_id, username),
+        )
+        await self._db.commit()
+
+    async def remove_secretary_connection(self, user_id: int) -> None:
+        assert self._db is not None
+        await self._db.execute(
+            "DELETE FROM secretary_connections WHERE user_id = ?",
+            (user_id,),
+        )
+        await self._db.commit()
+
+    async def get_all_secretary_connections(
+        self,
+    ) -> list[tuple[int, str]]:
+        """Returns list of (user_id, connection_id) for active connections."""
+        assert self._db is not None
+        async with self._db.execute(
+            "SELECT user_id, connection_id FROM secretary_connections"
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [(r[0], r[1]) for r in rows]
+
+    async def is_user_secretary_connected(self, user_id: int) -> bool:
+        assert self._db is not None
+        async with self._db.execute(
+            "SELECT 1 FROM secretary_connections WHERE user_id = ?",
+            (user_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        return row is not None

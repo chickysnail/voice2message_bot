@@ -39,3 +39,23 @@ class AdminNotifier:
                 await self._bot.send_message(chat_id=admin_id, text=message)
             except Exception:
                 logger.exception("Failed to notify admin %d", admin_id)
+
+    async def notify_secretary_event(
+        self,
+        event: str,
+        username: str | None,
+        user_id: int,
+    ) -> None:
+        """Notify admins about secretary connection/disconnection."""
+        if not self._admin_user_ids:
+            return
+
+        emoji = "\U0001f517" if event == "connected" else "\U0000274c"
+        user_ref = f"@{username}" if username else str(user_id)
+        message = f"{emoji} Secretary {event}: {user_ref} (ID: {user_id})"
+
+        for admin_id in self._admin_user_ids:
+            try:
+                await self._bot.send_message(chat_id=admin_id, text=message)
+            except Exception:
+                logger.exception("Failed to notify admin %d", admin_id)

@@ -4,9 +4,10 @@ import logging
 import os
 import tempfile
 import uuid
+from pathlib import Path
 
-from telegram import Update
-from telegram.constants import ParseMode
+from telegram import InputMediaPhoto, Update
+from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
@@ -14,9 +15,12 @@ from src.bot.keyboards import (
     CALLBACK_EXPORT_SRT,
     CALLBACK_EXPORT_TXT,
     CALLBACK_SAVE_FILE,
+    CALLBACK_SECRETARY_SETUP,
     CALLBACK_SUMMARIZE,
     file_format_keyboard,
     post_transcription_keyboard,
+    secretary_settings_keyboard,
+    secretary_setup_keyboard,
 )
 from src.bot.locales import t
 from src.bot.services.audio import extract_audio, get_audio_duration
@@ -29,6 +33,19 @@ from src.bot.storage.transcription_store import TranscriptionStore
 from src.bot.utils.text import format_duration, split_message
 
 logger = logging.getLogger(__name__)
+
+_ASSETS_DIR = Path(__file__).parent / "assets"
+SECRETARY_SETUP_IMAGES = [
+    _ASSETS_DIR / f"secretary_setup_{i}.jpg" for i in (1, 2, 3)
+]
+
+
+def _secretary_setup_media() -> list[InputMediaPhoto]:
+    """Build the 3-image album that illustrates secretary setup."""
+    return [
+        InputMediaPhoto(media=path.read_bytes())
+        for path in SECRETARY_SETUP_IMAGES
+    ]
 
 
 class BotHandlers:
@@ -59,10 +76,17 @@ class BotHandlers:
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.message or not update.effective_user:
             return
-        lang = update.effective_user.language_code or "en"
+        user = update.effective_user
+        lang = user.language_code or "en"
+        connected = await self._stats_db.is_user_secretary_connected(user.id)
+        keyboard = (
+            secretary_settings_keyboard(lang) if connected
+            else secretary_setup_keyboard(lang)
+        )
         await update.message.reply_text(
-            t("greeting", lang, user=update.effective_user.mention_html()),
+            t("greeting", lang, user=user.mention_html()),
             parse_mode=ParseMode.HTML,
+            reply_markup=keyboard,
         )
 
     async def help_command(
@@ -76,6 +100,15 @@ class BotHandlers:
             else "en"
         ) or "en"
         await update.message.reply_text(t("help", lang))
+
+    async def handle_text(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Nudge users who send plain text instead of audio."""
+        if not update.message or not update.effective_user:
+            return
+        lang = update.effective_user.language_code or "en"
+        await update.message.reply_text(t("text_nudge", lang))
 
     async def handle_audio(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -139,7 +172,10 @@ class BotHandlers:
             )
             return
 
-        # Send a "processing" message
+        # Send a "processing" message and show typing indicator
+        await context.bot.send_chat_action(
+            chat_id=message.chat_id, action=ChatAction.TYPING
+        )
         processing_msg = await message.reply_text(t("transcribing", lang))
 
         file_path: str | None = None
@@ -340,7 +376,7 @@ class BotHandlers:
                 if is_last:
                     await message.reply_text(
                         chunk,
-                        reply_markup=post_transcription_keyboard(original_message_id),
+                        reply_markup=post_transcription_keyboard(original_message_id, lang),
                     )
                 else:
                     await message.reply_text(chunk)
@@ -387,6 +423,25 @@ class BotHandlers:
         await query.answer()
 
         data = query.data
+        user = update.effective_user
+        lang = user.language_code or "en"
+
+        # Handle secretary setup button (no colon, single token)
+        if data == CALLBACK_SECRETARY_SETUP:
+            connected = await self._stats_db.is_user_secretary_connected(
+                user.id
+            )
+            key = "secretary_connected" if connected else "secretary_setup"
+            await query.edit_message_text(
+                t(key, lang),
+                parse_mode=ParseMode.HTML,
+            )
+            if not connected:
+                await query.message.reply_media_group(
+                    _secretary_setup_media()
+                )
+            return
+
         parts = data.split(":")
         if len(parts) != 2:
             return
@@ -396,8 +451,6 @@ class BotHandlers:
             original_message_id = int(parts[1])
         except ValueError:
             return
-
-        user = update.effective_user
 
         if action == CALLBACK_SUMMARIZE:
             await self._handle_summarize(query, user, original_message_id)
@@ -532,6 +585,80 @@ class BotHandlers:
             "Exported %s for user %s (%d)", filename, user.username, user.id
         )
 
+    async def secretary_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Handle /secretary command — show setup or connected status."""
+        if not update.message or not update.effective_user:
+            return
+
+        user = update.effective_user
+        lang = user.language_code or "en"
+
+        connected = await self._stats_db.is_user_secretary_connected(user.id)
+        key = "secretary_connected" if connected else "secretary_setup"
+        await update.message.reply_text(
+            t(key, lang),
+            parse_mode=ParseMode.HTML,
+        )
+        # Show the visual setup guide below the text for users who
+        # haven't connected the bot yet.
+        if not connected:
+            await update.message.reply_media_group(_secretary_setup_media())
+
+    async def broadcast_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Admin-only: announce secretary mode to all known users.
+
+        `/broadcast` shows a preview and the recipient count.
+        `/broadcast confirm` sends it.
+        """
+        if not update.message or not update.effective_user:
+            return
+        if update.effective_user.id not in self._admin_ids:
+            return
+
+        user_ids = await self._stats_db.get_all_user_ids()
+        args = context.args or []
+        confirm = bool(args) and args[0] == "confirm"
+
+        if not confirm:
+            await update.message.reply_text(
+                f"📢 Preview below — will be sent to {len(user_ids)} users.\n"
+                "Send /broadcast confirm to send it."
+            )
+            await update.message.reply_text(
+                t("broadcast_secretary", "en"),
+                parse_mode=ParseMode.HTML,
+            )
+            await update.message.reply_media_group(_secretary_setup_media())
+            return
+
+        sent = 0
+        failed = 0
+        for uid in user_ids:
+            try:
+                await context.bot.send_message(
+                    chat_id=uid,
+                    text=t("broadcast_secretary", "en"),
+                    parse_mode=ParseMode.HTML,
+                )
+                await context.bot.send_media_group(
+                    chat_id=uid,
+                    media=_secretary_setup_media(),
+                )
+                sent += 1
+            except Exception as e:
+                failed += 1
+                logger.warning("Broadcast to %d failed: %s", uid, e)
+            # Stay well under Telegram's per-second message limits.
+            await asyncio.sleep(0.05)
+
+        await update.message.reply_text(
+            f"📢 Broadcast complete. Sent: {sent}, failed: {failed}."
+        )
+
     async def stats_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
@@ -546,30 +673,99 @@ class BotHandlers:
 
         lang = user.language_code or "en"
 
-        stats = await self._stats_db.get_user_stats(user.id)
-        if stats is None:
+        direct = await self._stats_db.get_user_stats(user.id)
+        sec = await self._stats_db.get_secretary_stats(user.id)
+
+        if direct is None and sec is None:
             await update.message.reply_text(t("no_usage", lang))
             return
 
-        transcriptions, total_duration, first_used, last_used = stats
-        await update.message.reply_text(
-            t("your_stats", lang,
-              transcriptions=transcriptions,
-              duration=format_duration(total_duration),
-              first_used=first_used,
-              last_used=last_used)
+        lines: list[str] = []
+        total_t = 0
+        total_d = 0
+        first_used = None
+        last_used = None
+
+        if direct:
+            dt, dd, df, dl = direct
+            total_t += dt
+            total_d += dd
+            first_used = df
+            last_used = dl
+            lines.append(
+                t("stats_direct", lang,
+                  transcriptions=dt, duration=format_duration(dd))
+            )
+
+        if sec:
+            st, sd, sf, sl = sec
+            total_t += st
+            total_d += sd
+            if first_used is None or (sf and sf < first_used):
+                first_used = sf
+            if last_used is None or (sl and sl > last_used):
+                last_used = sl
+            lines.append(
+                t("stats_secretary", lang,
+                  transcriptions=st, duration=format_duration(sd))
+            )
+
+        lines.append(
+            t("stats_total", lang,
+              transcriptions=total_t, duration=format_duration(total_d))
         )
+        lines.append(
+            t("stats_dates", lang,
+              first_used=first_used or "—", last_used=last_used or "—")
+        )
+
+        await update.message.reply_text("\n".join(lines))
 
         # Admin: show all users + error stats
         if user.id in self._admin_ids:
-            all_stats = await self._stats_db.get_all_stats()
-            if all_stats:
-                lines = ["All users:"]
-                for uid, uname, count, dur, _, last in all_stats:
-                    lines.append(
-                        f"@{uname or uid} | {count} msgs | {format_duration(dur)} | last: {last}"
-                    )
-                await update.message.reply_text("\n".join(lines))
+            all_direct = await self._stats_db.get_all_stats()
+            all_sec = await self._stats_db.get_all_secretary_stats()
+
+            # Build combined per-user stats
+            user_data: dict[int, dict[str, object]] = {}
+            for uid, uname, count, dur, _, last in all_direct:
+                user_data[uid] = {
+                    "name": uname, "d_count": count, "d_dur": dur,
+                    "s_count": 0, "s_dur": 0, "last": last,
+                }
+            for uid, uname, count, dur, _, last in all_sec:
+                if uid in user_data:
+                    entry = user_data[uid]
+                    entry["s_count"] = count
+                    entry["s_dur"] = dur
+                    if last and (not entry["last"] or last > entry["last"]):  # type: ignore[operator]
+                        entry["last"] = last
+                else:
+                    user_data[uid] = {
+                        "name": uname, "d_count": 0, "d_dur": 0,
+                        "s_count": count, "s_dur": dur, "last": last,
+                    }
+
+            if user_data:
+                admin_lines = ["All users:"]
+                for uid, d in sorted(
+                    user_data.items(),
+                    key=lambda x: x[1]["last"] or "",  # type: ignore[arg-type]
+                    reverse=True,
+                ):
+                    name = d["name"] or uid
+                    d_count = d["d_count"]
+                    s_count = d["s_count"]
+                    total = int(d_count) + int(s_count)  # type: ignore[arg-type]
+                    total_dur = int(d["d_dur"]) + int(d["s_dur"])  # type: ignore[arg-type]
+                    parts = [f"@{name} | {total} msgs | {format_duration(total_dur)}"]
+                    if int(d_count) > 0 and int(s_count) > 0:  # type: ignore[arg-type]
+                        parts.append(f"(D:{d_count} S:{s_count})")
+                    elif int(s_count) > 0:  # type: ignore[arg-type]
+                        parts.append("(S)")
+                    parts.append(f"| last: {d['last']}")
+                    admin_lines.append(" ".join(parts))
+                await update.message.reply_text("\n".join(admin_lines))
             else:
                 await update.message.reply_text("No user stats found in database.")
 
