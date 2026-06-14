@@ -635,3 +635,51 @@ async def test_smart_dedup_always_transcribes_incoming(
     await handler.handle_business_message(_make_update_with_business_message(msg), ctx)
 
     bot.send_message.assert_called_once()
+
+
+async def test_outgoing_skipped_does_not_block_incoming(
+    handler: SecretaryHandler, db: StatisticsDB
+) -> None:
+    """Regression: outgoing event arrives first and is skipped by smart dedup.
+    The incoming event (same file_id, different connection) must still be
+    processed — the file_id dedup must not block it."""
+    user_a = _make_user(user_id=42, username="user_a")
+    user_b = _make_user(user_id=99, username="user_b")
+
+    conn_a = _make_business_connection(conn_id="biz_a", user=user_a)
+    conn_b = _make_business_connection(conn_id="biz_b", user=user_b)
+    handler._connections["biz_a"] = conn_a
+    handler._connections["biz_b"] = conn_b
+    await db.save_secretary_connection(42, "biz_a", "user_a")
+    await db.save_secretary_connection(99, "biz_b", "user_b")
+
+    shared_file_id = "voice_both_connected"
+
+    # 1) Outgoing event via A's connection (A sent it → chat with B)
+    msg_out = _make_voice_message(biz_conn_id="biz_a", chat_id=99)
+    msg_out.from_user = user_a
+    msg_out.voice.file_id = shared_file_id
+
+    bot = AsyncMock()
+    sent_msg = MagicMock()
+    sent_msg.message_id = 200
+    sent_msg.chat.id = 42
+    bot.send_message = AsyncMock(return_value=sent_msg)
+    ctx = _make_context(bot)
+
+    await handler.handle_business_message(
+        _make_update_with_business_message(msg_out), ctx
+    )
+    # Outgoing should be skipped (recipient B also has secretary)
+    bot.send_message.assert_not_called()
+
+    # 2) Incoming event via B's connection (A sent it → appears in B's chat)
+    msg_in = _make_voice_message(biz_conn_id="biz_b", chat_id=42)
+    msg_in.from_user = user_a
+    msg_in.voice.file_id = shared_file_id
+
+    await handler.handle_business_message(
+        _make_update_with_business_message(msg_in), ctx
+    )
+    # Incoming must be processed despite the same file_id
+    bot.send_message.assert_called_once()
