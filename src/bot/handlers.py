@@ -6,7 +6,7 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from telegram import InputMediaPhoto, Update
+from telegram import InputMediaPhoto, LabeledPrice, Update
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
@@ -17,6 +17,7 @@ from src.bot.keyboards import (
     CALLBACK_SAVE_FILE,
     CALLBACK_SECRETARY_SETUP,
     CALLBACK_SUMMARIZE,
+    donation_keyboard,
     file_format_keyboard,
     post_transcription_keyboard,
     secretary_settings_keyboard,
@@ -39,6 +40,21 @@ SECRETARY_SETUP_IMAGES = [
     _ASSETS_DIR / f"secretary_setup_{i}.jpg" for i in (1, 2, 3)
 ]
 SECRETARY_EXPLAINER_VIDEO = _ASSETS_DIR / "secretary_explainer.mp4"
+
+# Show a one-time donation prompt after this many total transcriptions.
+DONATION_PROMPT_THRESHOLD = 10
+
+# ------------------------------------------------------------------
+# Future token system (not yet implemented):
+#
+#   - New users get 2 hours of free transcription on signup.
+#   - After the free quota, allow 5–10 messages per month (capped at
+#     1 hour total audio).
+#   - Referral bonus: credit the referrer when the invited user
+#     completes their first transcription (store referred_by on user
+#     creation).
+#   - Payments via Telegram Stars.
+# ------------------------------------------------------------------
 
 
 def _secretary_setup_media() -> list[InputMediaPhoto]:
@@ -393,6 +409,10 @@ class BotHandlers:
                 user.username,
                 user.id,
                 format_duration(duration) if duration else "unknown",
+            )
+
+            await self._maybe_prompt_donation(
+                user.id, message.chat_id, lang, context
             )
 
         except Exception as e:
@@ -800,6 +820,68 @@ class BotHandlers:
                 await update.message.reply_document(f, filename="bot.log")
         else:
             await update.message.reply_text("Log file not found.")
+
+    async def _maybe_prompt_donation(
+        self, user_id: int, chat_id: int, lang: str, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Send a one-time donation prompt once the user crosses the threshold."""
+        if await self._stats_db.has_seen_donation_prompt(user_id):
+            return
+        total = await self._stats_db.get_total_transcriptions(user_id)
+        if total < DONATION_PROMPT_THRESHOLD:
+            return
+        await self._stats_db.mark_donation_prompt_shown(user_id)
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=t("donation_prompt", lang, count=total),
+            reply_markup=donation_keyboard(lang),
+        )
+
+    async def handle_donate_callback(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Send a Telegram Stars invoice when a donation button is tapped."""
+        query = update.callback_query
+        if not query or not query.data or not update.effective_user:
+            return
+
+        await query.answer()
+
+        parts = query.data.split(":")
+        if len(parts) != 2:
+            return
+        try:
+            amount = int(parts[1])
+        except ValueError:
+            return
+
+        lang = update.effective_user.language_code or "en"
+        await query.edit_message_reply_markup(reply_markup=None)
+
+        await context.bot.send_invoice(
+            chat_id=update.effective_user.id,
+            title=t("btn_donate", lang, amount=amount),
+            description=t("donation_prompt", lang, count=""),
+            payload=f"donate_{amount}",
+            currency="XTR",
+            prices=[LabeledPrice(label="Stars", amount=amount)],
+        )
+
+    async def handle_pre_checkout(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Approve all pre-checkout queries for donations."""
+        if update.pre_checkout_query:
+            await update.pre_checkout_query.answer(ok=True)
+
+    async def handle_successful_payment(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Thank the user after a successful Stars payment."""
+        if not update.message or not update.effective_user:
+            return
+        lang = update.effective_user.language_code or "en"
+        await update.message.reply_text(t("donation_thanks", lang))
 
     @property
     def _admin_ids(self) -> list[int]:

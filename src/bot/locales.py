@@ -442,6 +442,19 @@ _STRINGS: dict[str, dict[str, str]] = {
         "id": "Tidak dapat memproses video ini. Silakan coba lagi atau kirim audionya saja.",
         "fa": "پردازش این ویدیو ممکن نشد. لطفاً دوباره امتحان کنید یا فقط صوت را بفرستید.",
     },
+    "donation_prompt": {
+        "en": (
+            "You've transcribed {count} messages — glad the bot is useful!\n"
+            "\n"
+            "If you'd like to support development, you can leave a tip with Telegram Stars."
+        ),
+    },
+    "donation_thanks": {
+        "en": "Thank you for your support! 🌟",
+    },
+    "btn_donate": {
+        "en": "Support ⭐{amount}",
+    },
 }
 
 

@@ -73,6 +73,22 @@ def secretary_setup_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     ])
 
 
+DONATION_STAR_AMOUNTS = [50, 100, 250]
+
+
+def donation_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
+    """Inline keyboard with Telegram Stars donation tiers."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                t("btn_donate", lang, amount=amount),
+                callback_data=f"donate:{amount}",
+            )
+            for amount in DONATION_STAR_AMOUNTS
+        ]
+    ])
+
+
 def secretary_settings_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
     """Button shown in /start when secretary is already connected."""
     return InlineKeyboardMarkup([
