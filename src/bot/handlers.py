@@ -38,6 +38,7 @@ _ASSETS_DIR = Path(__file__).parent / "assets"
 SECRETARY_SETUP_IMAGES = [
     _ASSETS_DIR / f"secretary_setup_{i}.jpg" for i in (1, 2, 3)
 ]
+SECRETARY_EXPLAINER_VIDEO = _ASSETS_DIR / "secretary_explainer.mp4"
 
 
 def _secretary_setup_media() -> list[InputMediaPhoto]:
@@ -86,7 +87,13 @@ class BotHandlers:
         await update.message.reply_text(
             t("greeting", lang, user=user.mention_html()),
             parse_mode=ParseMode.HTML,
+        )
+        await update.message.reply_text(
+            t("secretary_promo", lang),
             reply_markup=keyboard,
+        )
+        await update.message.reply_video(
+            video=SECRETARY_EXPLAINER_VIDEO.read_bytes(),
         )
 
     async def help_command(
