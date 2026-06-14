@@ -436,6 +436,10 @@ class BotHandlers:
                 t(key, lang),
                 parse_mode=ParseMode.HTML,
             )
+            if not connected:
+                await query.message.reply_media_group(
+                    _secretary_setup_media()
+                )
             return
 
         parts = data.split(":")
