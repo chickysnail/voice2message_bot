@@ -164,7 +164,6 @@ class SecretaryHandler:
         if file_id in self._recent_file_ids:
             logger.debug("Skipping duplicate file_id %s", file_id)
             return
-        self._recent_file_ids[file_id] = time.monotonic()
 
         # Determine the bot-owner user from the connection
         conn = self._connections.get(biz_conn_id)
@@ -194,6 +193,8 @@ class SecretaryHandler:
         # Smart dedup: if the owner sent this message (outgoing) and the
         # other person also has the bot as secretary, skip — the
         # recipient's connection will handle it as an incoming message.
+        # NOTE: do NOT record file_id before this check; otherwise the
+        # outgoing event "burns" the id and the incoming event is blocked.
         if message.from_user and message.from_user.id == owner_user.id:
             other_user_id = message.chat.id
             if await self._stats_db.is_user_secretary_connected(other_user_id):
@@ -203,6 +204,9 @@ class SecretaryHandler:
                     owner_user.id, other_user_id,
                 )
                 return
+
+        # Record file_id only after we commit to processing this message.
+        self._recent_file_ids[file_id] = time.monotonic()
 
         lang = owner_user.language_code or "en"
         await self._safe_send_prompt(context.bot, message, biz_conn_id, lang)
