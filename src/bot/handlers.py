@@ -41,20 +41,9 @@ SECRETARY_SETUP_IMAGES = [
 ]
 SECRETARY_EXPLAINER_VIDEO = _ASSETS_DIR / "secretary_explainer.mp4"
 
-# Show a one-time donation prompt after this many total transcriptions.
-DONATION_PROMPT_THRESHOLD = 10
-
-# ------------------------------------------------------------------
-# Future token system (not yet implemented):
-#
-#   - New users get 2 hours of free transcription on signup.
-#   - After the free quota, allow 5–10 messages per month (capped at
-#     1 hour total audio).
-#   - Referral bonus: credit the referrer when the invited user
-#     completes their first transcription (store referred_by on user
-#     creation).
-#   - Payments via Telegram Stars.
-# ------------------------------------------------------------------
+# Show a soft donation prompt on the processing message when the
+# audio is longer than this threshold (seconds).
+DONATION_DURATION_THRESHOLD = 60
 
 
 def _secretary_setup_media() -> list[InputMediaPhoto]:
@@ -199,7 +188,16 @@ class BotHandlers:
         await context.bot.send_chat_action(
             chat_id=message.chat_id, action=ChatAction.TYPING
         )
-        processing_msg = await message.reply_text(t("transcribing", lang))
+        show_donation = bool(duration and duration >= DONATION_DURATION_THRESHOLD)
+        processing_text = (
+            t("transcribing_donate", lang)
+            if show_donation
+            else t("transcribing", lang)
+        )
+        processing_msg = await message.reply_text(
+            processing_text,
+            reply_markup=donation_keyboard(lang) if show_donation else None,
+        )
 
         file_path: str | None = None
         audio_path: str | None = None
@@ -409,10 +407,6 @@ class BotHandlers:
                 user.username,
                 user.id,
                 format_duration(duration) if duration else "unknown",
-            )
-
-            await self._maybe_prompt_donation(
-                user.id, message.chat_id, lang, context
             )
 
         except Exception as e:
@@ -820,22 +814,6 @@ class BotHandlers:
                 await update.message.reply_document(f, filename="bot.log")
         else:
             await update.message.reply_text("Log file not found.")
-
-    async def _maybe_prompt_donation(
-        self, user_id: int, chat_id: int, lang: str, context: ContextTypes.DEFAULT_TYPE
-    ) -> None:
-        """Send a one-time donation prompt once the user crosses the threshold."""
-        if await self._stats_db.has_seen_donation_prompt(user_id):
-            return
-        total = await self._stats_db.get_total_transcriptions(user_id)
-        if total < DONATION_PROMPT_THRESHOLD:
-            return
-        await self._stats_db.mark_donation_prompt_shown(user_id)
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=t("donation_prompt", lang, count=total),
-            reply_markup=donation_keyboard(lang),
-        )
 
     async def handle_donate_callback(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE

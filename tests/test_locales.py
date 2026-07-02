@@ -1,4 +1,4 @@
-from src.bot.locales import t
+from src.bot.locales import SUPPORTED_LANGS, t
 
 
 def test_english_fallback() -> None:
@@ -72,23 +72,17 @@ def test_keyboard_uses_localized_labels() -> None:
     assert tr_ru.inline_keyboard[0][0].text != "📝 Transcribe"
 
 
-def test_no_partial_translations() -> None:
-    """English-only keys are OK (work in progress).
-
-    But if a key has English + at least one other language,
-    ALL supported languages must be present — partial translations
-    mean something was missed.
-    """
+def test_all_keys_have_all_supported_languages() -> None:
+    """Every key must have translations for all supported languages (en, ru)."""
     from src.bot.locales import _STRINGS
 
-    expected_langs = {"en", "ru", "hi", "id", "fa"}
     for key, translations in _STRINGS.items():
         langs = set(translations.keys())
-        if langs == {"en"}:
-            continue
-        missing = expected_langs - langs
+        missing = SUPPORTED_LANGS - langs
         assert not missing, (
-            f"Key '{key}' has partial translations — "
-            f"missing: {missing}. Either add all languages "
-            f"or keep English-only during development."
+            f"Key '{key}' is missing translations for: {missing}"
+        )
+        extra = langs - SUPPORTED_LANGS
+        assert not extra, (
+            f"Key '{key}' has unsupported languages: {extra}"
         )
