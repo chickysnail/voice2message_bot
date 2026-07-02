@@ -63,13 +63,6 @@ class StatisticsDB:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # Track which users have already seen the donation prompt.
-        await self._db.execute("""
-            CREATE TABLE IF NOT EXISTS donation_prompts (
-                user_id INTEGER PRIMARY KEY,
-                prompted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
         await self._db.commit()
 
     async def close(self) -> None:
@@ -325,42 +318,6 @@ class StatisticsDB:
         ) as cursor:
             rows = await cursor.fetchall()
         return [(r[0], r[1]) for r in rows]
-
-    # --- Donation tracking ---
-
-    async def get_total_transcriptions(self, user_id: int) -> int:
-        """Return combined direct + secretary transcription count."""
-        assert self._db is not None
-        async with self._db.execute(
-            """
-            SELECT COALESCE(
-                (SELECT total_transcriptions FROM user_statistics WHERE user_id = ?), 0
-            ) + COALESCE(
-                (SELECT total_transcriptions FROM secretary_statistics WHERE user_id = ?), 0
-            )
-            """,
-            (user_id, user_id),
-        ) as cursor:
-            row = await cursor.fetchone()
-        return row[0] if row else 0
-
-    async def has_seen_donation_prompt(self, user_id: int) -> bool:
-        assert self._db is not None
-        async with self._db.execute(
-            "SELECT 1 FROM donation_prompts WHERE user_id = ?",
-            (user_id,),
-        ) as cursor:
-            return await cursor.fetchone() is not None
-
-    async def mark_donation_prompt_shown(self, user_id: int) -> None:
-        assert self._db is not None
-        await self._db.execute(
-            """
-            INSERT OR IGNORE INTO donation_prompts (user_id) VALUES (?)
-            """,
-            (user_id,),
-        )
-        await self._db.commit()
 
     async def is_user_secretary_connected(self, user_id: int) -> bool:
         assert self._db is not None
