@@ -189,15 +189,21 @@ class BotHandlers:
             chat_id=message.chat_id, action=ChatAction.TYPING
         )
         show_donation = bool(duration and duration >= DONATION_DURATION_THRESHOLD)
-        processing_text = (
-            t("transcribing_donate", lang)
-            if show_donation
-            else t("transcribing", lang)
-        )
-        processing_msg = await message.reply_text(
-            processing_text,
-            reply_markup=donation_keyboard(lang) if show_donation else None,
-        )
+        processing_msg = await message.reply_text(t("transcribing", lang))
+
+        async def _delayed_donation_edit() -> None:
+            await asyncio.sleep(1.5)
+            try:
+                await processing_msg.edit_text(
+                    t("transcribing_donate", lang),
+                    reply_markup=donation_keyboard(lang),
+                )
+            except Exception:
+                pass
+
+        donation_task: asyncio.Task[None] | None = None
+        if show_donation:
+            donation_task = asyncio.create_task(_delayed_donation_edit())
 
         file_path: str | None = None
         audio_path: str | None = None
@@ -427,6 +433,8 @@ class BotHandlers:
                 "Unexpected error", user.username, str(e)
             )
         finally:
+            if donation_task is not None:
+                donation_task.cancel()
             # Clean up temp files
             if file_path and os.path.exists(file_path):
                 os.remove(file_path)

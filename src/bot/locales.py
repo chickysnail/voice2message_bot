@@ -57,11 +57,15 @@ _STRINGS: dict[str, dict[str, str]] = {
     },
     "transcribing_donate": {
         "en": (
-            "Transcribing... If you enjoy the bot, you can support it with "
+            "Transcribing...\n"
+            "\n"
+            "If you enjoy the bot, you can support it with "
             "Telegram Stars — it would mean the world to me ^^"
         ),
         "ru": (
-            "Расшифровываю... Если бот вам полезен, вы можете поддержать "
+            "Расшифровываю...\n"
+            "\n"
+            "Если бот вам полезен, вы можете поддержать "
             "его звёздами Telegram — это значило бы для меня очень много ^^"
         ),
     },
@@ -265,8 +269,8 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ru": "Спасибо за вашу поддержку! 🌟",
     },
     "btn_donate": {
-        "en": "Support ⭐{amount}",
-        "ru": "Поддержать ⭐{amount}",
+        "en": "⭐{amount}",
+        "ru": "⭐{amount}",
     },
 }
 
