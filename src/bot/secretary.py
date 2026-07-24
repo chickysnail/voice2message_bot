@@ -10,7 +10,7 @@ import uuid
 
 from telegram import Bot, BusinessConnection, Message, Update, User
 from telegram.constants import ParseMode
-from telegram.error import BadRequest
+from telegram.error import BadRequest, NetworkError
 from telegram.ext import ContextTypes
 
 from src.bot.keyboards import (
@@ -22,6 +22,7 @@ from src.bot.services.audio import extract_audio, get_audio_duration
 from src.bot.services.notifier import AdminNotifier
 from src.bot.services.transcription import EmptyTranscriptionError, TranscriptionClient
 from src.bot.storage.statistics import StatisticsDB
+from src.bot.utils.retry import with_network_retry
 from src.bot.utils.text import format_duration, split_message
 
 logger = logging.getLogger(__name__)
@@ -406,9 +407,10 @@ class SecretaryHandler:
         try:
             # Download file
             try:
-                tg_file = await asyncio.wait_for(
-                    bot.get_file(file_id),
+                tg_file = await with_network_retry(
+                    lambda: bot.get_file(file_id),
                     timeout=self._file_download_timeout,
+                    description="secretary get_file",
                 )
             except TimeoutError:
                 await bot.edit_message_text(
@@ -423,13 +425,27 @@ class SecretaryHandler:
                     error_detail=f"{file_type}, timed out after {self._file_download_timeout}s",
                 )
                 return
+            except NetworkError as e:
+                await bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=status_msg.message_id,
+                    text=t('download_timeout', lang),
+                    business_connection_id=biz_conn_id,
+                )
+                await self._notifier.notify_error(
+                    "Secretary: file download network error",
+                    username=owner_user.username,
+                    error_detail=f"{file_type}, {e!r}",
+                )
+                return
 
             ext = (tg_file.file_path or "").rsplit(".", 1)[-1] if tg_file.file_path else "ogg"
             file_path = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}.{ext}")
             try:
-                await asyncio.wait_for(
-                    tg_file.download_to_drive(custom_path=file_path),
+                await with_network_retry(
+                    lambda: tg_file.download_to_drive(custom_path=file_path),
                     timeout=self._file_download_timeout,
+                    description="secretary download_to_drive",
                 )
             except TimeoutError:
                 await bot.edit_message_text(
@@ -437,6 +453,19 @@ class SecretaryHandler:
                     message_id=status_msg.message_id,
                     text=t('download_timeout', lang),
                     business_connection_id=biz_conn_id,
+                )
+                return
+            except NetworkError as e:
+                await bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=status_msg.message_id,
+                    text=t('download_timeout', lang),
+                    business_connection_id=biz_conn_id,
+                )
+                await self._notifier.notify_error(
+                    "Secretary: file download network error",
+                    username=owner_user.username,
+                    error_detail=f"{file_type}, {e!r}",
                 )
                 return
 
