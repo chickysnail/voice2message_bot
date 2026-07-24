@@ -6,7 +6,7 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from telegram import InputMediaPhoto, LabeledPrice, Update
+from telegram import InputMediaPhoto, LabeledPrice, Message, Update, User
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest, NetworkError
 from telegram.ext import ContextTypes
@@ -26,9 +26,19 @@ from src.bot.keyboards import (
 from src.bot.locales import t
 from src.bot.services.audio import extract_audio, get_audio_duration
 from src.bot.services.export import generate_srt, generate_txt
+from src.bot.services.media_download import (
+    MediaDownloadError,
+    RapidAPIMediaResolver,
+    download_media,
+    find_link,
+)
 from src.bot.services.notifier import AdminNotifier
 from src.bot.services.summarization import SummarizationClient
-from src.bot.services.transcription import EmptyTranscriptionError, TranscriptionClient
+from src.bot.services.transcription import (
+    EmptyTranscriptionError,
+    TranscriptionClient,
+    TranscriptionResult,
+)
 from src.bot.storage.statistics import StatisticsDB
 from src.bot.storage.transcription_store import TranscriptionStore
 from src.bot.utils.retry import with_network_retry
@@ -69,6 +79,7 @@ class BotHandlers:
         transcription_timeout: int = 900,
         ffmpeg_timeout: int = 120,
         file_download_timeout: int = 60,
+        media_resolver: RapidAPIMediaResolver | None = None,
     ) -> None:
         self._transcriber = transcriber
         self._summarizer = summarizer
@@ -79,6 +90,7 @@ class BotHandlers:
         self._transcription_timeout = transcription_timeout
         self._ffmpeg_timeout = ffmpeg_timeout
         self._file_download_timeout = file_download_timeout
+        self._media_resolver = media_resolver
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.message or not update.effective_user:
@@ -117,11 +129,187 @@ class BotHandlers:
     async def handle_text(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
-        """Nudge users who send plain text instead of audio."""
+        """Transcribe a supported media link, or nudge users who send plain text."""
         if not update.message or not update.effective_user:
             return
         lang = update.effective_user.language_code or "en"
+        link = find_link(update.message.text or "")
+        if link:
+            await self._handle_media_link(update.message, update.effective_user, link)
+            return
         await update.message.reply_text(t("text_nudge", lang))
+
+    async def _handle_media_link(
+        self, message: Message, user: User, link: str
+    ) -> None:
+        """Download the audio track of a linked reel/post and transcribe it."""
+        lang = user.language_code or "en"
+        if self._media_resolver is None:
+            await message.reply_text(t("link_unsupported", lang))
+            return
+
+        processing_msg = await message.reply_text(t("link_downloading", lang))
+        media_path: str | None = None
+        audio_path: str | None = None
+        duration: int | None = None
+        try:
+            try:
+                media_url = await self._media_resolver.resolve(link)
+                media_path = await download_media(
+                    media_url, timeout=self._file_download_timeout * 3
+                )
+            except MediaDownloadError as e:
+                await processing_msg.edit_text(t("link_failed", lang))
+                await self._notifier.notify_error(
+                    "Link download failed",
+                    username=user.username,
+                    error_detail=f"{link}: {e}",
+                )
+                await self._stats_db.record_error(
+                    "Link download", user.username, str(e)
+                )
+                return
+
+            try:
+                audio_path = await extract_audio(
+                    media_path, timeout=self._ffmpeg_timeout
+                )
+            except RuntimeError as e:
+                await processing_msg.edit_text(t("extraction_failed", lang))
+                await self._notifier.notify_error(
+                    "Audio extraction failed",
+                    username=user.username,
+                    error_detail=f"{link}: {e}",
+                )
+                await self._stats_db.record_error(
+                    "Audio extraction", user.username, str(e)
+                )
+                return
+
+            measured = await get_audio_duration(audio_path)
+            if measured is not None:
+                duration = int(measured)
+                if duration > self._max_audio_duration:
+                    await processing_msg.edit_text(
+                        t("audio_too_long", lang,
+                          duration=format_duration(duration),
+                          max_min=self._max_audio_duration // 60)
+                    )
+                    return
+
+            await processing_msg.edit_text(t("transcribing", lang))
+            transcript = await self._run_transcription(
+                audio_path, duration, user, lang, processing_msg
+            )
+            if transcript is None:
+                return
+
+            self._store.save(
+                user.id, message.message_id, transcript.text, transcript.words
+            )
+            await self._stats_db.record_usage(
+                user.id, user.username, duration or 0
+            )
+
+            await processing_msg.delete()
+            chunks = split_message(transcript.text)
+            for i, chunk in enumerate(chunks):
+                if i == len(chunks) - 1:
+                    await message.reply_text(
+                        chunk,
+                        reply_markup=post_transcription_keyboard(
+                            message.message_id, lang
+                        ),
+                    )
+                else:
+                    await message.reply_text(chunk)
+
+            logger.info(
+                "Transcribed link for user %s (%d): %s", user.username, user.id, link
+            )
+        except Exception as e:
+            logger.exception("Unexpected error processing link for user %d", user.id)
+            try:
+                await processing_msg.edit_text(t("something_went_wrong", lang))
+            except Exception:
+                pass
+            await self._notifier.notify_error(
+                "Unexpected error",
+                username=user.username,
+                error_detail=f"{link}: {e}",
+            )
+            await self._stats_db.record_error(
+                "Unexpected error", user.username, str(e)
+            )
+        finally:
+            for path in (media_path, audio_path):
+                if path and os.path.exists(path):
+                    os.remove(path)
+
+    async def _run_transcription(
+        self,
+        audio_path: str,
+        duration: int | None,
+        user: User,
+        lang: str,
+        processing_msg: Message,
+    ) -> TranscriptionResult | None:
+        """Transcribe `audio_path`, reporting failures to the user and admins.
+
+        Returns None when transcription failed; the user has already been told.
+        """
+        for attempt in range(2):
+            try:
+                return await asyncio.wait_for(
+                    asyncio.to_thread(self._transcriber.transcribe, audio_path),
+                    timeout=self._transcription_timeout,
+                )
+            except TimeoutError:
+                if attempt == 0:
+                    logger.warning(
+                        "Transcription timed out for user %s, retrying",
+                        user.username,
+                    )
+                    continue
+                await processing_msg.edit_text(t("transcription_timeout", lang))
+                await self._notifier.notify_error(
+                    "Transcription timeout",
+                    username=user.username,
+                    error_detail=(
+                        f"Timed out after {self._transcription_timeout}s (2 attempts)"
+                    ),
+                    audio_duration=duration,
+                )
+                await self._stats_db.record_error(
+                    "Transcription timeout", user.username,
+                    f"Timed out after {self._transcription_timeout}s (2 attempts)",
+                )
+                return None
+            except EmptyTranscriptionError as e:
+                await processing_msg.edit_text(t("no_speech", lang))
+                await self._notifier.notify_error(
+                    "Transcription failed",
+                    username=user.username,
+                    error_detail=str(e),
+                    audio_duration=duration,
+                )
+                await self._stats_db.record_error(
+                    "Transcription (empty)", user.username, str(e)
+                )
+                return None
+            except RuntimeError as e:
+                await processing_msg.edit_text(t("something_went_wrong", lang))
+                await self._notifier.notify_error(
+                    "Transcription failed",
+                    username=user.username,
+                    error_detail=str(e),
+                    audio_duration=duration,
+                )
+                await self._stats_db.record_error(
+                    "Transcription", user.username, str(e)
+                )
+                return None
+        return None
 
     async def handle_audio(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -345,70 +533,9 @@ class BotHandlers:
                         return
 
             # Transcribe (with one automatic retry on timeout)
-            transcript = None
-            for attempt in range(2):
-                try:
-                    transcript = await asyncio.wait_for(
-                        asyncio.to_thread(
-                            self._transcriber.transcribe, audio_path
-                        ),
-                        timeout=self._transcription_timeout,
-                    )
-                    break
-                except TimeoutError:
-                    if attempt == 0:
-                        logger.warning(
-                            "Transcription timed out for user %s, retrying",
-                            user.username,
-                        )
-                        continue
-                    await processing_msg.edit_text(
-                        t("transcription_timeout", lang)
-                    )
-                    await self._notifier.notify_error(
-                        "Transcription timeout",
-                        username=user.username,
-                        error_detail=(
-                            "Timed out after "
-                            f"{self._transcription_timeout}s "
-                            "(2 attempts)"
-                        ),
-                        audio_duration=duration,
-                    )
-                    await self._stats_db.record_error(
-                        "Transcription timeout", user.username,
-                        f"Timed out after {self._transcription_timeout}s"
-                        " (2 attempts)",
-                    )
-                    return
-                except EmptyTranscriptionError as e:
-                    await processing_msg.edit_text(
-                        t("no_speech", lang)
-                    )
-                    await self._notifier.notify_error(
-                        "Transcription failed",
-                        username=user.username,
-                        error_detail=str(e),
-                        audio_duration=duration,
-                    )
-                    await self._stats_db.record_error(
-                        "Transcription (empty)", user.username, str(e)
-                    )
-                    return
-                except RuntimeError as e:
-                    await processing_msg.edit_text(
-                        t("something_went_wrong", lang)
-                    )
-                    await self._notifier.notify_error(
-                        "Transcription failed",
-                        username=user.username,
-                        error_detail=str(e),
-                        audio_duration=duration,
-                    )
-                    await self._stats_db.record_error(
-                        "Transcription", user.username, str(e)
-                    )
-                    return
+            transcript = await self._run_transcription(
+                audio_path, duration, user, lang, processing_msg
+            )
             if transcript is None:
                 return
 

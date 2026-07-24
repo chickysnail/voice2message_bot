@@ -18,6 +18,7 @@ from telegram.ext import (
 from src.bot.config import Settings
 from src.bot.handlers import BotHandlers
 from src.bot.secretary import PROMPT_TTL_SECONDS, SecretaryHandler
+from src.bot.services.media_download import RapidAPIMediaResolver
 from src.bot.services.notifier import AdminNotifier
 from src.bot.services.summarization import OpenAISummarizer
 from src.bot.services.transcription import ElevenLabsTranscriber
@@ -71,6 +72,17 @@ def main() -> None:
         settings.openai_api_key,
         timeout=settings.summarization_timeout,
     )
+    media_resolver = (
+        RapidAPIMediaResolver(
+            settings.rapidapi_key,
+            host=settings.rapidapi_host,
+            path=settings.rapidapi_path,
+            query_param=settings.rapidapi_query_param,
+            timeout=settings.file_download_timeout,
+        )
+        if settings.rapidapi_key
+        else None
+    )
     store = TranscriptionStore(ttl_seconds=settings.transcription_ttl)
     stats_db = StatisticsDB(settings.database_path)
 
@@ -89,6 +101,7 @@ def main() -> None:
         transcription_timeout=settings.transcription_timeout,
         ffmpeg_timeout=settings.ffmpeg_timeout,
         file_download_timeout=settings.file_download_timeout,
+        media_resolver=media_resolver,
     )
 
     secretary = SecretaryHandler(
@@ -155,7 +168,7 @@ def main() -> None:
         )
     )
 
-    # Text message handler — nudge users who send plain text
+    # Text message handler — transcribe supported links, else nudge
     application.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND & filters.UpdateType.MESSAGE,
