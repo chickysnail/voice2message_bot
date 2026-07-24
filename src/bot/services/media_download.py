@@ -3,8 +3,8 @@
 The resolver talks to a RapidAPI Instagram downloader, which returns JSON
 containing a direct CDN URL for the video. Providers differ in their exact
 response shape, so the first playable media URL found anywhere in the JSON
-is used. Host, path and query parameter are configurable so the provider can
-be swapped without code changes.
+is used. Host, path, HTTP method and parameter name are configurable so the
+provider can be swapped without code changes.
 """
 
 from __future__ import annotations
@@ -81,12 +81,14 @@ class RapidAPIMediaResolver:
         host: str,
         path: str,
         query_param: str,
+        method: str = "POST",
         timeout: int = 60,
     ) -> None:
         self._api_key = api_key
         self._host = host
         self._path = path if path.startswith("/") else f"/{path}"
         self._query_param = query_param
+        self._method = method.upper()
         self._timeout = timeout
 
     async def resolve(self, link: str) -> str:
@@ -96,10 +98,14 @@ class RapidAPIMediaResolver:
             "x-rapidapi-key": self._api_key,
             "x-rapidapi-host": self._host,
         }
+        if self._method == "POST":
+            kwargs: dict[str, Any] = {"json": {self._query_param: link}}
+        else:
+            kwargs = {"params": {self._query_param: link}}
         timeout = aiohttp.ClientTimeout(total=self._timeout)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(
-                endpoint, headers=headers, params={self._query_param: link}
+            async with session.request(
+                self._method, endpoint, headers=headers, **kwargs
             ) as response:
                 body = await response.text()
                 if response.status != 200:

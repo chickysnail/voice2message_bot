@@ -10,9 +10,10 @@ class Settings(BaseSettings):
     # Media link downloads (Instagram reels) via a RapidAPI provider.
     # When the key is empty the feature stays off and links get a "not supported" reply.
     rapidapi_key: str = ""
-    rapidapi_host: str = "instagram-scraper-api2.p.rapidapi.com"
-    rapidapi_path: str = "/v1/post_info"
-    rapidapi_query_param: str = "code_or_id_or_url"
+    rapidapi_host: str = "instagram120.p.rapidapi.com"
+    rapidapi_path: str = "/api/instagram/links"
+    rapidapi_query_param: str = "url"
+    rapidapi_method: str = "POST"
 
     admin_user_ids: list[int] = []
     database_path: str = "./stats.db"

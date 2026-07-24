@@ -78,6 +78,7 @@ def main() -> None:
             host=settings.rapidapi_host,
             path=settings.rapidapi_path,
             query_param=settings.rapidapi_query_param,
+            method=settings.rapidapi_method,
             timeout=settings.file_download_timeout,
         )
         if settings.rapidapi_key
