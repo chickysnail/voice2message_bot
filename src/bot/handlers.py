@@ -8,7 +8,7 @@ from pathlib import Path
 
 from telegram import InputMediaPhoto, LabeledPrice, Update
 from telegram.constants import ChatAction, ParseMode
-from telegram.error import BadRequest
+from telegram.error import BadRequest, NetworkError
 from telegram.ext import ContextTypes
 
 from src.bot.keyboards import (
@@ -31,6 +31,7 @@ from src.bot.services.summarization import SummarizationClient
 from src.bot.services.transcription import EmptyTranscriptionError, TranscriptionClient
 from src.bot.storage.statistics import StatisticsDB
 from src.bot.storage.transcription_store import TranscriptionStore
+from src.bot.utils.retry import with_network_retry
 from src.bot.utils.text import format_duration, split_message
 
 logger = logging.getLogger(__name__)
@@ -210,9 +211,10 @@ class BotHandlers:
         try:
             # Download the file
             try:
-                tg_file = await asyncio.wait_for(
-                    context.bot.get_file(file_id),
+                tg_file = await with_network_retry(
+                    lambda: context.bot.get_file(file_id),
                     timeout=self._file_download_timeout,
+                    description="get_file",
                 )
             except TimeoutError:
                 await processing_msg.edit_text(
@@ -231,6 +233,19 @@ class BotHandlers:
                     f"Timed out after {self._file_download_timeout}s",
                 )
                 return
+            except NetworkError as e:
+                await processing_msg.edit_text(
+                    t("download_timeout", lang)
+                )
+                await self._notifier.notify_error(
+                    "File download network error",
+                    username=user.username,
+                    error_detail=f"{file_type}, {e!r}",
+                )
+                await self._stats_db.record_error(
+                    "File download network error", user.username, repr(e),
+                )
+                return
             except BadRequest as e:
                 if "file is too big" in str(e).lower():
                     await processing_msg.edit_text(
@@ -246,9 +261,10 @@ class BotHandlers:
             ext = (tg_file.file_path or "").rsplit(".", 1)[-1] if tg_file.file_path else "ogg"
             file_path = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}.{ext}")
             try:
-                await asyncio.wait_for(
-                    tg_file.download_to_drive(custom_path=file_path),
+                await with_network_retry(
+                    lambda: tg_file.download_to_drive(custom_path=file_path),
                     timeout=self._file_download_timeout,
+                    description="download_to_drive",
                 )
             except TimeoutError:
                 await processing_msg.edit_text(
@@ -265,6 +281,19 @@ class BotHandlers:
                 await self._stats_db.record_error(
                     "File download timeout", user.username,
                     f"Timed out after {self._file_download_timeout}s",
+                )
+                return
+            except NetworkError as e:
+                await processing_msg.edit_text(
+                    t("download_timeout", lang)
+                )
+                await self._notifier.notify_error(
+                    "File download network error",
+                    username=user.username,
+                    error_detail=f"{file_type}, {e!r}",
+                )
+                await self._stats_db.record_error(
+                    "File download network error", user.username, repr(e),
                 )
                 return
 
