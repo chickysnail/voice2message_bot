@@ -211,6 +211,18 @@ _STRINGS: dict[str, dict[str, str]] = {
         "en": "I work with voice messages, audio, and video. Send or forward one and I'll transcribe it!",
         "ru": "Я работаю с голосовыми, аудио и видео. Отправьте или перешлите — и я расшифрую!",
     },
+    "link_downloading": {
+        "en": "Getting the audio from that link...",
+        "ru": "Забираю звук из ссылки...",
+    },
+    "link_failed": {
+        "en": "Couldn't get the audio from that link. It may be private or unavailable.",
+        "ru": "Не удалось получить звук по ссылке. Возможно, публикация приватная или недоступна.",
+    },
+    "link_unsupported": {
+        "en": "Links aren't supported right now — send the video or voice message itself and I'll transcribe it.",
+        "ru": "Ссылки сейчас не поддерживаются — пришлите само видео или голосовое, и я расшифрую.",
+    },
     "secretary_welcome": {
         "en": (
             "✅ <b>Transcription is set up!</b>\n"
