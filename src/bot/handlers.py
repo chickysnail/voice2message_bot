@@ -33,6 +33,7 @@ from src.bot.keyboards import (
     post_transcription_keyboard,
     secretary_settings_keyboard,
     secretary_setup_keyboard,
+    strip_audio_button,
 )
 from src.bot.locales import t
 from src.bot.services.audio import extract_audio, get_audio_duration
@@ -347,6 +348,9 @@ class BotHandlers:
         message = query.message
         assert isinstance(message, Message)
         if os.path.getsize(audio.path) > TELEGRAM_MAX_UPLOAD_BYTES:
+            await query.edit_message_reply_markup(
+                reply_markup=strip_audio_button(message.reply_markup)
+            )
             await message.reply_text(t("link_audio_too_big", lang))
             return
 
@@ -356,6 +360,9 @@ class BotHandlers:
                 filename=f"audio{os.path.splitext(audio.path)[1]}",
                 duration=audio.duration,
             )
+        await query.edit_message_reply_markup(
+            reply_markup=strip_audio_button(message.reply_markup)
+        )
 
     async def _expire_link_audio(self, query: CallbackQuery, lang: str) -> None:
         await query.edit_message_reply_markup(reply_markup=None)
