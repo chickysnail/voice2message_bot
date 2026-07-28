@@ -18,7 +18,11 @@ from telegram.ext import (
 from src.bot.config import Settings
 from src.bot.handlers import BotHandlers
 from src.bot.secretary import PROMPT_TTL_SECONDS, SecretaryHandler
-from src.bot.services.media_download import RapidAPIMediaResolver
+from src.bot.services.media_download import (
+    INSTAGRAM,
+    YOUTUBE,
+    RapidAPIMediaResolver,
+)
 from src.bot.services.notifier import AdminNotifier
 from src.bot.services.summarization import OpenAISummarizer
 from src.bot.services.transcription import ElevenLabsTranscriber
@@ -72,18 +76,27 @@ def main() -> None:
         settings.openai_api_key,
         timeout=settings.summarization_timeout,
     )
-    media_resolver = (
-        RapidAPIMediaResolver(
-            settings.rapidapi_key,
-            host=settings.rapidapi_host,
-            path=settings.rapidapi_path,
-            query_param=settings.rapidapi_query_param,
-            method=settings.rapidapi_method,
-            timeout=settings.file_download_timeout,
-        )
-        if settings.rapidapi_key
-        else None
-    )
+    media_resolvers: dict[str, RapidAPIMediaResolver] = {}
+    if settings.rapidapi_key:
+        if settings.rapidapi_host:
+            media_resolvers[INSTAGRAM] = RapidAPIMediaResolver(
+                settings.rapidapi_key,
+                host=settings.rapidapi_host,
+                path=settings.rapidapi_path,
+                query_param=settings.rapidapi_query_param,
+                method=settings.rapidapi_method,
+                timeout=settings.file_download_timeout,
+            )
+        if settings.youtube_rapidapi_host:
+            media_resolvers[YOUTUBE] = RapidAPIMediaResolver(
+                settings.rapidapi_key,
+                host=settings.youtube_rapidapi_host,
+                path=settings.youtube_rapidapi_path,
+                query_param=settings.youtube_rapidapi_query_param,
+                method=settings.youtube_rapidapi_method,
+                param_value=settings.youtube_rapidapi_param_value,
+                timeout=settings.file_download_timeout,
+            )
     store = TranscriptionStore(ttl_seconds=settings.transcription_ttl)
     stats_db = StatisticsDB(settings.database_path)
 
@@ -102,7 +115,7 @@ def main() -> None:
         transcription_timeout=settings.transcription_timeout,
         ffmpeg_timeout=settings.ffmpeg_timeout,
         file_download_timeout=settings.file_download_timeout,
-        media_resolver=media_resolver,
+        media_resolvers=media_resolvers,
     )
 
     secretary = SecretaryHandler(

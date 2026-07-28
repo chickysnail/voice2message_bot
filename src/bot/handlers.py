@@ -28,6 +28,7 @@ from src.bot.services.audio import extract_audio, get_audio_duration
 from src.bot.services.export import generate_srt, generate_txt
 from src.bot.services.media_download import (
     MediaDownloadError,
+    MediaLink,
     RapidAPIMediaResolver,
     download_media,
     find_link,
@@ -79,7 +80,7 @@ class BotHandlers:
         transcription_timeout: int = 900,
         ffmpeg_timeout: int = 120,
         file_download_timeout: int = 60,
-        media_resolver: RapidAPIMediaResolver | None = None,
+        media_resolvers: dict[str, RapidAPIMediaResolver] | None = None,
     ) -> None:
         self._transcriber = transcriber
         self._summarizer = summarizer
@@ -90,7 +91,7 @@ class BotHandlers:
         self._transcription_timeout = transcription_timeout
         self._ffmpeg_timeout = ffmpeg_timeout
         self._file_download_timeout = file_download_timeout
-        self._media_resolver = media_resolver
+        self._media_resolvers = media_resolvers or {}
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.message or not update.effective_user:
@@ -140,11 +141,12 @@ class BotHandlers:
         await update.message.reply_text(t("text_nudge", lang))
 
     async def _handle_media_link(
-        self, message: Message, user: User, link: str
+        self, message: Message, user: User, link: MediaLink
     ) -> None:
-        """Download the audio track of a linked reel/post and transcribe it."""
+        """Download the audio track of a linked reel/video and transcribe it."""
         lang = user.language_code or "en"
-        if self._media_resolver is None:
+        resolver = self._media_resolvers.get(link.platform)
+        if resolver is None:
             await message.reply_text(t("link_unsupported", lang))
             return
 
@@ -154,16 +156,18 @@ class BotHandlers:
         duration: int | None = None
         try:
             try:
-                media_url = await self._media_resolver.resolve(link)
+                media_url = await resolver.resolve(link.url)
                 media_path = await download_media(
-                    media_url, timeout=self._file_download_timeout * 3
+                    media_url,
+                    referer=resolver.referer,
+                    timeout=self._file_download_timeout * 3,
                 )
             except MediaDownloadError as e:
                 await processing_msg.edit_text(t("link_failed", lang))
                 await self._notifier.notify_error(
                     "Link download failed",
                     username=user.username,
-                    error_detail=f"{link}: {e}",
+                    error_detail=f"{link.url}: {e}",
                 )
                 await self._stats_db.record_error(
                     "Link download", user.username, str(e)
@@ -179,7 +183,7 @@ class BotHandlers:
                 await self._notifier.notify_error(
                     "Audio extraction failed",
                     username=user.username,
-                    error_detail=f"{link}: {e}",
+                    error_detail=f"{link.url}: {e}",
                 )
                 await self._stats_db.record_error(
                     "Audio extraction", user.username, str(e)
@@ -225,7 +229,7 @@ class BotHandlers:
                     await message.reply_text(chunk)
 
             logger.info(
-                "Transcribed link for user %s (%d): %s", user.username, user.id, link
+                "Transcribed link for user %s (%d): %s", user.username, user.id, link.url
             )
         except Exception as e:
             logger.exception("Unexpected error processing link for user %d", user.id)
@@ -236,7 +240,7 @@ class BotHandlers:
             await self._notifier.notify_error(
                 "Unexpected error",
                 username=user.username,
-                error_detail=f"{link}: {e}",
+                error_detail=f"{link.url}: {e}",
             )
             await self._stats_db.record_error(
                 "Unexpected error", user.username, str(e)

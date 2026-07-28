@@ -7,13 +7,22 @@ class Settings(BaseSettings):
     elevenlabs_api_key: str
     openai_api_key: str
 
-    # Media link downloads (Instagram reels) via a RapidAPI provider.
-    # When the key is empty the feature stays off and links get a "not supported" reply.
+    # Media link downloads (Instagram reels, YouTube videos) via RapidAPI
+    # providers. Each platform is disabled unless its host is configured; with
+    # no key at all links get a "not supported" reply.
     rapidapi_key: str = ""
     rapidapi_host: str = "instagram120.p.rapidapi.com"
     rapidapi_path: str = "/api/instagram/links"
     rapidapi_query_param: str = "url"
     rapidapi_method: str = "POST"
+
+    # YouTube provider. `youtube_rapidapi_param_value` is "id" for APIs that
+    # take a bare video id, or "url" for those that take the watch URL.
+    youtube_rapidapi_host: str = "youtube-mp36.p.rapidapi.com"
+    youtube_rapidapi_path: str = "/dl"
+    youtube_rapidapi_query_param: str = "id"
+    youtube_rapidapi_method: str = "GET"
+    youtube_rapidapi_param_value: str = "id"
 
     admin_user_ids: list[int] = []
     database_path: str = "./stats.db"
