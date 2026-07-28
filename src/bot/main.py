@@ -26,6 +26,7 @@ from src.bot.services.media_download import (
 from src.bot.services.notifier import AdminNotifier
 from src.bot.services.summarization import OpenAISummarizer
 from src.bot.services.transcription import ElevenLabsTranscriber
+from src.bot.storage.media_audio_store import MediaAudioStore
 from src.bot.storage.statistics import StatisticsDB
 from src.bot.storage.transcription_store import TranscriptionStore
 
@@ -98,6 +99,7 @@ def main() -> None:
                 timeout=settings.file_download_timeout,
             )
     store = TranscriptionStore(ttl_seconds=settings.transcription_ttl)
+    media_audio_store = MediaAudioStore(ttl_seconds=settings.link_audio_ttl)
     stats_db = StatisticsDB(settings.database_path)
 
     # Build application
@@ -116,6 +118,7 @@ def main() -> None:
         ffmpeg_timeout=settings.ffmpeg_timeout,
         file_download_timeout=settings.file_download_timeout,
         media_resolvers=media_resolvers,
+        media_audio_store=media_audio_store,
     )
 
     secretary = SecretaryHandler(
@@ -200,6 +203,7 @@ def main() -> None:
                 await secretary.delete_expired_prompts(
                     app.bot, PROMPT_TTL_SECONDS
                 )
+                media_audio_store.cleanup()
             except Exception:
                 logger.exception("Prompt cleanup sweep failed")
             await asyncio.sleep(3600)
