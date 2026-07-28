@@ -8,6 +8,7 @@ from pathlib import Path
 
 from telegram import (
     CallbackQuery,
+    InlineKeyboardMarkup,
     InputMediaPhoto,
     LabeledPrice,
     Message,
@@ -37,7 +38,7 @@ from src.bot.keyboards import (
 )
 from src.bot.locales import t
 from src.bot.services.audio import extract_audio, get_audio_duration
-from src.bot.services.export import generate_srt, generate_txt
+from src.bot.services.export import generate_html, generate_srt, generate_txt
 from src.bot.services.media_download import (
     MediaDownloadError,
     MediaLink,
@@ -56,7 +57,7 @@ from src.bot.storage.media_audio_store import MediaAudioStore
 from src.bot.storage.statistics import StatisticsDB
 from src.bot.storage.transcription_store import TranscriptionStore
 from src.bot.utils.retry import with_network_retry
-from src.bot.utils.text import format_duration, split_message
+from src.bot.utils.text import TELEGRAM_MAX_LENGTH, format_duration, split_message
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,28 @@ LINK_CHOICE_DURATION_THRESHOLD = 20 * 60
 TELEGRAM_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 _UPLOADABLE_AUDIO_EXTS = (".mp3", ".m4a", ".ogg", ".oga", ".opus", ".wav")
+
+
+async def _send_transcript(
+    message: Message,
+    text: str,
+    lang: str,
+    keyboard: InlineKeyboardMarkup,
+) -> None:
+    """Reply with the transcript, as an HTML file when it exceeds one message.
+
+    A file opens in the browser in one tap and, unlike several chat messages,
+    stays copyable as a whole.
+    """
+    if len(text) <= TELEGRAM_MAX_LENGTH:
+        await message.reply_text(text, reply_markup=keyboard)
+        return
+    await message.reply_document(
+        document=io.BytesIO(generate_html(text).encode("utf-8")),
+        filename="transcript.html",
+        caption=t("transcript_as_file", lang),
+        reply_markup=keyboard,
+    )
 
 
 def _audio_upload_path(media_path: str, audio_path: str) -> str:
@@ -299,20 +322,17 @@ class BotHandlers:
         await self._stats_db.record_usage(user.id, user.username, duration or 0)
 
         await processing_msg.delete()
-        chunks = split_message(transcript.text)
-        for i, chunk in enumerate(chunks):
-            if i == len(chunks) - 1:
-                await message.reply_text(
-                    chunk,
-                    reply_markup=post_transcription_keyboard(
-                        message.message_id,
-                        lang,
-                        with_audio=self._media_audio.get(user.id, message.message_id)
-                        is not None,
-                    ),
-                )
-            else:
-                await message.reply_text(chunk)
+        await _send_transcript(
+            message,
+            transcript.text,
+            lang,
+            post_transcription_keyboard(
+                message.message_id,
+                lang,
+                with_audio=self._media_audio.get(user.id, message.message_id)
+                is not None,
+            ),
+        )
 
     async def _handle_link_transcribe(
         self, query: CallbackQuery, user: User, original_message_id: int
@@ -676,16 +696,12 @@ class BotHandlers:
 
             # Send the transcription
             await processing_msg.delete()
-            chunks = split_message(transcript.text)
-            for i, chunk in enumerate(chunks):
-                is_last = i == len(chunks) - 1
-                if is_last:
-                    await message.reply_text(
-                        chunk,
-                        reply_markup=post_transcription_keyboard(original_message_id, lang),
-                    )
-                else:
-                    await message.reply_text(chunk)
+            await _send_transcript(
+                message,
+                transcript.text,
+                lang,
+                post_transcription_keyboard(original_message_id, lang),
+            )
 
             logger.info(
                 "Transcribed audio for user %s (%d), duration=%s",

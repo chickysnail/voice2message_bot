@@ -119,6 +119,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "en": "The audio file is too large for Telegram (over 50 MB).",
         "ru": "Аудиофайл слишком большой для Telegram (больше 50 МБ).",
     },
+    "transcript_as_file": {
+        "en": "The transcript is too long for a message — open the file to read it.",
+        "ru": "Расшифровка слишком длинная для сообщения — откройте файл, чтобы прочитать.",
+    },
     "transcription_expired": {
         "en": "This transcription has expired.",
         "ru": "Эта расшифровка истекла.",
