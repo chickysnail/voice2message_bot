@@ -37,6 +37,8 @@ _STRINGS: dict[str, dict[str, str]] = {
         "en": (
             "🎙 Send me a voice message, audio, video note, or video — I'll transcribe it.\n"
             "\n"
+            "You can also send an Instagram reel or YouTube link — I'll take the audio from it.\n"
+            "\n"
             "After transcription you can summarize it or save as .txt / .srt file. Multiple speakers are detected automatically.\n"
             "\n"
             "/secretary — transcribe voice messages in your chats\n"
@@ -44,6 +46,8 @@ _STRINGS: dict[str, dict[str, str]] = {
         ),
         "ru": (
             "🎙 Отправьте мне голосовое, аудио, видеозаметку или видео — я сделаю расшифровку.\n"
+            "\n"
+            "Также можно прислать ссылку на рилс в Instagram или видео на YouTube — я возьму из него звук.\n"
             "\n"
             "После расшифровки можно получить краткое содержание или сохранить в .txt / .srt. Несколько говорящих распознаются автоматически.\n"
             "\n"
