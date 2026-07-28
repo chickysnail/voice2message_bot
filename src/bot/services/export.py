@@ -1,7 +1,9 @@
-"""File export for transcriptions (TXT and SRT formats)."""
+"""File export for transcriptions (TXT, SRT and HTML formats)."""
 
 from __future__ import annotations
 
+import html
+import re
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -20,6 +22,55 @@ def _format_srt_time(seconds: float) -> str:
 def generate_txt(text: str) -> str:
     """Generate plain text file content."""
     return text
+
+
+_PARAGRAPH_CHARS = 600
+_SENTENCE_END_RE = re.compile(r"(?<=[.!?…])\s+")
+
+
+def _paragraphs(text: str) -> list[str]:
+    """Split a transcript into readable paragraphs.
+
+    Speaker segments already come one per line; a single-speaker transcript is
+    one long line, so it is regrouped at sentence boundaries.
+    """
+    result: list[str] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if len(line) <= _PARAGRAPH_CHARS:
+            result.append(line)
+            continue
+        current = ""
+        for sentence in _SENTENCE_END_RE.split(line):
+            if current and len(current) + len(sentence) > _PARAGRAPH_CHARS:
+                result.append(current)
+                current = ""
+            current = f"{current} {sentence}".strip()
+        if current:
+            result.append(current)
+    return result
+
+
+def generate_html(text: str, title: str = "Transcript") -> str:
+    """Generate a minimal HTML page for reading a transcript in a browser.
+
+    Kept deliberately plain — bare paragraphs, no classes, colors or custom
+    fonts — so copying the page out keeps clean, unstyled text.
+    """
+    paragraphs = "\n".join(
+        f"<p>{html.escape(paragraph)}</p>" for paragraph in _paragraphs(text)
+    )
+    return (
+        "<!DOCTYPE html>\n"
+        '<html><head><meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        f"<title>{html.escape(title)}</title>\n"
+        "<style>body{max-width:40em;margin:1em auto;padding:0 1em;"
+        "font-family:system-ui,sans-serif;line-height:1.5}</style>\n"
+        f"</head><body>\n{paragraphs}\n</body></html>\n"
+    )
 
 
 def generate_srt(words: list[WordData], max_words_per_sub: int = 10) -> str:

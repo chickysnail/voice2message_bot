@@ -261,3 +261,35 @@ async def test_download_audio_button_removed_after_sending(
             assert [
                 b.callback_data for row in new_markup.inline_keyboard for b in row
             ] == expected
+
+
+async def test_long_transcript_is_sent_as_html_file() -> None:
+    from src.bot.handlers import _send_transcript
+    from src.bot.keyboards import post_transcription_keyboard
+
+    message = MagicMock(spec=Message)
+    message.reply_text = AsyncMock()
+    message.reply_document = AsyncMock()
+    keyboard = post_transcription_keyboard(1, "en")
+
+    await _send_transcript(message, "word " * 1200, "en", keyboard)
+
+    message.reply_text.assert_not_awaited()
+    kwargs = message.reply_document.await_args.kwargs
+    assert kwargs["filename"] == "transcript.html"
+    assert kwargs["reply_markup"] is keyboard
+    assert b"<p>word" in kwargs["document"].getvalue()
+
+
+async def test_short_transcript_is_sent_as_message() -> None:
+    from src.bot.handlers import _send_transcript
+    from src.bot.keyboards import post_transcription_keyboard
+
+    message = MagicMock(spec=Message)
+    message.reply_text = AsyncMock()
+    message.reply_document = AsyncMock()
+
+    await _send_transcript(message, "short one", "en", post_transcription_keyboard(1))
+
+    message.reply_document.assert_not_awaited()
+    assert message.reply_text.await_args.args[0] == "short one"

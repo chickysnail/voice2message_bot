@@ -69,3 +69,23 @@ def test_generate_srt_timestamp_format() -> None:
     ]
     srt = generate_srt(words)
     assert "01:01:01,500" in srt
+
+
+def test_generate_html_escapes_and_paragraphs() -> None:
+    from src.bot.services.export import generate_html
+
+    page = generate_html("Speaker 1: <b>hi</b> & bye\n\nSpeaker 2: ok")
+    assert "<p>Speaker 1: &lt;b&gt;hi&lt;/b&gt; &amp; bye</p>" in page
+    assert "<p>Speaker 2: ok</p>" in page
+    assert page.count("<p>") == 2
+    assert page.startswith("<!DOCTYPE html>")
+
+
+def test_generate_html_splits_single_speaker_wall_of_text() -> None:
+    from src.bot.services.export import generate_html
+
+    page = generate_html("Hello there. " * 200)
+    assert page.count("<p>") > 1
+    # Paragraphs break at sentence ends, never mid-sentence.
+    assert "<p>Hello there. Hello" in page
+    assert "there</p>" not in page
