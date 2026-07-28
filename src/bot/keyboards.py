@@ -58,6 +58,26 @@ def link_choice_keyboard(message_id: int, lang: str = "en") -> InlineKeyboardMar
     ])
 
 
+def strip_audio_button(
+    markup: InlineKeyboardMarkup | None,
+) -> InlineKeyboardMarkup | None:
+    """Drop the 'Download audio' button, keeping any other buttons."""
+    if markup is None:
+        return None
+    rows = [
+        [
+            button
+            for button in row
+            if not str(button.callback_data or "").startswith(
+                f"{CALLBACK_LINK_AUDIO}:"
+            )
+        ]
+        for row in markup.inline_keyboard
+    ]
+    remaining = [row for row in rows if row]
+    return InlineKeyboardMarkup(remaining) if remaining else None
+
+
 def file_format_keyboard(message_id: int) -> InlineKeyboardMarkup:
     """Keyboard for choosing file export format."""
     return InlineKeyboardMarkup([

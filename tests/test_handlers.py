@@ -5,8 +5,10 @@ import tempfile
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from telegram import Message
 
 from src.bot.handlers import SECRETARY_SETUP_IMAGES, BotHandlers
+from src.bot.keyboards import link_audio_keyboard
 from src.bot.services.notifier import AdminNotifier
 from src.bot.storage.statistics import StatisticsDB
 
@@ -223,3 +225,39 @@ async def test_long_link_offers_transcribe_or_audio(
         "link_audio:7",
     ]
     transcribe.assert_not_awaited()
+
+
+async def test_download_audio_button_removed_after_sending(
+    link_handlers: BotHandlers, tmp_path: object
+) -> None:
+    from src.bot.keyboards import link_choice_keyboard, post_transcription_keyboard
+
+    path = os.path.join(str(tmp_path), "audio.mp3")
+    with open(path, "wb") as fh:
+        fh.write(b"id3")
+    link_handlers._media_audio.save(42, 7, path, 30)
+
+    for markup, expected in (
+        (post_transcription_keyboard(7, "en", with_audio=True),
+         ["summarize:7", "savefile:7"]),
+        (link_choice_keyboard(7, "en"), ["link_transcribe:7"]),
+        (link_audio_keyboard(7, "en"), None),
+    ):
+        query = AsyncMock()
+        query.message = MagicMock(spec=Message)
+        query.message.reply_markup = markup
+        query.message.reply_audio = AsyncMock()
+        user = MagicMock()
+        user.id = 42
+        user.language_code = "en"
+
+        await link_handlers._handle_link_audio(query, user, 7)
+
+        query.message.reply_audio.assert_awaited_once()
+        new_markup = query.edit_message_reply_markup.await_args.kwargs["reply_markup"]
+        if expected is None:
+            assert new_markup is None
+        else:
+            assert [
+                b.callback_data for row in new_markup.inline_keyboard for b in row
+            ] == expected
