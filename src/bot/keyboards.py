@@ -8,13 +8,15 @@ CALLBACK_EXPORT_TXT = "export_txt"
 CALLBACK_EXPORT_SRT = "export_srt"
 CALLBACK_SEC_TRANSCRIBE = "sec_transcribe"
 CALLBACK_SECRETARY_SETUP = "secretary_setup"
+CALLBACK_LINK_TRANSCRIBE = "link_transcribe"
+CALLBACK_LINK_AUDIO = "link_audio"
 
 
 def post_transcription_keyboard(
-    message_id: int, lang: str = "en"
+    message_id: int, lang: str = "en", with_audio: bool = False
 ) -> InlineKeyboardMarkup:
     """Keyboard shown after transcription, with action buttons."""
-    return InlineKeyboardMarkup([
+    rows = [
         [
             InlineKeyboardButton(
                 t("btn_summarize", lang),
@@ -24,6 +26,34 @@ def post_transcription_keyboard(
                 t("btn_save_file", lang),
                 callback_data=f"{CALLBACK_SAVE_FILE}:{message_id}",
             ),
+        ]
+    ]
+    if with_audio:
+        rows.append([_download_audio_button(message_id, lang)])
+    return InlineKeyboardMarkup(rows)
+
+
+def _download_audio_button(message_id: int, lang: str) -> InlineKeyboardButton:
+    return InlineKeyboardButton(
+        t("btn_download_audio", lang),
+        callback_data=f"{CALLBACK_LINK_AUDIO}:{message_id}",
+    )
+
+
+def link_audio_keyboard(message_id: int, lang: str = "en") -> InlineKeyboardMarkup:
+    """Single 'Download audio' button, shown while a link is transcribing."""
+    return InlineKeyboardMarkup([[_download_audio_button(message_id, lang)]])
+
+
+def link_choice_keyboard(message_id: int, lang: str = "en") -> InlineKeyboardMarkup:
+    """Transcribe / download choice, shown for long linked videos."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                t("btn_transcribe", lang),
+                callback_data=f"{CALLBACK_LINK_TRANSCRIBE}:{message_id}",
+            ),
+            _download_audio_button(message_id, lang),
         ]
     ])
 

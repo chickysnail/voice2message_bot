@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     youtube_rapidapi_method: str = "GET"
     youtube_rapidapi_param_value: str = "id"
 
+    # How long audio downloaded from a link stays on disk for the
+    # "Download audio" / "Transcribe" buttons.
+    link_audio_ttl: int = 3600
+
     admin_user_ids: list[int] = []
     database_path: str = "./stats.db"
     max_audio_duration: int = 3600

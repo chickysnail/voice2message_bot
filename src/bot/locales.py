@@ -101,6 +101,24 @@ _STRINGS: dict[str, dict[str, str]] = {
         "en": "Could not extract audio from this video.",
         "ru": "Не удалось извлечь аудио из этого видео.",
     },
+    "link_choice": {
+        "en": (
+            "Got the audio ({duration}). Transcribing this long a recording takes a "
+            "while — transcribe it, or just get the audio file?"
+        ),
+        "ru": (
+            "Звук готов ({duration}). Расшифровка такой длинной записи занимает время — "
+            "расшифровать или прислать только аудиофайл?"
+        ),
+    },
+    "link_audio_expired": {
+        "en": "This audio is no longer available — send the link again.",
+        "ru": "Этого аудио больше нет — пришлите ссылку ещё раз.",
+    },
+    "link_audio_too_big": {
+        "en": "The audio file is too large for Telegram (over 50 MB).",
+        "ru": "Аудиофайл слишком большой для Telegram (больше 50 МБ).",
+    },
     "transcription_expired": {
         "en": "This transcription has expired.",
         "ru": "Эта расшифровка истекла.",
@@ -178,6 +196,10 @@ _STRINGS: dict[str, dict[str, str]] = {
     "btn_transcribe": {
         "en": "📝 Transcribe",
         "ru": "📝 Расшифровать",
+    },
+    "btn_download_audio": {
+        "en": "🎵 Download audio",
+        "ru": "🎵 Скачать аудио",
     },
     "secretary_setup": {
         "en": (

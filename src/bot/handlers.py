@@ -6,7 +6,14 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from telegram import InputMediaPhoto, LabeledPrice, Message, Update, User
+from telegram import (
+    CallbackQuery,
+    InputMediaPhoto,
+    LabeledPrice,
+    Message,
+    Update,
+    User,
+)
 from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest, NetworkError
 from telegram.ext import ContextTypes
@@ -14,11 +21,15 @@ from telegram.ext import ContextTypes
 from src.bot.keyboards import (
     CALLBACK_EXPORT_SRT,
     CALLBACK_EXPORT_TXT,
+    CALLBACK_LINK_AUDIO,
+    CALLBACK_LINK_TRANSCRIBE,
     CALLBACK_SAVE_FILE,
     CALLBACK_SECRETARY_SETUP,
     CALLBACK_SUMMARIZE,
     donation_keyboard,
     file_format_keyboard,
+    link_audio_keyboard,
+    link_choice_keyboard,
     post_transcription_keyboard,
     secretary_settings_keyboard,
     secretary_setup_keyboard,
@@ -40,6 +51,7 @@ from src.bot.services.transcription import (
     TranscriptionClient,
     TranscriptionResult,
 )
+from src.bot.storage.media_audio_store import MediaAudioStore
 from src.bot.storage.statistics import StatisticsDB
 from src.bot.storage.transcription_store import TranscriptionStore
 from src.bot.utils.retry import with_network_retry
@@ -56,6 +68,22 @@ SECRETARY_EXPLAINER_VIDEO = _ASSETS_DIR / "secretary_explainer.mp4"
 # Show a soft donation prompt on the processing message when the
 # audio is longer than this threshold (seconds).
 DONATION_DURATION_THRESHOLD = 60
+
+# Linked videos longer than this are not transcribed right away; the user
+# picks between transcription and just getting the audio file.
+LINK_CHOICE_DURATION_THRESHOLD = 20 * 60
+
+# Telegram's upload limit for bots.
+TELEGRAM_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+
+_UPLOADABLE_AUDIO_EXTS = (".mp3", ".m4a", ".ogg", ".oga", ".opus", ".wav")
+
+
+def _audio_upload_path(media_path: str, audio_path: str) -> str:
+    """Prefer the provider's own audio file over the re-encoded track."""
+    if os.path.splitext(media_path)[1].lower() in _UPLOADABLE_AUDIO_EXTS:
+        return media_path
+    return audio_path
 
 
 def _secretary_setup_media() -> list[InputMediaPhoto]:
@@ -81,6 +109,7 @@ class BotHandlers:
         ffmpeg_timeout: int = 120,
         file_download_timeout: int = 60,
         media_resolvers: dict[str, RapidAPIMediaResolver] | None = None,
+        media_audio_store: MediaAudioStore | None = None,
     ) -> None:
         self._transcriber = transcriber
         self._summarizer = summarizer
@@ -92,6 +121,7 @@ class BotHandlers:
         self._ffmpeg_timeout = ffmpeg_timeout
         self._file_download_timeout = file_download_timeout
         self._media_resolvers = media_resolvers or {}
+        self._media_audio = media_audio_store or MediaAudioStore()
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.message or not update.effective_user:
@@ -153,6 +183,7 @@ class BotHandlers:
         processing_msg = await message.reply_text(t("link_downloading", lang))
         media_path: str | None = None
         audio_path: str | None = None
+        keep_path: str | None = None
         duration: int | None = None
         try:
             try:
@@ -193,41 +224,36 @@ class BotHandlers:
             measured = await get_audio_duration(audio_path)
             if measured is not None:
                 duration = int(measured)
-                if duration > self._max_audio_duration:
-                    await processing_msg.edit_text(
-                        t("audio_too_long", lang,
-                          duration=format_duration(duration),
-                          max_min=self._max_audio_duration // 60)
-                    )
-                    return
 
-            await processing_msg.edit_text(t("transcribing", lang))
-            transcript = await self._run_transcription(
-                audio_path, duration, user, lang, processing_msg
-            )
-            if transcript is None:
+            # The audio stays on disk so the "Download audio" button (and, for
+            # long videos, "Transcribe") can still use it later.
+            keep_path = _audio_upload_path(media_path, audio_path)
+            self._media_audio.save(user.id, message.message_id, keep_path, duration)
+
+            if duration is not None and duration > self._max_audio_duration:
+                # Too long to transcribe, but the audio file is still on offer.
+                await processing_msg.edit_text(
+                    t("audio_too_long", lang,
+                      duration=format_duration(duration),
+                      max_min=self._max_audio_duration // 60),
+                    reply_markup=link_audio_keyboard(message.message_id, lang),
+                )
                 return
 
-            self._store.save(
-                user.id, message.message_id, transcript.text, transcript.words
-            )
-            await self._stats_db.record_usage(
-                user.id, user.username, duration or 0
-            )
+            if duration is not None and duration > LINK_CHOICE_DURATION_THRESHOLD:
+                await processing_msg.edit_text(
+                    t("link_choice", lang, duration=format_duration(duration)),
+                    reply_markup=link_choice_keyboard(message.message_id, lang),
+                )
+                return
 
-            await processing_msg.delete()
-            chunks = split_message(transcript.text)
-            for i, chunk in enumerate(chunks):
-                if i == len(chunks) - 1:
-                    await message.reply_text(
-                        chunk,
-                        reply_markup=post_transcription_keyboard(
-                            message.message_id, lang
-                        ),
-                    )
-                else:
-                    await message.reply_text(chunk)
-
+            await processing_msg.edit_text(
+                t("transcribing", lang),
+                reply_markup=link_audio_keyboard(message.message_id, lang),
+            )
+            await self._transcribe_link_audio(
+                message, user, keep_path, duration, processing_msg
+            )
             logger.info(
                 "Transcribed link for user %s (%d): %s", user.username, user.id, link.url
             )
@@ -247,8 +273,94 @@ class BotHandlers:
             )
         finally:
             for path in (media_path, audio_path):
-                if path and os.path.exists(path):
+                if path and path != keep_path and os.path.exists(path):
                     os.remove(path)
+
+    async def _transcribe_link_audio(
+        self,
+        message: Message,
+        user: User,
+        audio_path: str,
+        duration: int | None,
+        processing_msg: Message,
+    ) -> None:
+        """Transcribe already-downloaded link audio and reply with the result."""
+        lang = user.language_code or "en"
+        transcript = await self._run_transcription(
+            audio_path, duration, user, lang, processing_msg
+        )
+        if transcript is None:
+            return
+
+        self._store.save(
+            user.id, message.message_id, transcript.text, transcript.words
+        )
+        await self._stats_db.record_usage(user.id, user.username, duration or 0)
+
+        await processing_msg.delete()
+        chunks = split_message(transcript.text)
+        for i, chunk in enumerate(chunks):
+            if i == len(chunks) - 1:
+                await message.reply_text(
+                    chunk,
+                    reply_markup=post_transcription_keyboard(
+                        message.message_id,
+                        lang,
+                        with_audio=self._media_audio.get(user.id, message.message_id)
+                        is not None,
+                    ),
+                )
+            else:
+                await message.reply_text(chunk)
+
+    async def _handle_link_transcribe(
+        self, query: CallbackQuery, user: User, original_message_id: int
+    ) -> None:
+        """Handle the Transcribe button on a long linked video."""
+        lang = user.language_code or "en"
+        audio = self._media_audio.get(user.id, original_message_id)
+        if audio is None or query.message is None:
+            await self._expire_link_audio(query, lang)
+            return
+
+        processing_msg = query.message
+        assert isinstance(processing_msg, Message)
+        await processing_msg.edit_text(
+            t("transcribing", lang),
+            reply_markup=link_audio_keyboard(original_message_id, lang),
+        )
+        reply_target = processing_msg.reply_to_message or processing_msg
+        await self._transcribe_link_audio(
+            reply_target, user, audio.path, audio.duration, processing_msg
+        )
+
+    async def _handle_link_audio(
+        self, query: CallbackQuery, user: User, original_message_id: int
+    ) -> None:
+        """Send the downloaded audio file as a Telegram audio message."""
+        lang = user.language_code or "en"
+        audio = self._media_audio.get(user.id, original_message_id)
+        if audio is None or query.message is None:
+            await self._expire_link_audio(query, lang)
+            return
+
+        message = query.message
+        assert isinstance(message, Message)
+        if os.path.getsize(audio.path) > TELEGRAM_MAX_UPLOAD_BYTES:
+            await message.reply_text(t("link_audio_too_big", lang))
+            return
+
+        with open(audio.path, "rb") as fh:
+            await message.reply_audio(
+                audio=fh,
+                filename=f"audio{os.path.splitext(audio.path)[1]}",
+                duration=audio.duration,
+            )
+
+    async def _expire_link_audio(self, query: CallbackQuery, lang: str) -> None:
+        await query.edit_message_reply_markup(reply_markup=None)
+        if isinstance(query.message, Message):
+            await query.message.reply_text(t("link_audio_expired", lang))
 
     async def _run_transcription(
         self,
@@ -647,6 +759,10 @@ class BotHandlers:
             await self._handle_save_file(query, user, original_message_id)
         elif action in (CALLBACK_EXPORT_TXT, CALLBACK_EXPORT_SRT):
             await self._handle_export(query, user, original_message_id, action)
+        elif action == CALLBACK_LINK_TRANSCRIBE:
+            await self._handle_link_transcribe(query, user, original_message_id)
+        elif action == CALLBACK_LINK_AUDIO:
+            await self._handle_link_audio(query, user, original_message_id)
 
     async def _handle_summarize(
         self,

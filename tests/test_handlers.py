@@ -135,3 +135,91 @@ async def test_broadcast_counts_failures(
     ctx.bot.send_message.side_effect = [None, Exception("blocked")]
     await handlers.broadcast_command(update, ctx)
     assert "Sent: 1, failed: 1" in update.message.reply_text.call_args.args[0]
+
+
+@pytest.fixture
+def link_handlers(notifier: AsyncMock, db: StatisticsDB) -> BotHandlers:
+    resolver = AsyncMock()
+    resolver.resolve.return_value = "https://cdn.example.com/a.mp3"
+    resolver.referer = "https://provider.example.com/"
+    return BotHandlers(
+        transcriber=MagicMock(),
+        summarizer=MagicMock(),
+        notifier=notifier,
+        store=MagicMock(),
+        stats_db=db,
+        max_audio_duration=3600,
+        media_resolvers={"youtube": resolver},
+    )
+
+
+def _link_update(text: str) -> MagicMock:
+    update = _make_update()
+    update.message.text = text
+    update.message.message_id = 7
+    update.message.reply_text = AsyncMock(return_value=AsyncMock())
+    return update
+
+
+def _patch_download(monkeypatch: pytest.MonkeyPatch, duration: float, tmp: str) -> None:
+    async def fake_download(url: str, **kwargs: object) -> str:
+        path = os.path.join(tmp, "media.mp3")
+        with open(path, "wb") as fh:
+            fh.write(b"id3")
+        return path
+
+    async def fake_extract(path: str, **kwargs: object) -> str:
+        out = os.path.join(tmp, "audio.ogg")
+        with open(out, "wb") as fh:
+            fh.write(b"ogg")
+        return out
+
+    async def fake_duration(path: str) -> float:
+        return duration
+
+    monkeypatch.setattr("src.bot.handlers.download_media", fake_download)
+    monkeypatch.setattr("src.bot.handlers.extract_audio", fake_extract)
+    monkeypatch.setattr("src.bot.handlers.get_audio_duration", fake_duration)
+
+
+async def test_short_link_transcribes_and_offers_audio(
+    link_handlers: BotHandlers,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: object,
+) -> None:
+    _patch_download(monkeypatch, 60.0, str(tmp_path))
+    transcribe = AsyncMock()
+    monkeypatch.setattr(link_handlers, "_transcribe_link_audio", transcribe)
+    update = _link_update("https://youtu.be/jNQXAC9IVRw")
+
+    await link_handlers.handle_text(update, MagicMock())
+
+    processing = update.message.reply_text.return_value
+    markup = processing.edit_text.call_args.kwargs["reply_markup"]
+    assert [b.callback_data for row in markup.inline_keyboard for b in row] == [
+        "link_audio:7"
+    ]
+    transcribe.assert_awaited_once()
+    # The mp3 the provider returned is kept for the button, not the .ogg copy.
+    assert transcribe.await_args.args[2].endswith("media.mp3")
+
+
+async def test_long_link_offers_transcribe_or_audio(
+    link_handlers: BotHandlers,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: object,
+) -> None:
+    _patch_download(monkeypatch, 25 * 60.0, str(tmp_path))
+    transcribe = AsyncMock()
+    monkeypatch.setattr(link_handlers, "_transcribe_link_audio", transcribe)
+    update = _link_update("https://youtu.be/jNQXAC9IVRw")
+
+    await link_handlers.handle_text(update, MagicMock())
+
+    processing = update.message.reply_text.return_value
+    markup = processing.edit_text.call_args.kwargs["reply_markup"]
+    assert [b.callback_data for row in markup.inline_keyboard for b in row] == [
+        "link_transcribe:7",
+        "link_audio:7",
+    ]
+    transcribe.assert_not_awaited()
