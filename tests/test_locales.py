@@ -1,4 +1,4 @@
-from src.bot.locales import SUPPORTED_LANGS, normalize_lang, t
+from src.bot.locales import SUPPORTED_LANGS, t
 
 
 def test_english_fallback() -> None:
@@ -11,20 +11,6 @@ def test_russian_greeting() -> None:
     result = t("greeting", "ru", user="Иван")
     assert "Иван" in result
     assert "Привет" in result
-
-
-def test_portuguese_greeting() -> None:
-    result = t("greeting", "pt", user="João")
-    assert "João" in result
-    assert "Olá" in result
-
-
-def test_regional_codes_map_to_base_language() -> None:
-    assert normalize_lang("pt-BR") == "pt"
-    assert normalize_lang("ru-RU") == "ru"
-    assert normalize_lang("de") == "en"
-    assert normalize_lang(None) == "en"
-    assert t("transcribing", "pt-BR") == t("transcribing", "pt")
 
 
 def test_all_keys_have_english() -> None:
@@ -55,10 +41,8 @@ def test_button_labels_localized() -> None:
                 "btn_secretary_setup"):
         en = t(key, "en")
         ru = t(key, "ru")
-        pt = t(key, "pt")
         assert en != key, f"{key} missing English translation"
         assert ru != en, f"{key} not localized for Russian"
-        assert pt != en, f"{key} not localized for Portuguese"
 
 
 def test_secretary_setup_mentions_chat_automation() -> None:
@@ -89,7 +73,7 @@ def test_keyboard_uses_localized_labels() -> None:
 
 
 def test_all_keys_have_all_supported_languages() -> None:
-    """Every key must have translations for all supported languages."""
+    """Every key must have translations for all supported languages (en, ru)."""
     from src.bot.locales import _STRINGS
 
     for key, translations in _STRINGS.items():
