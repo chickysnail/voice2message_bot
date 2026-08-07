@@ -56,8 +56,8 @@ def _paragraphs(text: str) -> list[str]:
 def generate_html(text: str, title: str = "Transcript") -> str:
     """Generate a minimal HTML page for reading a transcript in a browser.
 
-    Kept deliberately plain — bare paragraphs, no classes, colors or custom
-    fonts — so copying the page out keeps clean, unstyled text.
+    Kept deliberately plain — bare paragraphs, no classes or custom fonts —
+    so copying the page out keeps clean, unstyled text.
     """
     paragraphs = "\n".join(
         f"<p>{html.escape(paragraph)}</p>" for paragraph in _paragraphs(text)
@@ -68,7 +68,8 @@ def generate_html(text: str, title: str = "Transcript") -> str:
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
         f"<title>{html.escape(title)}</title>\n"
         "<style>body{max-width:40em;margin:1em auto;padding:0 1em;"
-        "font-family:system-ui,sans-serif;line-height:1.5}</style>\n"
+        "font-family:system-ui,sans-serif;line-height:1.5;"
+        "background:#000;color:#fff}</style>\n"
         f"</head><body>\n{paragraphs}\n</body></html>\n"
     )
 
