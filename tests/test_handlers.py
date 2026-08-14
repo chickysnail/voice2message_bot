@@ -9,6 +9,7 @@ from telegram import Message
 
 from src.bot.handlers import SECRETARY_SETUP_IMAGES, BotHandlers
 from src.bot.keyboards import link_audio_keyboard
+from src.bot.locales import t
 from src.bot.services.notifier import AdminNotifier
 from src.bot.storage.statistics import StatisticsDB
 
@@ -293,3 +294,35 @@ async def test_short_transcript_is_sent_as_message() -> None:
 
     message.reply_document.assert_not_awaited()
     assert message.reply_text.await_args.args[0] == "short one"
+
+
+def _audio_update() -> MagicMock:
+    update = _make_update()
+    message = update.message
+    message.chat_id = 100
+    message.voice = None
+    message.video_note = None
+    message.audio = MagicMock(file_id="file_abc", duration=30)
+    message.video = None
+    message.document = None
+    message.reply_text = AsyncMock(return_value=AsyncMock())
+    update.effective_user.username = "testuser"
+    return update
+
+
+async def test_file_too_big_reports_file_too_large(
+    handlers: BotHandlers, notifier: AsyncMock
+) -> None:
+    from telegram.error import BadRequest
+
+    update = _audio_update()
+    ctx = MagicMock()
+    ctx.bot.send_chat_action = AsyncMock()
+    ctx.bot.get_file = AsyncMock(side_effect=BadRequest("File is too big"))
+
+    await handlers.handle_audio(update, ctx)
+
+    processing = update.message.reply_text.return_value
+    assert processing.edit_text.await_args.args[0] == t("file_too_large", "en")
+    assert notifier.notify_error.await_args.args[0] == "File too large"
+    ctx.bot.get_file.assert_awaited_once()

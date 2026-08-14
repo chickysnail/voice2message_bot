@@ -683,3 +683,41 @@ async def test_outgoing_skipped_does_not_block_incoming(
     )
     # Incoming must be processed despite the same file_id
     bot.send_message.assert_called_once()
+
+
+async def test_secretary_file_too_big_reports_file_too_large(
+    handler: SecretaryHandler,
+    mock_notifier: AsyncMock,
+) -> None:
+    from telegram.error import BadRequest
+
+    from src.bot.locales import t
+
+    conn = _make_business_connection()
+    handler._connections["biz_123"] = conn
+
+    update = MagicMock()
+    query = MagicMock()
+    query.data = "sec_transcribe:1:biz_123"
+    query.answer = AsyncMock()
+    prompt_msg = MagicMock()
+    prompt_msg.chat.id = 100
+    prompt_msg.message_id = 99
+    prompt_msg.reply_to_message = _make_voice_message()
+    query.message = prompt_msg
+    update.callback_query = query
+
+    bot = AsyncMock()
+    bot.get_file = AsyncMock(side_effect=BadRequest("File is too big"))
+    bot.edit_message_text = AsyncMock()
+    ctx = _make_context(bot)
+
+    await handler.handle_transcribe_callback(update, ctx)
+
+    assert bot.edit_message_text.await_args.kwargs["text"] == t(
+        "file_too_large", "en"
+    )
+    assert mock_notifier.notify_error.await_args.args[0] == (
+        "Secretary: file too large"
+    )
+    bot.get_file.assert_awaited_once()

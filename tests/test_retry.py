@@ -1,7 +1,7 @@
 """Tests for the transient-network-error retry helper."""
 
 import pytest
-from telegram.error import NetworkError, TimedOut
+from telegram.error import BadRequest, NetworkError, TimedOut
 
 from src.bot.utils.retry import with_network_retry
 
@@ -77,6 +77,21 @@ async def test_does_not_retry_timeout_error() -> None:
         raise TimeoutError()
 
     with pytest.raises(TimeoutError):
+        await with_network_retry(
+            factory, timeout=1, attempts=3, base_delay=0
+        )
+    assert calls == 1
+
+
+async def test_does_not_retry_bad_request() -> None:
+    calls = 0
+
+    async def factory() -> str:
+        nonlocal calls
+        calls += 1
+        raise BadRequest("File is too big")
+
+    with pytest.raises(BadRequest):
         await with_network_retry(
             factory, timeout=1, attempts=3, base_delay=0
         )

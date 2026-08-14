@@ -564,6 +564,18 @@ class BotHandlers:
                     f"Timed out after {self._file_download_timeout}s",
                 )
                 return
+            except BadRequest as e:
+                if "file is too big" in str(e).lower():
+                    await processing_msg.edit_text(
+                        t("file_too_large", lang)
+                    )
+                    await self._notifier.notify_error(
+                        "File too large",
+                        username=user.username,
+                        error_detail=f"{file_type}, exceeded 20 MB",
+                    )
+                    return
+                raise
             except NetworkError as e:
                 await processing_msg.edit_text(
                     t("download_timeout", lang)
@@ -577,18 +589,6 @@ class BotHandlers:
                     "File download network error", user.username, repr(e),
                 )
                 return
-            except BadRequest as e:
-                if "file is too big" in str(e).lower():
-                    await processing_msg.edit_text(
-                        t("file_too_large", lang)
-                    )
-                    await self._notifier.notify_error(
-                        "File too large",
-                        username=user.username,
-                        error_detail=f"{file_type}, exceeded 20 MB",
-                    )
-                    return
-                raise
             ext = (tg_file.file_path or "").rsplit(".", 1)[-1] if tg_file.file_path else "ogg"
             file_path = os.path.join(tempfile.gettempdir(), f"{uuid.uuid4()}.{ext}")
             try:
@@ -614,6 +614,18 @@ class BotHandlers:
                     f"Timed out after {self._file_download_timeout}s",
                 )
                 return
+            except BadRequest as e:
+                if "file is too big" in str(e).lower():
+                    await processing_msg.edit_text(
+                        t("file_too_large", lang)
+                    )
+                    await self._notifier.notify_error(
+                        "File too large",
+                        username=user.username,
+                        error_detail=f"{file_type}, exceeded 20 MB",
+                    )
+                    return
+                raise
             except NetworkError as e:
                 await processing_msg.edit_text(
                     t("download_timeout", lang)
