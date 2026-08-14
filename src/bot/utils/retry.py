@@ -2,7 +2,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 
-from telegram.error import NetworkError, TimedOut
+from telegram.error import BadRequest, NetworkError, TimedOut
 
 logger = logging.getLogger(__name__)
 
@@ -31,13 +31,15 @@ async def with_network_retry[T](
     :class:`asyncio.TimeoutError` from :func:`asyncio.wait_for` and
     :class:`telegram.error.TimedOut` — are re-raised immediately so callers
     keep their existing timeout handling instead of waiting through several
-    slow retries.
+    slow retries. :class:`telegram.error.BadRequest` (a ``NetworkError``
+    subclass carrying an API-level rejection such as ``File is too big``)
+    is also re-raised immediately, since retrying cannot change the outcome.
     """
     last_exc: NetworkError | None = None
     for attempt in range(attempts):
         try:
             return await asyncio.wait_for(factory(), timeout=timeout)
-        except (TimeoutError, TimedOut):
+        except (TimeoutError, TimedOut, BadRequest):
             raise
         except NetworkError as exc:
             last_exc = exc

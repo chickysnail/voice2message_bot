@@ -412,6 +412,21 @@ class SecretaryHandler:
                     timeout=self._file_download_timeout,
                     description="secretary get_file",
                 )
+            except BadRequest as e:
+                if "file is too big" in str(e).lower():
+                    await bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=status_msg.message_id,
+                        text=t('file_too_large', lang),
+                        business_connection_id=biz_conn_id,
+                    )
+                    await self._notifier.notify_error(
+                        "Secretary: file too large",
+                        username=owner_user.username,
+                        error_detail=f"{file_type}, exceeded 20 MB",
+                    )
+                    return
+                raise
             except TimeoutError:
                 await bot.edit_message_text(
                     chat_id=chat_id,
@@ -447,6 +462,21 @@ class SecretaryHandler:
                     timeout=self._file_download_timeout,
                     description="secretary download_to_drive",
                 )
+            except BadRequest as e:
+                if "file is too big" in str(e).lower():
+                    await bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=status_msg.message_id,
+                        text=t('file_too_large', lang),
+                        business_connection_id=biz_conn_id,
+                    )
+                    await self._notifier.notify_error(
+                        "Secretary: file too large",
+                        username=owner_user.username,
+                        error_detail=f"{file_type}, exceeded 20 MB",
+                    )
+                    return
+                raise
             except TimeoutError:
                 await bot.edit_message_text(
                     chat_id=chat_id,
