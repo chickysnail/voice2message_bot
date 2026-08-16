@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     health_port: int = 8080
 
+    # Heartbeat monitor URL (Better Stack / UptimeRobot / Healthchecks.io) pinged
+    # while the bot is alive; the monitor alerts when the pings stop. Empty
+    # disables the heartbeat.
+    heartbeat_url: str = ""
+    heartbeat_interval_seconds: int = 60
+
     # Timeouts in seconds
     transcription_timeout: int = 900  # 15 min (long audio can take a while)
     summarization_timeout: int = 60
