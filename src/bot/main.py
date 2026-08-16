@@ -23,6 +23,7 @@ from src.bot.services.media_download import (
     YOUTUBE,
     RapidAPIMediaResolver,
 )
+from src.bot.services.monitoring import Heartbeat
 from src.bot.services.notifier import AdminNotifier
 from src.bot.services.summarization import OpenAISummarizer
 from src.bot.services.transcription import ElevenLabsTranscriber
@@ -195,6 +196,10 @@ def main() -> None:
 
     health_runner: web.AppRunner | None = None
     cleanup_task: asyncio.Task[None] | None = None
+    heartbeat = Heartbeat(
+        settings.heartbeat_url,
+        settings.heartbeat_interval_seconds,
+    )
 
     async def prompt_cleanup_loop(app: Application) -> None:  # type: ignore[type-arg]
         """Periodically delete untranscribed prompts older than the TTL."""
@@ -235,9 +240,26 @@ def main() -> None:
         # Start the background sweep that auto-deletes stale prompts.
         cleanup_task = asyncio.create_task(prompt_cleanup_loop(app))
 
+        # Pings an external monitor while alive; a crash stops the pings and the
+        # monitor is what raises the alert.
+        heartbeat.start()
+
         logger.info("Bot started. Admin IDs: %s", settings.admin_user_ids)
 
     async def post_shutdown(app: Application) -> None:  # type: ignore[type-arg]
+        now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
+        for admin_id in settings.admin_user_ids:
+            try:
+                await app.bot.send_message(
+                    chat_id=admin_id,
+                    text=f"\U0001f534 Bot shutting down at {now}",
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to send shutdown notification to admin %d",
+                    admin_id,
+                )
+        await heartbeat.stop()
         if cleanup_task is not None:
             cleanup_task.cancel()
         if health_runner:

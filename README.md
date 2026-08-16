@@ -56,6 +56,17 @@ pytest
 mypy src/
 ```
 
+## Knowing when the bot is down
+
+Admins already get a DM on startup (🟢) and now also on a clean shutdown (🔴).
+A crash cannot announce itself, so the bot also pings a heartbeat monitor every
+`HEARTBEAT_INTERVAL_SECONDS`; when the pings stop, the monitor alerts you. Create a
+heartbeat ("cron"/"push") monitor at [Better Stack](https://betterstack.com/uptime),
+UptimeRobot or Healthchecks.io and put its ping URL in `HEARTBEAT_URL`.
+
+`GET /health` on `HEALTH_PORT` remains as an independent check for a process that is
+alive but no longer serving — point an HTTP monitor or Railway's healthcheck at it.
+
 ## Deployment (Railway)
 
 1. Connect this repo to Railway
@@ -80,6 +91,7 @@ src/bot/
 │   ├── transcription.py # ElevenLabs Scribe v2
 │   ├── summarization.py # OpenAI GPT-4o-mini
 │   ├── audio.py         # ffmpeg audio extraction
+│   ├── monitoring.py    # Heartbeat pings for downtime alerts
 │   └── notifier.py      # Admin error notifications
 ├── storage/
 │   ├── transcription_store.py  # In-memory TTL store
