@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     # providers. Each platform is disabled unless its host is configured; with
     # no key at all links get a "not supported" reply.
     rapidapi_key: str = ""
-    rapidapi_host: str = "instagram120.p.rapidapi.com"
+    rapidapi_host: str = "ig-downloader-api.p.rapidapi.com"
     rapidapi_path: str = "/api/instagram/links"
     rapidapi_query_param: str = "url"
     rapidapi_method: str = "POST"
