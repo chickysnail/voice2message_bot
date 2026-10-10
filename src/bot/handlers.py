@@ -42,7 +42,7 @@ from src.bot.services.export import generate_html, generate_srt, generate_txt
 from src.bot.services.media_download import (
     MediaDownloadError,
     MediaLink,
-    RapidAPIMediaResolver,
+    MediaResolver,
     download_media,
     find_link,
 )
@@ -132,7 +132,7 @@ class BotHandlers:
         transcription_timeout: int = 900,
         ffmpeg_timeout: int = 120,
         file_download_timeout: int = 60,
-        media_resolvers: dict[str, RapidAPIMediaResolver] | None = None,
+        media_resolvers: dict[str, MediaResolver] | None = None,
         media_audio_store: MediaAudioStore | None = None,
     ) -> None:
         self._transcriber = transcriber

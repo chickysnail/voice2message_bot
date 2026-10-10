@@ -16,7 +16,7 @@ import re
 import tempfile
 import uuid
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 import aiohttp
 from yarl import URL
@@ -53,6 +53,15 @@ _USER_AGENT = (
 
 class MediaDownloadError(RuntimeError):
     """Raised when a link cannot be resolved or downloaded."""
+
+
+class MediaResolver(Protocol):
+    """Turns a page link into a direct media URL."""
+
+    @property
+    def referer(self) -> str | None: ...
+
+    async def resolve(self, link: str) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -195,6 +204,52 @@ class RapidAPIMediaResolver:
         if not media_url:
             raise MediaDownloadError(f"no media URL in provider response: {body[:200]}")
         return media_url
+
+
+class YtDlpMediaResolver:
+    """Resolves a link to a direct media URL with yt-dlp, no third-party API.
+
+    Instagram often demands a login from datacenter IPs; pass a Netscape-format
+    `cookies_file` exported from a logged-in browser if public reels get refused.
+    """
+
+    referer: str | None = None
+
+    def __init__(self, *, cookies_file: str = "", timeout: int = 60) -> None:
+        self._cookies_file = cookies_file
+        self._timeout = timeout
+
+    async def resolve(self, link: str) -> str:
+        """Return a direct media URL for `link`."""
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(self._extract, link), timeout=self._timeout
+            )
+        except TimeoutError as e:
+            raise MediaDownloadError(f"yt-dlp timed out after {self._timeout}s") from e
+
+    def _extract(self, link: str) -> str:
+        import yt_dlp  # imported lazily: heavy, and only needed when a link arrives
+
+        opts: dict[str, Any] = {
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+            "format": "bestaudio/best",
+            "socket_timeout": 20,
+        }
+        if self._cookies_file:
+            opts["cookiefile"] = self._cookies_file
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(link, download=False)
+        except yt_dlp.utils.DownloadError as e:
+            raise MediaDownloadError(f"yt-dlp failed: {e}") from e
+
+        url = info.get("url") if isinstance(info, dict) else None
+        if not url:
+            raise MediaDownloadError("yt-dlp returned no media URL")
+        return str(url)
 
 
 async def download_media(

@@ -21,7 +21,9 @@ from src.bot.secretary import PROMPT_TTL_SECONDS, SecretaryHandler
 from src.bot.services.media_download import (
     INSTAGRAM,
     YOUTUBE,
+    MediaResolver,
     RapidAPIMediaResolver,
+    YtDlpMediaResolver,
 )
 from src.bot.services.monitoring import Heartbeat
 from src.bot.services.notifier import AdminNotifier
@@ -78,17 +80,13 @@ def main() -> None:
         settings.openai_api_key,
         timeout=settings.summarization_timeout,
     )
-    media_resolvers: dict[str, RapidAPIMediaResolver] = {}
+    media_resolvers: dict[str, MediaResolver] = {
+        INSTAGRAM: YtDlpMediaResolver(
+            cookies_file=settings.instagram_cookies_file,
+            timeout=settings.file_download_timeout,
+        )
+    }
     if settings.rapidapi_key:
-        if settings.rapidapi_host:
-            media_resolvers[INSTAGRAM] = RapidAPIMediaResolver(
-                settings.rapidapi_key,
-                host=settings.rapidapi_host,
-                path=settings.rapidapi_path,
-                query_param=settings.rapidapi_query_param,
-                method=settings.rapidapi_method,
-                timeout=settings.file_download_timeout,
-            )
         if settings.youtube_rapidapi_host:
             media_resolvers[YOUTUBE] = RapidAPIMediaResolver(
                 settings.rapidapi_key,
