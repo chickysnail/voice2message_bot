@@ -407,8 +407,12 @@ class SecretaryHandler:
         try:
             # Download file
             try:
+                # A local Bot API server downloads the whole file before it
+                # answers getFile, so the default 5 s read timeout is too short.
                 tg_file = await with_network_retry(
-                    lambda: bot.get_file(file_id),
+                    lambda: bot.get_file(
+                        file_id, read_timeout=self._file_download_timeout
+                    ),
                     timeout=self._file_download_timeout,
                     description="secretary get_file",
                 )

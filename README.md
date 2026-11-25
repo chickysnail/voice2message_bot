@@ -70,7 +70,7 @@ alive but no longer serving — point an HTTP monitor or Railway's healthcheck a
 ## Deployment (Railway)
 
 1. Connect this repo to Railway
-2. Set branch to `v3-development`
+2. Set branch to `master`
 3. Add a **Volume** mounted at `/data`
 4. Set environment variables:
    - `TELEGRAM_BOT_TOKEN`
@@ -78,6 +78,29 @@ alive but no longer serving — point an HTTP monitor or Railway's healthcheck a
    - `OPENAI_API_KEY`
    - `DATABASE_PATH=/data/stats.db`
    - `ADMIN_USER_IDS=your_telegram_user_id`
+
+### Files over 20 MB
+
+The cloud Bot API won't let bots download files over 20 MB. When
+`TELEGRAM_API_ID` and `TELEGRAM_API_HASH` are set, the bot starts a
+[local Telegram Bot API server](https://github.com/tdlib/telegram-bot-api)
+(`telegram-bot-api --local`) inside the same container and talks to Telegram
+through it, which raises the limit to 2000 MB.
+
+1. Create an app at <https://my.telegram.org> → *API development tools* and copy
+   its `api_id` and `api_hash`.
+2. Set on Railway:
+   - `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`
+   - `FILE_DOWNLOAD_TIMEOUT=600` (the server downloads the whole file before it
+     answers, so large files need longer than the default 60 s)
+   - optional `TELEGRAM_BOT_API_DIR` (default `/data/telegram-bot-api`, on the
+     Volume, so the bot stays logged in across redeploys)
+3. Once the new deployment is up, log the bot out of the cloud Bot API once,
+   otherwise Telegram may keep delivering some updates there:
+   `https://api.telegram.org/bot<TOKEN>/logOut`
+
+To go back, remove `TELEGRAM_API_ID`/`TELEGRAM_API_HASH`. The cloud Bot API
+accepts the bot again 10 minutes after the `logOut`.
 
 ## Architecture
 
@@ -91,6 +114,7 @@ src/bot/
 │   ├── transcription.py # ElevenLabs Scribe v2
 │   ├── summarization.py # OpenAI GPT-4o-mini
 │   ├── audio.py         # ffmpeg audio extraction
+│   ├── local_bot_api.py # Local Bot API server for files over 20 MB
 │   ├── monitoring.py    # Heartbeat pings for downtime alerts
 │   └── notifier.py      # Admin error notifications
 ├── storage/
