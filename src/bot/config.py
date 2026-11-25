@@ -39,6 +39,16 @@ class Settings(BaseSettings):
     heartbeat_url: str = ""
     heartbeat_interval_seconds: int = 60
 
+    # Self-hosted Telegram Bot API server. The cloud Bot API won't let bots
+    # download files over 20 MB; with both credentials set (from
+    # https://my.telegram.org), the bot starts telegram-bot-api --local next to
+    # itself, which downloads files up to 2000 MB.
+    telegram_api_id: str = ""
+    telegram_api_hash: str = ""
+    # That server's session and downloads. Keep it on the Railway Volume so the
+    # bot stays logged in to it across redeploys.
+    telegram_bot_api_dir: str = "/data/telegram-bot-api"
+
     # Timeouts in seconds
     transcription_timeout: int = 900  # 15 min (long audio can take a while)
     summarization_timeout: int = 60

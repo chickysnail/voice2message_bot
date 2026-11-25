@@ -18,6 +18,7 @@ from telegram.ext import (
 from src.bot.config import Settings
 from src.bot.handlers import BotHandlers
 from src.bot.secretary import PROMPT_TTL_SECONDS, SecretaryHandler
+from src.bot.services.local_bot_api import LocalBotApiServer
 from src.bot.services.media_download import (
     INSTAGRAM,
     YOUTUBE,
@@ -102,7 +103,21 @@ def main() -> None:
     stats_db = StatisticsDB(settings.database_path)
 
     # Build application
-    application = Application.builder().token(settings.telegram_bot_token).build()
+    builder = Application.builder().token(settings.telegram_bot_token)
+    bot_api: LocalBotApiServer | None = None
+    if settings.telegram_api_id and settings.telegram_api_hash:
+        bot_api = LocalBotApiServer(
+            settings.telegram_api_id,
+            settings.telegram_api_hash,
+            settings.telegram_bot_api_dir,
+        )
+        bot_api.start(settings.telegram_bot_token)
+        builder = (
+            builder.base_url(f"{bot_api.url}/bot")
+            .base_file_url(f"{bot_api.url}/file/bot")
+            .local_mode(True)
+        )
+    application = builder.build()
 
     notifier = AdminNotifier(application.bot, settings.admin_user_ids)
 
@@ -194,6 +209,7 @@ def main() -> None:
 
     health_runner: web.AppRunner | None = None
     cleanup_task: asyncio.Task[None] | None = None
+    bot_api_cleanup_task: asyncio.Task[None] | None = None
     heartbeat = Heartbeat(
         settings.heartbeat_url,
         settings.heartbeat_interval_seconds,
@@ -212,7 +228,7 @@ def main() -> None:
             await asyncio.sleep(3600)
 
     async def post_init(app: Application) -> None:  # type: ignore[type-arg]
-        nonlocal health_runner, cleanup_task
+        nonlocal health_runner, cleanup_task, bot_api_cleanup_task
         await stats_db.initialize()
 
         # Start health check server
@@ -237,6 +253,10 @@ def main() -> None:
 
         # Start the background sweep that auto-deletes stale prompts.
         cleanup_task = asyncio.create_task(prompt_cleanup_loop(app))
+        if bot_api is not None:
+            bot_api_cleanup_task = asyncio.create_task(
+                bot_api.delete_old_downloads_forever()
+            )
 
         # Pings an external monitor while alive; a crash stops the pings and the
         # monitor is what raises the alert.
@@ -260,6 +280,8 @@ def main() -> None:
         await heartbeat.stop()
         if cleanup_task is not None:
             cleanup_task.cancel()
+        if bot_api_cleanup_task is not None:
+            bot_api_cleanup_task.cancel()
         if health_runner:
             await health_runner.cleanup()
         await stats_db.close()
@@ -268,7 +290,11 @@ def main() -> None:
     application.post_shutdown = post_shutdown
 
     logger.info("Starting bot...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    try:
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+    finally:
+        if bot_api is not None:
+            bot_api.stop()
 
 
 if __name__ == "__main__":
