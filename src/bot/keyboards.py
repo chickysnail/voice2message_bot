@@ -1,4 +1,4 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 from src.bot.locales import t
 
@@ -148,4 +148,12 @@ def secretary_settings_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
                 callback_data=CALLBACK_SECRETARY_SETUP,
             ),
         ]
+    ])
+
+
+def admin_dashboard_keyboard(app_url: str, browser_url: str) -> InlineKeyboardMarkup:
+    """Open the dashboard as a Telegram Mini App, or in a browser."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📊 Open dashboard", web_app=WebAppInfo(url=app_url))],
+        [InlineKeyboardButton("🌐 Open in browser (24 h link)", url=browser_url)],
     ])

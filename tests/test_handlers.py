@@ -326,3 +326,113 @@ async def test_file_too_big_reports_file_too_large(
     assert processing.edit_text.await_args.args[0] == t("file_too_large", "en")
     assert notifier.notify_error.await_args.args[0] == "File too large"
     ctx.bot.get_file.assert_awaited_once()
+
+
+# --- donation nudge & donations ---
+
+
+def _message() -> MagicMock:
+    message = MagicMock()
+    message.reply_text = AsyncMock()
+    return message
+
+
+def _user(user_id: int = 42) -> MagicMock:
+    user = MagicMock()
+    user.id = user_id
+    user.username = "u"
+    user.language_code = "en"
+    return user
+
+
+async def test_nudge_after_threshold_then_waits(
+    notifier: AsyncMock, db: StatisticsDB
+) -> None:
+    from src.bot.services.pricing import Pricing
+
+    handlers = BotHandlers(
+        transcriber=MagicMock(), summarizer=MagicMock(), notifier=notifier,
+        store=MagicMock(), stats_db=db, max_audio_duration=3600,
+        pricing=Pricing(elevenlabs_usd_per_hour=1.0), donation_nudge_usd=1.0,
+    )
+    message, user = _message(), _user()
+
+    await db.record_usage(42, "u", 1800)  # $0.50: below the threshold
+    await handlers._maybe_nudge_donation(message, user)
+    message.reply_text.assert_not_awaited()
+
+    await db.record_usage(42, "u", 1800)  # $1.00
+    await handlers._maybe_nudge_donation(message, user)
+    message.reply_text.assert_awaited_once()
+    text = message.reply_text.call_args.args[0]
+    assert "$1.00" in text and "1h" in text
+    assert message.reply_text.call_args.kwargs["reply_markup"] is not None
+
+    # Another dollar, but the interval hasn't passed.
+    await db.record_usage(42, "u", 3600)
+    await handlers._maybe_nudge_donation(message, user)
+    message.reply_text.assert_awaited_once()
+
+
+async def test_nudge_disabled_with_zero(notifier: AsyncMock, db: StatisticsDB) -> None:
+    handlers = BotHandlers(
+        transcriber=MagicMock(), summarizer=MagicMock(), notifier=notifier,
+        store=MagicMock(), stats_db=db, max_audio_duration=3600,
+        donation_nudge_usd=0,
+    )
+    await db.record_usage(42, "u", 100 * 3600)
+    message = _message()
+    await handlers._maybe_nudge_donation(message, _user())
+    message.reply_text.assert_not_awaited()
+
+
+async def test_successful_payment_is_recorded(
+    handlers: BotHandlers, db: StatisticsDB, notifier: AsyncMock
+) -> None:
+    update = _make_update(42)
+    update.effective_user.username = "u"
+    update.message.successful_payment.total_amount = 100
+    update.message.successful_payment.telegram_payment_charge_id = "ch_1"
+    await handlers.handle_successful_payment(update, MagicMock())
+
+    assert await db.get_donated_stars(42) == 100
+    since, _ = await db.get_nudge_state(42)
+    assert since is not None
+    notifier.notify_admins.assert_awaited_once()
+    update.message.reply_text.assert_awaited_once()
+
+
+async def test_admin_command_without_public_url(handlers: BotHandlers) -> None:
+    update = _make_update(user_id=111)
+    ctx = MagicMock()
+    await handlers.admin_command(update, ctx)
+    assert "PUBLIC_URL" in update.message.reply_text.call_args.args[0]
+
+
+async def test_admin_command_sends_dashboard_buttons(
+    notifier: AsyncMock, db: StatisticsDB
+) -> None:
+    from src.bot.admin.auth import validate_link_token
+
+    handlers = BotHandlers(
+        transcriber=MagicMock(), summarizer=MagicMock(), notifier=notifier,
+        store=MagicMock(), stats_db=db, max_audio_duration=3600,
+        dashboard_url="https://bot.example.com/admin",
+    )
+    update = _make_update(user_id=111)
+    ctx = MagicMock()
+    ctx.bot.token = "123:ABC"
+    await handlers.admin_command(update, ctx)
+
+    markup = update.message.reply_text.call_args.kwargs["reply_markup"]
+    app_btn, browser_btn = markup.inline_keyboard[0][0], markup.inline_keyboard[1][0]
+    assert app_btn.web_app.url == "https://bot.example.com/admin"
+    url, _, fragment = browser_btn.url.partition("#key=")
+    assert url == "https://bot.example.com/admin"
+    assert validate_link_token(fragment, "123:ABC") == 111
+
+
+async def test_admin_command_ignores_non_admin(handlers: BotHandlers) -> None:
+    update = _make_update(user_id=5)
+    await handlers.admin_command(update, MagicMock())
+    update.message.reply_text.assert_not_awaited()

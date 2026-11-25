@@ -49,11 +49,35 @@ class Settings(BaseSettings):
     # bot stays logged in to it across redeploys.
     telegram_bot_api_dir: str = "/data/telegram-bot-api"
 
+    # Public HTTPS address of this service, e.g. https://bot.up.railway.app.
+    # The admin dashboard lives at <public_url>/admin. Falls back to the domain
+    # Railway generates for the service.
+    public_url: str = ""
+    railway_public_domain: str = ""
+
+    # Rough API prices, for the dashboard and the donation nudge.
+    # ElevenLabs bills audio duration: plan price / included hours.
+    elevenlabs_usd_per_hour: float = 0.40
+    # What one Telegram Star pays out to the bot owner.
+    star_usd: float = 0.013
+
+    # Every this many dollars of API spend on a user, tell them so and offer a
+    # donation — but at most once per interval. 0 turns the nudge off.
+    donation_nudge_usd: float = 1.0
+    donation_nudge_interval_days: int = 14
+
     # Timeouts in seconds
     transcription_timeout: int = 900  # 15 min (long audio can take a while)
     summarization_timeout: int = 60
     ffmpeg_timeout: int = 120
     file_download_timeout: int = 60
+
+    @property
+    def dashboard_url(self) -> str | None:
+        base = self.public_url or (
+            f"https://{self.railway_public_domain}" if self.railway_public_domain else ""
+        )
+        return f"{base.rstrip('/')}/admin" if base else None
 
     @field_validator("admin_user_ids", mode="before")
     @classmethod

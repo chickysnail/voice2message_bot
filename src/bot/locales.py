@@ -42,7 +42,9 @@ _STRINGS: dict[str, dict[str, str]] = {
             "After transcription you can summarize it or save as .txt / .srt file. Multiple speakers are detected automatically.\n"
             "\n"
             "/secretary — transcribe voice messages in your chats\n"
-            "/stats — your usage statistics"
+            "/stats — your usage statistics\n"
+            "\n"
+            "Privacy: I keep only usage stats (when, how much audio, file sizes) — never your audio or the text."
         ),
         "ru": (
             "🎙 Отправьте мне голосовое, аудио, видеозаметку или видео — я сделаю расшифровку.\n"
@@ -52,26 +54,14 @@ _STRINGS: dict[str, dict[str, str]] = {
             "После расшифровки можно получить краткое содержание или сохранить в .txt / .srt. Несколько говорящих распознаются автоматически.\n"
             "\n"
             "/secretary — расшифровка голосовых в ваших чатах\n"
-            "/stats — статистика использования"
+            "/stats — статистика использования\n"
+            "\n"
+            "Приватность: я храню только статистику (когда, сколько аудио, размер файлов) — но не сами записи и не текст."
         ),
     },
     "transcribing": {
         "en": "Transcribing...",
         "ru": "Расшифровываю...",
-    },
-    "transcribing_donate": {
-        "en": (
-            "Transcribing...\n"
-            "\n"
-            "If you enjoy the bot, you can support it with "
-            "Telegram Stars — it would mean the world to me ^^"
-        ),
-        "ru": (
-            "Расшифровываю...\n"
-            "\n"
-            "Если бот вам полезен, вы можете поддержать "
-            "его звёздами Telegram — это значило бы для меня очень много ^^"
-        ),
     },
     "file_too_large": {
         "en": (
@@ -313,6 +303,34 @@ _STRINGS: dict[str, dict[str, str]] = {
     "btn_donate": {
         "en": "⭐{amount}",
         "ru": "⭐{amount}",
+    },
+    "donation_nudge": {
+        "en": (
+            "By the way: you've transcribed {duration} of audio with me — that cost "
+            "about {cost} in API fees.\n"
+            "\n"
+            "The bot is free and will stay free. But if it saves you time, you can "
+            "chip in with Telegram Stars — it really helps keep it running ^^"
+        ),
+        "ru": (
+            "Кстати: вы уже расшифровали у меня {duration} аудио — это примерно {cost} "
+            "на оплату API.\n"
+            "\n"
+            "Бот бесплатный и таким останется. Но если он экономит вам время, можно "
+            "поддержать его звёздами Telegram — это правда помогает ^^"
+        ),
+    },
+    "donation_invoice_description": {
+        "en": "A voluntary tip that helps pay for transcription. Thank you!",
+        "ru": "Добровольная поддержка, которая помогает оплачивать расшифровку. Спасибо!",
+    },
+    "stats_cost": {
+        "en": "API cost of your transcriptions: ≈ {cost}",
+        "ru": "Ваши расшифровки обошлись боту в ≈ {cost}",
+    },
+    "stats_donated": {
+        "en": "Your support: ⭐{stars} — thank you!",
+        "ru": "Ваша поддержка: ⭐{stars} — спасибо!",
     },
 }
 

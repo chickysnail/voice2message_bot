@@ -15,6 +15,7 @@ from telegram.ext import (
     filters,
 )
 
+from src.bot.admin.web import AdminDashboard
 from src.bot.config import Settings
 from src.bot.handlers import BotHandlers
 from src.bot.secretary import PROMPT_TTL_SECONDS, SecretaryHandler
@@ -28,6 +29,7 @@ from src.bot.services.media_download import (
 )
 from src.bot.services.monitoring import Heartbeat
 from src.bot.services.notifier import AdminNotifier
+from src.bot.services.pricing import Pricing
 from src.bot.services.summarization import OpenAISummarizer
 from src.bot.services.transcription import ElevenLabsTranscriber
 from src.bot.storage.media_audio_store import MediaAudioStore
@@ -56,10 +58,14 @@ async def health_handler(request: web.Request) -> web.Response:
     return web.Response(text="ok")
 
 
-async def run_health_server(port: int) -> web.AppRunner:
-    """Start a minimal HTTP server for health checks."""
+async def run_health_server(
+    port: int, dashboard: AdminDashboard | None = None
+) -> web.AppRunner:
+    """Start the HTTP server: health checks and the admin dashboard."""
     app = web.Application()
     app.router.add_get("/health", health_handler)
+    if dashboard is not None:
+        dashboard.register(app)
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", port)
@@ -101,6 +107,10 @@ def main() -> None:
     store = TranscriptionStore(ttl_seconds=settings.transcription_ttl)
     media_audio_store = MediaAudioStore(ttl_seconds=settings.link_audio_ttl)
     stats_db = StatisticsDB(settings.database_path)
+    pricing = Pricing(
+        elevenlabs_usd_per_hour=settings.elevenlabs_usd_per_hour,
+        star_usd=settings.star_usd,
+    )
 
     # Build application
     builder = Application.builder().token(settings.telegram_bot_token)
@@ -133,6 +143,10 @@ def main() -> None:
         file_download_timeout=settings.file_download_timeout,
         media_resolvers=media_resolvers,
         media_audio_store=media_audio_store,
+        pricing=pricing,
+        donation_nudge_usd=settings.donation_nudge_usd,
+        donation_nudge_interval_seconds=settings.donation_nudge_interval_days * 86400,
+        dashboard_url=settings.dashboard_url,
     )
 
     secretary = SecretaryHandler(
@@ -143,6 +157,15 @@ def main() -> None:
         transcription_timeout=settings.transcription_timeout,
         ffmpeg_timeout=settings.ffmpeg_timeout,
         file_download_timeout=settings.file_download_timeout,
+        pricing=pricing,
+    )
+
+    dashboard = AdminDashboard(
+        stats_db,
+        pricing,
+        bot_token=settings.telegram_bot_token,
+        admin_ids=settings.admin_user_ids,
+        elevenlabs_api_key=settings.elevenlabs_api_key,
     )
 
     # Register handlers
@@ -150,6 +173,7 @@ def main() -> None:
     application.add_handler(CommandHandler("help", handlers.help_command))
     application.add_handler(CommandHandler("stats", handlers.stats_command))
     application.add_handler(CommandHandler("logs", handlers.logs_command))
+    application.add_handler(CommandHandler("admin", handlers.admin_command))
     application.add_handler(CommandHandler("secretary", handlers.secretary_command))
     application.add_handler(CommandHandler("broadcast", handlers.broadcast_command))
 
@@ -232,7 +256,7 @@ def main() -> None:
         await stats_db.initialize()
 
         # Start health check server
-        health_runner = await run_health_server(settings.health_port)
+        health_runner = await run_health_server(settings.health_port, dashboard)
 
         # Notify admins that bot has (re)started
         now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")

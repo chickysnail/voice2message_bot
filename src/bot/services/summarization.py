@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from typing import Protocol
 
 import openai
@@ -13,10 +14,17 @@ SUMMARIZE_PROMPT = (
 )
 
 
+@dataclass
+class SummaryResult:
+    text: str
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+
+
 class SummarizationClient(Protocol):
     """Protocol for summarization clients (enables mocking)."""
 
-    def summarize(self, text: str) -> str: ...
+    def summarize(self, text: str) -> SummaryResult: ...
 
 
 class OpenAISummarizer:
@@ -29,8 +37,8 @@ class OpenAISummarizer:
             api_key=api_key, timeout=timeout
         )
 
-    def summarize(self, text: str) -> str:
-        """Summarize a transcript and return the result.
+    def summarize(self, text: str) -> SummaryResult:
+        """Summarize a transcript and return it with the tokens it used.
 
         Raises RuntimeError on API failure.
         """
@@ -46,7 +54,12 @@ class OpenAISummarizer:
             if not content:
                 raise RuntimeError("Summarization returned empty content")
             logger.info("Summarized text (%d chars -> %d chars)", len(text), len(content))
-            return content
+            usage = completion.usage
+            return SummaryResult(
+                text=content,
+                prompt_tokens=usage.prompt_tokens if usage else 0,
+                completion_tokens=usage.completion_tokens if usage else 0,
+            )
         except RuntimeError:
             raise
         except Exception as e:

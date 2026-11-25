@@ -67,6 +67,39 @@ UptimeRobot or Healthchecks.io and put its ping URL in `HEARTBEAT_URL`.
 `GET /health` on `HEALTH_PORT` remains as an independent check for a process that is
 alive but no longer serving — point an HTTP monitor or Railway's healthcheck at it.
 
+## Admin dashboard
+
+Send `/admin` to the bot (admins only). It answers with two buttons: one opens
+the dashboard inside Telegram as a Mini App, the other in a browser (that link
+works for 24 hours). The dashboard shows, per day or hour and per user:
+transcriptions, audio minutes, new and active users, data downloaded and sent
+to ElevenLabs, OpenAI tokens, estimated API cost, Stars donations, errors, and
+the ElevenLabs account's remaining credits.
+
+It is served by the same HTTP server as `/health`, so it needs a public HTTPS
+address: in Railway, open the service → *Settings → Networking → Generate
+Domain* and point it at `HEALTH_PORT` (8080). Railway then sets
+`RAILWAY_PUBLIC_DOMAIN`; elsewhere, set `PUBLIC_URL`. No extra secret is needed:
+Mini App requests are checked against Telegram's signature, browser links are
+signed with the bot token, and only `ADMIN_USER_IDS` get data.
+
+What is stored: one row per transcription or summary — user id, username, time,
+source, audio length, byte counts, token counts, estimated cost. Never the audio
+or the text.
+
+Costs are estimates. ElevenLabs bills audio duration against the plan's
+credits, so set `ELEVENLABS_USD_PER_HOUR` to your plan's price divided by its
+included hours. The credits card reads the real quota from ElevenLabs; that
+needs the API key's *User → Read* permission.
+
+### Donations
+
+Donations stay voluntary. Every `DONATION_NUDGE_USD` of estimated spend on a
+user (and at most once per `DONATION_NUDGE_INTERVAL_DAYS`), the bot tells them
+how much audio they've transcribed and roughly what it cost, with Stars
+buttons. `/stats` shows the same estimate. Donations are recorded, reset the
+nudge, and are reported to admins.
+
 ## Deployment (Railway)
 
 1. Connect this repo to Railway
@@ -110,7 +143,13 @@ src/bot/
 ├── config.py            # Settings (pydantic-settings)
 ├── handlers.py          # Telegram handlers
 ├── keyboards.py         # Inline keyboards
+├── admin/
+│   ├── auth.py          # Mini App initData + signed browser links
+│   ├── data.py          # Dashboard queries
+│   ├── web.py           # /admin routes on the health server
+│   └── dashboard.html   # The dashboard page
 ├── services/
+│   ├── pricing.py       # API cost estimates
 │   ├── transcription.py # ElevenLabs Scribe v2
 │   ├── summarization.py # OpenAI GPT-4o-mini
 │   ├── audio.py         # ffmpeg audio extraction

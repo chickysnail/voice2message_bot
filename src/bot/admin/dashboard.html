@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Bot Admin</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --wash: rgba(11, 11, 11, 0.05);
+    --series: #2a78d6;
+    --series-hover: #256abf;
+    --track: #cde2fb;
+    --warning: #fab219;
+    --critical: #d03b3b;
+    --good-text: #006300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #f0efec;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --wash: rgba(255, 255, 255, 0.06);
+      --series: #3987e5;
+      --series-hover: #5598e7;
+      --track: #184f95;
+      --good-text: #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --wash: rgba(255, 255, 255, 0.06);
+    --series: #3987e5;
+    --series-hover: #5598e7;
+    --track: #184f95;
+    --good-text: #0ca30c;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  main { max-width: 1080px; margin: 0 auto; padding: 16px 16px 48px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 18px; font-weight: 600; margin: 0; }
+  h2 { font-size: 14px; font-weight: 600; margin: 0 0 12px; }
+  .sub { color: var(--muted); font-size: 12px; }
+
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 14px 0 16px; }
+  .seg { display: inline-flex; background: var(--wash); border-radius: 8px; padding: 2px; }
+  .seg button {
+    border: 0; background: transparent; color: var(--ink-2); font: inherit; font-size: 13px;
+    padding: 5px 10px; border-radius: 6px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--border); }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border);
+    background: var(--surface); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: 13px;
+  }
+  .chip button { border: 0; background: var(--wash); color: var(--ink-2); border-radius: 999px; width: 22px; height: 22px; cursor: pointer; font: inherit; }
+  .icon-btn { border: 1px solid var(--border); background: var(--surface); color: var(--ink-2); border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  #content { transition: opacity .15s; }
+  #content.loading { opacity: .5; }
+
+  .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  @media (min-width: 720px) { .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+  .tile .label { color: var(--ink-2); font-size: 12px; }
+  .tile .value { font-size: 22px; font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
+  .tile .note { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  .meter { height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; margin: 10px 0 6px; }
+  .meter > div { height: 100%; border-radius: 999px; background: var(--series); }
+  .meter.warn > div { background: var(--warning); }
+  .meter.crit > div { background: var(--critical); }
+
+  .chart-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .chart-head h2 { margin: 0; }
+  select {
+    font: inherit; font-size: 13px; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px;
+  }
+  .chart { position: relative; width: 100%; }
+  .chart svg { display: block; width: 100%; height: 240px; overflow: visible; }
+  .chart .tick { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .chart .bar { fill: var(--series); }
+  .chart .hit:hover + .bar, .chart .hit:focus + .bar { fill: var(--series-hover); }
+  .chart .hit { fill: transparent; cursor: default; outline: none; }
+  .tooltip {
+    position: absolute; pointer-events: none; background: var(--surface); color: var(--ink);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.12); white-space: nowrap; transform: translate(-50%, -100%);
+    display: none; z-index: 2;
+  }
+  .tooltip strong { display: block; font-size: 14px; }
+  .tooltip span { color: var(--ink-2); }
+
+  .two-col { display: grid; gap: 16px; }
+  @media (min-width: 860px) { .two-col { grid-template-columns: 1fr 1fr; } .two-col .card { margin-bottom: 0; } .two-col { margin-bottom: 16px; } }
+
+  .hbar-row { display: grid; grid-template-columns: 96px 1fr auto; gap: 10px; align-items: center; margin: 6px 0; font-size: 13px; }
+  .hbar-row .name { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hbar-track { height: 16px; }
+  .hbar-track > div { height: 100%; background: var(--series); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .hbar-row .val { font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+
+  .table-wrap { overflow-x: auto; margin: 0 -16px; padding: 0 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; padding-left: 0; }
+  th { color: var(--ink-2); font-weight: 500; font-size: 12px; cursor: pointer; user-select: none; }
+  th[aria-sort] { color: var(--ink); font-weight: 600; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--wash); }
+  td .who { font-weight: 500; }
+  td .tag { color: var(--muted); font-size: 11px; margin-left: 4px; }
+  td.dim { color: var(--muted); }
+
+  .errors { list-style: none; margin: 0; padding: 0; }
+  .errors li { padding: 8px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
+  .errors li:last-child { border-bottom: 0; }
+  .errors .meta { color: var(--muted); font-size: 12px; }
+  .errors .detail { color: var(--ink-2); font-size: 12px; overflow-wrap: anywhere; }
+
+  .notice { text-align: center; padding: 48px 16px; color: var(--ink-2); }
+  .foot { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Bot admin</h1>
+    <span class="sub" id="updated"></span>
+  </header>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Time range" id="ranges">
+      <button data-range="24h">24h</button>
+      <button data-range="7d">7d</button>
+      <button data-range="30d">30d</button>
+      <button data-range="90d">90d</button>
+      <button data-range="all">All</button>
+    </div>
+    <span class="chip" id="user-chip" hidden><span id="user-chip-name"></span><button aria-label="Show all users" id="user-clear">×</button></span>
+    <button class="icon-btn" id="refresh">Refresh</button>
+  </div>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <div id="content" hidden>
+    <section class="tiles" id="tiles"></section>
+
+    <section class="card">
+      <div class="chart-head">
+        <h2 id="chart-title">Usage</h2>
+        <select id="metric" aria-label="Metric"></select>
+      </div>
+      <div class="chart" id="chart"><div class="tooltip" id="tooltip"></div></div>
+    </section>
+
+    <div class="two-col">
+      <section class="card">
+        <h2>By source</h2>
+        <div id="sources"></div>
+      </section>
+      <section class="card" id="elevenlabs-card">
+        <h2>ElevenLabs credits</h2>
+        <div id="elevenlabs"><div class="empty">Loading…</div></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2 id="users-title">Users</h2>
+      <div class="table-wrap"><table id="users"></table></div>
+    </section>
+
+    <section class="card">
+      <h2>Recent errors</h2>
+      <ul class="errors" id="errors"></ul>
+    </section>
+
+    <p class="foot" id="foot"></p>
+  </div>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if (tg && tg.initData) {
+    tg.ready();
+    tg.expand();
+    document.documentElement.dataset.theme = tg.colorScheme === "dark" ? "dark" : "light";
+  }
+
+  // --- auth: Mini App initData, or the signed key from a browser link ---
+  function storage(fn) { try { return fn(window.sessionStorage); } catch (e) { return null; } }
+  let auth = null;
+  if (tg && tg.initData) {
+    auth = "tma " + tg.initData;
+  } else {
+    const key = new URLSearchParams(location.hash.slice(1)).get("key");
+    if (key) {
+      storage(s => s.setItem("adminKey", key));
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+    const stored = key || storage(s => s.getItem("adminKey"));
+    if (stored) auth = "Link " + stored;
+  }
+
+  // --- formatting ---
+  const nf = new Intl.NumberFormat("en-US");
+  const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+  const num = n => Math.abs(n) >= 10000 ? compact.format(n) : nf.format(Math.round(n));
+  function usd(n) {
+    if (!n) return "$0";
+    if (n < 0.01) return "<$0.01";
+    return "$" + (n >= 100 ? nf.format(Math.round(n)) : n.toFixed(2));
+  }
+  function dur(sec) {
+    sec = Math.round(sec || 0);
+    if (sec < 60) return sec + "s";
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+    return h ? `${nf.format(h)}h ${m}m` : `${m}m`;
+  }
+  function bytes(b) {
+    b = b || 0;
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let i = 0;
+    while (b >= 1024 && i < units.length - 1) { b /= 1024; i++; }
+    return (i === 0 ? b : b.toFixed(b < 10 ? 1 : 0)) + " " + units[i];
+  }
+  const who = u => u.username ? "@" + u.username : "id " + u.user_id;
+  function shortDate(s) { return s ? s.slice(0, 16) : "—"; }
+
+  const METRICS = [
+    { key: "transcriptions", label: "Transcriptions", fmt: num, axis: num },
+    { key: "audio_seconds", label: "Audio transcribed", fmt: dur, div: 60, axis: v => num(v) + "m" },
+    { key: "active_users", label: "Active users", fmt: num, axis: num },
+    { key: "new_users", label: "New users", fmt: num, axis: num },
+    { key: "cost_usd", label: "API cost", fmt: usd, axis: v => "$" + (v < 1 ? String(+v.toFixed(3)) : num(v)) },
+    { key: "download_bytes", label: "Data downloaded", fmt: bytes, div: 1048576, axis: v => (v < 1 ? +v.toFixed(2) : num(v)) + " MB" },
+    { key: "upload_bytes", label: "Data sent to ElevenLabs", fmt: bytes, div: 1048576, axis: v => (v < 1 ? +v.toFixed(2) : num(v)) + " MB" },
+    { key: "tokens", label: "OpenAI tokens", fmt: num, axis: num },
+    { key: "summaries", label: "Summaries", fmt: num, axis: num },
+    { key: "donations_stars", label: "Donations (Stars)", fmt: v => "⭐" + num(v), axis: num },
+    { key: "errors", label: "Errors", fmt: num, axis: num },
+  ];
+
+  const state = {
+    range: storage(s => s.getItem("range")) || "30d",
+    user: null,
+    metric: storage(s => s.getItem("metric")) || "transcriptions",
+    sort: { key: "last", dir: -1 },
+    data: null,
+  };
+
+  const $ = id => document.getElementById(id);
+  function el(tag, attrs, ...children) {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === "class") node.className = v; else node.setAttribute(k, v);
+    }
+    for (const c of children) node.append(c instanceof Node ? c : document.createTextNode(c));
+    return node;
+  }
+
+  function notice(text) {
+    $("notice").textContent = text;
+    $("notice").hidden = false;
+    $("content").hidden = true;
+  }
+
+  // --- data ---
+  async function api(path) {
+    const res = await fetch(path, { headers: { Authorization: auth } });
+    if (res.status === 401) throw new Error("unauthorized");
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.json();
+  }
+
+  async function load() {
+    if (!auth) {
+      notice("Open this page from the bot: send /admin and tap “Open dashboard”.");
+      return;
+    }
+    $("content").classList.add("loading");
+    const params = new URLSearchParams({ range: state.range });
+    if (state.user) params.set("user", state.user);
+    try {
+      state.data = await api("/admin/api/dashboard?" + params);
+    } catch (e) {
+      notice(e.message === "unauthorized"
+        ? "Access denied. The link may have expired — send /admin to the bot for a new one."
+        : "Could not load the dashboard (" + e.message + ").");
+      return;
+    }
+    $("notice").hidden = true;
+    $("content").hidden = false;
+    $("content").classList.remove("loading");
+    render();
+  }
+
+  async function loadElevenLabs() {
+    const box = $("elevenlabs");
+    let info;
+    try { info = await api("/admin/api/elevenlabs"); } catch (e) { info = { error: e.message }; }
+    box.replaceChildren();
+    if (info.error) { box.append(el("div", { class: "empty" }, info.error)); return; }
+    const share = info.limit ? info.used / info.limit : 0;
+    const meter = el("div", { class: "meter" + (share > 0.9 ? " crit" : share > 0.75 ? " warn" : "") });
+    const fill = el("div");
+    fill.style.width = Math.min(100, share * 100).toFixed(1) + "%";
+    meter.append(fill);
+    const resets = info.resets_at ? new Date(info.resets_at * 1000).toLocaleDateString() : "—";
+    box.append(
+      el("div", { class: "tile-like" },
+        el("div", { class: "value", style: "font-size:22px;font-weight:600" },
+          `${num(info.used)} / ${num(info.limit)}`),
+        el("div", { class: "sub" }, `${Math.round(share * 100)}% used · plan: ${info.tier} · resets ${resets}`)),
+      meter,
+      el("div", { class: "sub" }, "Whole account, not only this bot. Includes other ElevenLabs usage."),
+    );
+  }
+
+  // --- render ---
+  function render() {
+    const d = state.data;
+    $("updated").textContent = "Updated " + d.generated_at.slice(11, 16) + " UTC";
+    for (const b of $("ranges").querySelectorAll("button")) {
+      b.setAttribute("aria-pressed", String(b.dataset.range === d.range));
+    }
+    $("user-chip").hidden = !d.user;
+    if (d.user) $("user-chip-name").textContent = who(d.user);
+    $("users-title").textContent = d.user ? "User" : "Users";
+    renderTiles(d);
+    renderChart(d);
+    renderSources(d);
+    renderUsers(d);
+    renderErrors(d);
+    $("foot").textContent =
+      `Per-event history (time series, data sizes, tokens, cost) is recorded since ${d.tracking_since ? shortDate(d.tracking_since) + " UTC" : "now"}; ` +
+      `all-time counts include earlier usage. Costs are estimates: ElevenLabs at $${d.pricing.elevenlabs_usd_per_hour}/hour of audio, ` +
+      `gpt-4o-mini at list price, 1 Star ≈ $${d.pricing.star_usd}.`;
+  }
+
+  function tile(label, value, note) {
+    return el("div", { class: "tile" },
+      el("div", { class: "label" }, label),
+      el("div", { class: "value" }, value),
+      el("div", { class: "note" }, note || ""));
+  }
+
+  function renderTiles(d) {
+    const t = d.totals, a = d.all_time;
+    const rangeName = { "24h": "last 24 h", "7d": "last 7 days", "30d": "last 30 days", "90d": "last 90 days", all: "all time" }[d.range];
+    const net = a.donations_usd - a.cost_usd;
+    $("tiles").replaceChildren(
+      tile("Transcriptions", num(t.transcriptions), `${rangeName} · ${num(a.transcriptions)} all time`),
+      tile("Audio transcribed", dur(t.audio_seconds), `${dur(a.audio_seconds)} all time`),
+      d.user
+        ? tile("Secretary", d.users[0] && d.users[0].secretary ? "Connected" : "Off", `${num(d.users[0] ? d.users[0].all_time.secretary_transcriptions : 0)} via secretary`)
+        : tile("Active users", num(t.active_users), `${num(t.new_users)} new · ${num(a.users)} all time`),
+      tile("API cost", usd(t.cost_usd), `≈ ${usd(a.cost_usd)} all time`),
+      tile("Data downloaded", bytes(t.download_bytes), `${bytes(t.upload_bytes)} sent to ElevenLabs`),
+      tile("OpenAI tokens", num(t.tokens), `${num(t.summaries)} summaries`),
+      tile("Donations", "⭐" + num(t.donations_stars), `≈ ${usd(t.donations_usd)} · ⭐${num(a.donations_stars)} all time`),
+      tile("Balance", (net >= 0 ? "+" : "−") + usd(Math.abs(net)), "donations minus API cost, all time"),
+    );
+  }
+
+  function renderMetricSelect() {
+    const sel = $("metric");
+    sel.replaceChildren(...METRICS.map(m => el("option", { value: m.key }, m.label)));
+    sel.value = state.metric;
+  }
+
+  // Axis top as 4 × a round step (1, 2, 2.5 or 5 × 10^n), so every tick is round.
+  function niceMax(v) {
+    if (v <= 0) return 4;
+    const raw = v / 4, p = Math.pow(10, Math.floor(Math.log10(raw)));
+    for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= raw) return 4 * m * p;
+    return 40 * p;
+  }
+
+  function renderChart(d) {
+    const metric = METRICS.find(m => m.key === state.metric) || METRICS[0];
+    $("chart-title").textContent = metric.label + (d.user ? " · " + who(d.user) : "");
+    const chart = $("chart");
+    const tip = $("tooltip");
+    chart.querySelector("svg")?.remove();
+
+    const W = Math.max(280, chart.clientWidth), H = 240;
+    const pad = { l: 48, r: 4, t: 8, b: 24 };
+    const pts = d.series;
+    const div = metric.div || 1;
+    const raw = pts.map(p => p[metric.key] || 0);
+    const vals = raw.map(v => v / div);
+    const max = niceMax(Math.max(...vals, 0));
+    const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
+    const band = iw / pts.length;
+    const bw = Math.max(1, Math.min(24, band - 2));
+    const y = v => pad.t + ih - (v / max) * ih;
+
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", metric.label + " over time");
+    const add = (tag, attrs, text) => {
+      const n = document.createElementNS(ns, tag);
+      for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+      if (text != null) n.textContent = text;
+      svg.append(n);
+      return n;
+    };
+
+    for (let i = 0; i <= 4; i++) {
+      const v = (max / 4) * i, yy = y(v);
+      add("line", { x1: pad.l, x2: W - pad.r, y1: yy, y2: yy, stroke: i === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 });
+      add("text", { x: pad.l - 6, y: yy + 4, "text-anchor": "end", class: "tick" }, metric.axis(v));
+    }
+
+    const labelEvery = Math.ceil(pts.length / Math.max(2, Math.floor(iw / 70)));
+    pts.forEach((p, i) => {
+      const v = vals[i];
+      const cx = pad.l + band * i + band / 2;
+      const hit = add("rect", { x: pad.l + band * i, y: pad.t, width: band, height: ih, class: "hit", tabindex: 0 });
+      if (v > 0) {
+        const top = y(v), h = pad.t + ih - top, r = Math.min(4, h, bw / 2);
+        const x0 = cx - bw / 2, x1 = cx + bw / 2, base = pad.t + ih;
+        add("path", {
+          class: "bar",
+          d: `M${x0},${base}V${top + r}Q${x0},${top} ${x0 + r},${top}H${x1 - r}Q${x1},${top} ${x1},${top + r}V${base}Z`,
+        });
+      } else {
+        add("g", {});  // keeps hit + bar sibling pairs aligned for the hover style
+      }
+      const show = () => {
+        tip.replaceChildren(el("strong", {}, metric.fmt(raw[i])), el("span", {}, p.t + (d.bucket === "hour" ? " UTC" : "")));
+        tip.style.display = "block";
+        tip.style.left = (cx / W * chart.clientWidth) + "px";
+        tip.style.top = (Math.min(y(v), pad.t + ih - 4) / H * 240 - 6) + "px";
+      };
+      hit.addEventListener("pointerenter", show);
+      hit.addEventListener("focus", show);
+      hit.addEventListener("pointerleave", () => { tip.style.display = "none"; });
+      hit.addEventListener("blur", () => { tip.style.display = "none"; });
+      if (i % labelEvery === 0) {
+        const lbl = d.bucket === "hour" ? p.t.slice(11, 16) : p.t.slice(5);
+        add("text", { x: cx, y: H - 6, "text-anchor": "middle", class: "tick" }, lbl);
+      }
+    });
+    chart.prepend(svg);
+  }
+
+  function renderSources(d) {
+    const box = $("sources");
+    const rows = d.by_source;
+    if (!rows.length) { box.replaceChildren(el("div", { class: "empty" }, "No transcriptions in this range.")); return; }
+    const max = Math.max(...rows.map(r => r.count));
+    const names = { voice: "Voice", video_note: "Video note", audio: "Audio file", video: "Video", document: "Document",
+      instagram: "Instagram", youtube: "YouTube", secretary: "Secretary", summary: "Summary" };
+    box.replaceChildren(...rows.map(r => {
+      const fill = el("div");
+      fill.style.width = (r.count / max * 100).toFixed(1) + "%";
+      const row = el("div", { class: "hbar-row", title: `${dur(r.audio_seconds)} · ${bytes(r.download_bytes)} · ${usd(r.cost_usd)}` },
+        el("span", { class: "name" }, names[r.source] || r.source),
+        el("div", { class: "hbar-track" }, fill),
+        el("span", { class: "val" }, `${num(r.count)} · ${dur(r.audio_seconds)}`));
+      return row;
+    }));
+  }
+
+  const COLUMNS = [
+    { key: "user", label: "User", get: u => (u.username || "").toLowerCase() || String(u.user_id) },
+    { key: "range", label: "In range", get: u => u.range.transcriptions },
+    { key: "total", label: "All time", get: u => u.all_time.transcriptions },
+    { key: "audio", label: "Audio", get: u => u.all_time.audio_seconds },
+    { key: "data", label: "Data", get: u => u.range.bytes },
+    { key: "tokens", label: "Tokens", get: u => u.range.tokens },
+    { key: "cost", label: "Cost", get: u => u.all_time.cost_usd },
+    { key: "stars", label: "⭐", get: u => u.donated_stars },
+    { key: "last", label: "Last used", get: u => u.all_time.last_used || "" },
+  ];
+
+  function renderUsers(d) {
+    const table = $("users");
+    const col = COLUMNS.find(c => c.key === state.sort.key) || COLUMNS[COLUMNS.length - 1];
+    const users = [...d.users].sort((a, b) => {
+      const x = col.get(a), y2 = col.get(b);
+      return (x < y2 ? -1 : x > y2 ? 1 : 0) * state.sort.dir;
+    });
+    const head = el("tr", {}, ...COLUMNS.map(c => {
+      const th = el("th", { scope: "col", "data-key": c.key }, c.label);
+      if (c.key === state.sort.key) th.setAttribute("aria-sort", state.sort.dir > 0 ? "ascending" : "descending");
+      th.addEventListener("click", () => {
+        state.sort = { key: c.key, dir: state.sort.key === c.key ? -state.sort.dir : (c.key === "user" ? 1 : -1) };
+        renderUsers(state.data);
+      });
+      return th;
+    }));
+    const body = users.map(u => {
+      const name = el("td", {}, el("span", { class: "who" }, who(u)));
+      if (u.secretary) name.append(el("span", { class: "tag" }, "secretary"));
+      const tr = el("tr", { tabindex: 0 },
+        name,
+        el("td", { class: u.range.transcriptions ? "" : "dim" }, num(u.range.transcriptions)),
+        el("td", {}, num(u.all_time.transcriptions)),
+        el("td", {}, dur(u.all_time.audio_seconds)),
+        el("td", { class: u.range.bytes ? "" : "dim" }, bytes(u.range.bytes)),
+        el("td", { class: u.range.tokens ? "" : "dim" }, num(u.range.tokens)),
+        el("td", {}, usd(u.all_time.cost_usd)),
+        el("td", { class: u.donated_stars ? "" : "dim" }, num(u.donated_stars)),
+        el("td", {}, shortDate(u.all_time.last_used)));
+      const open = () => { if (state.user !== u.user_id) { state.user = u.user_id; load(); window.scrollTo({ top: 0, behavior: "smooth" }); } };
+      tr.addEventListener("click", open);
+      tr.addEventListener("keydown", e => { if (e.key === "Enter") open(); });
+      return tr;
+    });
+    table.replaceChildren(el("thead", {}, head), el("tbody", {}, ...body));
+    if (!users.length) table.append(el("caption", { class: "empty" }, "No users yet."));
+  }
+
+  function renderErrors(d) {
+    const list = $("errors");
+    if (!d.recent_errors.length) { list.replaceChildren(el("li", { class: "empty" }, "No errors. 🎉")); return; }
+    list.replaceChildren(...d.recent_errors.map(e => el("li", {},
+      el("div", {}, e.type),
+      el("div", { class: "meta" }, `${shortDate(e.created_at)} UTC${e.username ? " · @" + e.username : ""}`),
+      e.detail ? el("div", { class: "detail" }, e.detail) : "")));
+  }
+
+  // --- wiring ---
+  renderMetricSelect();
+  $("metric").addEventListener("change", e => {
+    state.metric = e.target.value;
+    storage(s => s.setItem("metric", state.metric));
+    if (state.data) renderChart(state.data);
+  });
+  $("ranges").addEventListener("click", e => {
+    const r = e.target.closest("button")?.dataset.range;
+    if (!r) return;
+    state.range = r;
+    storage(s => s.setItem("range", r));
+    load();
+  });
+  $("user-clear").addEventListener("click", () => { state.user = null; load(); });
+  $("refresh").addEventListener("click", () => { load(); loadElevenLabs(); });
+  let chartWidth = 0;
+  new ResizeObserver(entries => {
+    const w = Math.round(entries[0].contentRect.width);
+    if (w && w !== chartWidth && state.data) { chartWidth = w; renderChart(state.data); }
+  }).observe($("chart"));
+
+  load().then(() => { if (auth && !$("content").hidden) loadElevenLabs(); });
+})();
+</script>
+</body>
+</html>

@@ -11,6 +11,9 @@ class StoredAudio:
 
     path: str
     duration: int | None
+    # Where it came from and how much was downloaded, for usage stats.
+    source: str = ""
+    download_bytes: int = 0
 
 
 class MediaAudioStore:
@@ -26,11 +29,17 @@ class MediaAudioStore:
         self._store: dict[tuple[int, int], tuple[StoredAudio, float]] = {}
 
     def save(
-        self, user_id: int, message_id: int, path: str, duration: int | None
+        self,
+        user_id: int,
+        message_id: int,
+        path: str,
+        duration: int | None,
+        source: str = "",
+        download_bytes: int = 0,
     ) -> None:
         self.cleanup()
         self._store[(user_id, message_id)] = (
-            StoredAudio(path, duration),
+            StoredAudio(path, duration, source, download_bytes),
             time.monotonic(),
         )
 

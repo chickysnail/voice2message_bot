@@ -93,3 +93,38 @@ async def test_error_stats_empty(db: StatisticsDB) -> None:
     assert total == 0
     assert by_type == {}
     assert last_error is None
+
+
+async def test_record_event_and_summary_cost(db: StatisticsDB) -> None:
+    from src.bot.storage.statistics import KIND_SUMMARIZATION, KIND_TRANSCRIPTION, UsageEvent
+
+    await db.record_event(UsageEvent(1, "a", KIND_TRANSCRIPTION, "voice", 60, cost_usd=0.5))
+    await db.record_event(UsageEvent(1, "a", KIND_SUMMARIZATION, "summary", cost_usd=0.01))
+    await db.record_event(UsageEvent(2, "b", KIND_SUMMARIZATION, "summary", cost_usd=0.02))
+    rows = await db.fetchall("SELECT COUNT(*) FROM usage_events")
+    assert rows[0][0] == 3
+    assert await db.get_summarization_cost(1) == 0.01
+    assert await db.get_summarization_cost(3) == 0
+
+
+async def test_total_audio_seconds_includes_secretary(db: StatisticsDB) -> None:
+    await db.record_usage(1, "a", 100)
+    await db.record_secretary_usage(1, "a", 50)
+    assert await db.get_total_audio_seconds(1) == 150
+    assert await db.get_total_audio_seconds(2) == 0
+
+
+async def test_donations_are_deduplicated_by_charge(db: StatisticsDB) -> None:
+    await db.record_donation(1, "a", 50, "charge_1")
+    await db.record_donation(1, "a", 50, "charge_1")
+    await db.record_donation(1, "a", 100, "charge_2")
+    assert await db.get_donated_stars(1) == 150
+    assert await db.get_donated_stars(2) == 0
+
+
+async def test_nudge_state(db: StatisticsDB) -> None:
+    assert await db.get_nudge_state(1) == (None, 0.0)
+    await db.save_nudge(1, 1.25)
+    since, cost = await db.get_nudge_state(1)
+    assert since is not None and 0 <= since < 60
+    assert cost == 1.25
