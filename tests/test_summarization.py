@@ -16,12 +16,15 @@ def test_summarize_success() -> None:
         mock_choice.message = mock_message
         mock_completion = MagicMock()
         mock_completion.choices = [mock_choice]
+        mock_completion.usage.prompt_tokens = 120
+        mock_completion.usage.completion_tokens = 30
         mock_client.chat.completions.create.return_value = mock_completion
 
         summarizer = OpenAISummarizer(api_key="fake-key")
         result = summarizer.summarize("Long transcript text here...")
 
-        assert result == "This is a summarized version."
+        assert result.text == "This is a summarized version."
+        assert (result.prompt_tokens, result.completion_tokens) == (120, 30)
         mock_client.chat.completions.create.assert_called_once()
 
 

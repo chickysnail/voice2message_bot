@@ -19,6 +19,7 @@ from telegram.constants import ChatAction, ParseMode
 from telegram.error import BadRequest, NetworkError
 from telegram.ext import ContextTypes
 
+from src.bot.admin.auth import make_link_token
 from src.bot.keyboards import (
     CALLBACK_EXPORT_SRT,
     CALLBACK_EXPORT_TXT,
@@ -27,6 +28,7 @@ from src.bot.keyboards import (
     CALLBACK_SAVE_FILE,
     CALLBACK_SECRETARY_SETUP,
     CALLBACK_SUMMARIZE,
+    admin_dashboard_keyboard,
     donation_keyboard,
     file_format_keyboard,
     link_audio_keyboard,
@@ -47,6 +49,7 @@ from src.bot.services.media_download import (
     find_link,
 )
 from src.bot.services.notifier import AdminNotifier
+from src.bot.services.pricing import Pricing, summarization_cost
 from src.bot.services.summarization import SummarizationClient
 from src.bot.services.transcription import (
     EmptyTranscriptionError,
@@ -54,8 +57,14 @@ from src.bot.services.transcription import (
     TranscriptionResult,
 )
 from src.bot.storage.media_audio_store import MediaAudioStore
-from src.bot.storage.statistics import StatisticsDB
+from src.bot.storage.statistics import (
+    KIND_SUMMARIZATION,
+    KIND_TRANSCRIPTION,
+    StatisticsDB,
+    UsageEvent,
+)
 from src.bot.storage.transcription_store import TranscriptionStore
+from src.bot.utils.files import file_size
 from src.bot.utils.retry import with_network_retry
 from src.bot.utils.text import TELEGRAM_MAX_LENGTH, format_duration, split_message
 
@@ -67,9 +76,8 @@ SECRETARY_SETUP_IMAGES = [
 ]
 SECRETARY_EXPLAINER_VIDEO = _ASSETS_DIR / "secretary_explainer.mp4"
 
-# Show a soft donation prompt on the processing message when the
-# audio is longer than this threshold (seconds).
-DONATION_DURATION_THRESHOLD = 60
+# How long the browser link to the admin dashboard stays valid.
+ADMIN_LINK_TTL_SECONDS = 24 * 3600
 
 # Linked videos longer than this are not transcribed right away; the user
 # picks between transcription and just getting the audio file.
@@ -134,6 +142,10 @@ class BotHandlers:
         file_download_timeout: int = 60,
         media_resolvers: dict[str, MediaResolver] | None = None,
         media_audio_store: MediaAudioStore | None = None,
+        pricing: Pricing | None = None,
+        donation_nudge_usd: float = 1.0,
+        donation_nudge_interval_seconds: int = 14 * 86400,
+        dashboard_url: str | None = None,
     ) -> None:
         self._transcriber = transcriber
         self._summarizer = summarizer
@@ -146,6 +158,10 @@ class BotHandlers:
         self._file_download_timeout = file_download_timeout
         self._media_resolvers = media_resolvers or {}
         self._media_audio = media_audio_store or MediaAudioStore()
+        self._pricing = pricing or Pricing()
+        self._donation_nudge_usd = donation_nudge_usd
+        self._donation_nudge_interval = donation_nudge_interval_seconds
+        self._dashboard_url = dashboard_url
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.message or not update.effective_user:
@@ -252,7 +268,11 @@ class BotHandlers:
             # The audio stays on disk so the "Download audio" button (and, for
             # long videos, "Transcribe") can still use it later.
             keep_path = _audio_upload_path(media_path, audio_path)
-            self._media_audio.save(user.id, message.message_id, keep_path, duration)
+            download_bytes = file_size(media_path)
+            self._media_audio.save(
+                user.id, message.message_id, keep_path, duration,
+                source=link.platform, download_bytes=download_bytes,
+            )
 
             if duration is not None and duration > self._max_audio_duration:
                 # Too long to transcribe, but the audio file is still on offer.
@@ -276,7 +296,8 @@ class BotHandlers:
                 reply_markup=link_audio_keyboard(message.message_id, lang),
             )
             await self._transcribe_link_audio(
-                message, user, keep_path, duration, processing_msg
+                message, user, keep_path, duration, processing_msg,
+                source=link.platform, download_bytes=download_bytes,
             )
             logger.info(
                 "Transcribed link for user %s (%d): %s", user.username, user.id, link.url
@@ -307,6 +328,8 @@ class BotHandlers:
         audio_path: str,
         duration: int | None,
         processing_msg: Message,
+        source: str = "link",
+        download_bytes: int = 0,
     ) -> None:
         """Transcribe already-downloaded link audio and reply with the result."""
         lang = user.language_code or "en"
@@ -319,7 +342,10 @@ class BotHandlers:
         self._store.save(
             user.id, message.message_id, transcript.text, transcript.words
         )
-        await self._stats_db.record_usage(user.id, user.username, duration or 0)
+        await self._record_transcription(
+            user, source, duration, transcript,
+            download_bytes=download_bytes, upload_bytes=file_size(audio_path),
+        )
 
         await processing_msg.delete()
         await _send_transcript(
@@ -333,6 +359,7 @@ class BotHandlers:
                 is not None,
             ),
         )
+        await self._maybe_nudge_donation(message, user)
 
     async def _handle_link_transcribe(
         self, query: CallbackQuery, user: User, original_message_id: int
@@ -352,7 +379,8 @@ class BotHandlers:
         )
         reply_target = processing_msg.reply_to_message or processing_msg
         await self._transcribe_link_audio(
-            reply_target, user, audio.path, audio.duration, processing_msg
+            reply_target, user, audio.path, audio.duration, processing_msg,
+            source=audio.source or "link", download_bytes=audio.download_bytes,
         )
 
     async def _handle_link_audio(
@@ -454,6 +482,63 @@ class BotHandlers:
                 return None
         return None
 
+    async def _record_transcription(
+        self,
+        user: User,
+        source: str,
+        duration: int | None,
+        transcript: TranscriptionResult,
+        download_bytes: int,
+        upload_bytes: int,
+    ) -> None:
+        """Update the per-user totals and log a usage event."""
+        await self._stats_db.record_usage(user.id, user.username, duration or 0)
+        billed = transcript.billed_seconds or duration or 0
+        await self._stats_db.record_event(UsageEvent(
+            user_id=user.id,
+            username=user.username,
+            kind=KIND_TRANSCRIPTION,
+            source=source,
+            audio_seconds=duration or billed,
+            download_bytes=download_bytes,
+            upload_bytes=upload_bytes,
+            output_chars=len(transcript.text),
+            cost_usd=self._pricing.transcription_cost(billed),
+        ))
+
+    async def _user_cost(self, user_id: int) -> float:
+        """Estimated API spend on this user, all time.
+
+        Audio comes from the all-time totals (they predate usage events), so
+        it is priced at the current rate.
+        """
+        seconds = await self._stats_db.get_total_audio_seconds(user_id)
+        summaries = await self._stats_db.get_summarization_cost(user_id)
+        return self._pricing.transcription_cost(seconds) + summaries
+
+    async def _maybe_nudge_donation(self, message: Message, user: User) -> None:
+        """Every `donation_nudge_usd` of spend (at most once per interval),
+        tell the user roughly what they've cost and offer a donation."""
+        if self._donation_nudge_usd <= 0:
+            return
+        try:
+            cost = await self._user_cost(user.id)
+            since, cost_at_last = await self._stats_db.get_nudge_state(user.id)
+            if cost - cost_at_last < self._donation_nudge_usd:
+                return
+            if since is not None and since < self._donation_nudge_interval:
+                return
+            await self._stats_db.save_nudge(user.id, cost)
+            lang = user.language_code or "en"
+            seconds = await self._stats_db.get_total_audio_seconds(user.id)
+            await message.reply_text(
+                t("donation_nudge", lang,
+                  duration=format_duration(seconds), cost=f"${cost:.2f}"),
+                reply_markup=donation_keyboard(lang),
+            )
+        except Exception:
+            logger.exception("Donation nudge failed for user %d", user.id)
+
     async def handle_audio(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
@@ -470,29 +555,30 @@ class BotHandlers:
         is_video = False
 
         file_type = "unknown"
+        source = "unknown"
 
         if message.voice:
             file_id = message.voice.file_id
             duration = message.voice.duration
-            file_type = "voice message"
+            file_type, source = "voice message", "voice"
         elif message.video_note:
             file_id = message.video_note.file_id
             duration = message.video_note.duration
             is_video = True
-            file_type = "video note"
+            file_type, source = "video note", "video_note"
         elif message.audio:
             file_id = message.audio.file_id
             duration = message.audio.duration
-            file_type = "audio file"
+            file_type, source = "audio file", "audio"
         elif message.video:
             file_id = message.video.file_id
             duration = message.video.duration
             is_video = True
-            file_type = "video"
+            file_type, source = "video", "video"
         elif message.document:
             file_id = message.document.file_id
             duration = None
-            file_type = "document"
+            file_type, source = "document", "document"
 
         if not file_id:
             return
@@ -520,22 +606,7 @@ class BotHandlers:
         await context.bot.send_chat_action(
             chat_id=message.chat_id, action=ChatAction.TYPING
         )
-        show_donation = bool(duration and duration >= DONATION_DURATION_THRESHOLD)
         processing_msg = await message.reply_text(t("transcribing", lang))
-
-        async def _delayed_donation_edit() -> None:
-            await asyncio.sleep(1.5)
-            try:
-                await processing_msg.edit_text(
-                    t("transcribing_donate", lang),
-                    reply_markup=donation_keyboard(lang),
-                )
-            except Exception:
-                pass
-
-        donation_task: asyncio.Task[None] | None = None
-        if show_donation:
-            donation_task = asyncio.create_task(_delayed_donation_edit())
 
         file_path: str | None = None
         audio_path: str | None = None
@@ -706,8 +777,10 @@ class BotHandlers:
             )
 
             # Record usage statistics
-            await self._stats_db.record_usage(
-                user.id, user.username, duration or 0
+            await self._record_transcription(
+                user, source, duration, transcript,
+                download_bytes=file_size(file_path),
+                upload_bytes=file_size(audio_path),
             )
 
             # Send the transcription
@@ -718,6 +791,7 @@ class BotHandlers:
                 lang,
                 post_transcription_keyboard(original_message_id, lang),
             )
+            await self._maybe_nudge_donation(message, user)
 
             logger.info(
                 "Transcribed audio for user %s (%d), duration=%s",
@@ -744,8 +818,6 @@ class BotHandlers:
                 "Unexpected error", user.username, str(e)
             )
         finally:
-            if donation_task is not None:
-                donation_task.cancel()
             # Clean up temp files
             if file_path and os.path.exists(file_path):
                 os.remove(file_path)
@@ -827,7 +899,7 @@ class BotHandlers:
         await query.edit_message_reply_markup(reply_markup=None)
 
         try:
-            summary = self._summarizer.summarize(transcript)
+            summary = await asyncio.to_thread(self._summarizer.summarize, transcript)
         except RuntimeError as e:
             if query.message:
                 await query.message.reply_text(
@@ -843,8 +915,21 @@ class BotHandlers:
             )
             return
 
+        await self._stats_db.record_event(UsageEvent(
+            user_id=user.id,
+            username=user.username,
+            kind=KIND_SUMMARIZATION,
+            source="summary",
+            output_chars=len(summary.text),
+            prompt_tokens=summary.prompt_tokens,
+            completion_tokens=summary.completion_tokens,
+            cost_usd=summarization_cost(
+                summary.prompt_tokens, summary.completion_tokens
+            ),
+        ))
+
         if query.message:
-            for chunk in split_message(summary):
+            for chunk in split_message(summary.text):
                 await query.message.reply_text(chunk)
 
         logger.info("Summarized transcription for user %s (%d)", user.username, user.id)
@@ -1062,6 +1147,12 @@ class BotHandlers:
             t("stats_dates", lang,
               first_used=first_used or "—", last_used=last_used or "—")
         )
+        cost = await self._user_cost(user.id)
+        lines.append("")
+        lines.append(t("stats_cost", lang, cost=f"${cost:.2f}"))
+        stars = await self._stats_db.get_donated_stars(user.id)
+        if stars:
+            lines.append(t("stats_donated", lang, stars=stars))
 
         await update.message.reply_text("\n".join(lines))
 
@@ -1123,6 +1214,31 @@ class BotHandlers:
                 err_lines.append(f"Last error: {last_error}")
                 await update.message.reply_text("\n".join(err_lines))
 
+    async def admin_command(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        """Admin-only: buttons that open the web dashboard."""
+        if not update.message or not update.effective_user:
+            return
+        user = update.effective_user
+        if user.id not in self._admin_ids:
+            return
+        if not self._dashboard_url:
+            await update.message.reply_text(
+                "The dashboard needs a public HTTPS address. Set PUBLIC_URL, or "
+                "generate a domain for the service in Railway (it fills "
+                "RAILWAY_PUBLIC_DOMAIN) pointing at HEALTH_PORT."
+            )
+            return
+        token = make_link_token(user.id, context.bot.token, ADMIN_LINK_TTL_SECONDS)
+        await update.message.reply_text(
+            "📊 Dashboard",
+            reply_markup=admin_dashboard_keyboard(
+                app_url=self._dashboard_url,
+                browser_url=f"{self._dashboard_url}#key={token}",
+            ),
+        )
+
     async def logs_command(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
@@ -1162,7 +1278,7 @@ class BotHandlers:
         await context.bot.send_invoice(
             chat_id=update.effective_user.id,
             title=t("btn_donate", lang, amount=amount),
-            description=t("donation_prompt", lang, count=""),
+            description=t("donation_invoice_description", lang),
             payload=f"donate_{amount}",
             currency="XTR",
             prices=[LabeledPrice(label="Stars", amount=amount)],
@@ -1178,10 +1294,26 @@ class BotHandlers:
     async def handle_successful_payment(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
-        """Thank the user after a successful Stars payment."""
+        """Record a Stars donation and thank the user."""
         if not update.message or not update.effective_user:
             return
-        lang = update.effective_user.language_code or "en"
+        user = update.effective_user
+        lang = user.language_code or "en"
+        payment = update.message.successful_payment
+        if payment is not None:
+            try:
+                await self._stats_db.record_donation(
+                    user.id, user.username, payment.total_amount,
+                    payment.telegram_payment_charge_id,
+                )
+                # A donation resets the nudge, so it won't ask again soon.
+                await self._stats_db.save_nudge(user.id, await self._user_cost(user.id))
+            except Exception:
+                logger.exception("Could not record donation from user %d", user.id)
+            who = f"@{user.username}" if user.username else str(user.id)
+            await self._notifier.notify_admins(
+                f"⭐ {who} donated {payment.total_amount} Stars"
+            )
         await update.message.reply_text(t("donation_thanks", lang))
 
     @property

@@ -40,6 +40,14 @@ class AdminNotifier:
             except Exception:
                 logger.exception("Failed to notify admin %d", admin_id)
 
+    async def notify_admins(self, message: str) -> None:
+        """Send a plain message to all admins."""
+        for admin_id in self._admin_user_ids:
+            try:
+                await self._bot.send_message(chat_id=admin_id, text=message)
+            except Exception:
+                logger.exception("Failed to notify admin %d", admin_id)
+
     async def notify_secretary_event(
         self,
         event: str,

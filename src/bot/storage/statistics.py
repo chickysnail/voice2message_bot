@@ -1,8 +1,39 @@
 import logging
+from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Any
 
 import aiosqlite
 
 logger = logging.getLogger(__name__)
+
+# usage_events.kind
+KIND_TRANSCRIPTION = "transcription"
+KIND_SUMMARIZATION = "summarization"
+
+
+@dataclass(frozen=True)
+class UsageEvent:
+    """One billable thing the bot did for a user.
+
+    Holds metadata only — never the audio or the transcript itself.
+    """
+
+    user_id: int
+    username: str | None
+    kind: str
+    # Where the audio came from: voice, video_note, audio, video, document,
+    # instagram, youtube, secretary; "summary" for summaries.
+    source: str
+    audio_seconds: float = 0
+    # Bytes the bot fetched (from Telegram or a link) and sent to the API.
+    download_bytes: int = 0
+    upload_bytes: int = 0
+    # Characters of text sent back to the user.
+    output_chars: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    cost_usd: float = 0.0
 
 
 class StatisticsDB:
@@ -61,6 +92,52 @@ class StatisticsDB:
                 chat_id INTEGER NOT NULL,
                 message_id INTEGER NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # One row per transcription/summary, for usage over time per user.
+        await self._db.execute("""
+            CREATE TABLE IF NOT EXISTS usage_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                user_id INTEGER NOT NULL,
+                username TEXT,
+                kind TEXT NOT NULL,
+                source TEXT NOT NULL,
+                audio_seconds REAL NOT NULL DEFAULT 0,
+                download_bytes INTEGER NOT NULL DEFAULT 0,
+                upload_bytes INTEGER NOT NULL DEFAULT 0,
+                output_chars INTEGER NOT NULL DEFAULT 0,
+                prompt_tokens INTEGER NOT NULL DEFAULT 0,
+                completion_tokens INTEGER NOT NULL DEFAULT 0,
+                cost_usd REAL NOT NULL DEFAULT 0
+            )
+        """)
+        await self._db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_usage_events_created "
+            "ON usage_events(created_at)"
+        )
+        await self._db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_usage_events_user "
+            "ON usage_events(user_id, created_at)"
+        )
+        # Telegram Stars donations.
+        await self._db.execute("""
+            CREATE TABLE IF NOT EXISTS donations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                user_id INTEGER NOT NULL,
+                username TEXT,
+                stars INTEGER NOT NULL,
+                charge_id TEXT UNIQUE
+            )
+        """)
+        # When each user last saw the "here's what you've cost" nudge (or
+        # donated), and their running cost at that moment.
+        await self._db.execute("""
+            CREATE TABLE IF NOT EXISTS donation_nudges (
+                user_id INTEGER PRIMARY KEY,
+                last_nudged_at TIMESTAMP,
+                cost_at_last_nudge REAL NOT NULL DEFAULT 0
             )
         """)
         await self._db.commit()
@@ -327,3 +404,104 @@ class StatisticsDB:
         ) as cursor:
             row = await cursor.fetchone()
         return row is not None
+
+    # --- Usage events (per user, over time) ---
+
+    async def record_event(self, event: UsageEvent) -> None:
+        assert self._db is not None
+        await self._db.execute(
+            """
+            INSERT INTO usage_events
+                (user_id, username, kind, source, audio_seconds,
+                 download_bytes, upload_bytes, output_chars,
+                 prompt_tokens, completion_tokens, cost_usd)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event.user_id, event.username, event.kind, event.source,
+                event.audio_seconds, event.download_bytes, event.upload_bytes,
+                event.output_chars, event.prompt_tokens,
+                event.completion_tokens, event.cost_usd,
+            ),
+        )
+        await self._db.commit()
+
+    async def fetchall(
+        self, sql: str, params: Iterable[Any] = ()
+    ) -> list[tuple[Any, ...]]:
+        """Run a read-only query; used by the admin dashboard."""
+        assert self._db is not None
+        async with self._db.execute(sql, tuple(params)) as cursor:
+            rows = await cursor.fetchall()
+        return [tuple(r) for r in rows]
+
+    async def get_total_audio_seconds(self, user_id: int) -> int:
+        """All audio ever transcribed for this user, direct and secretary."""
+        rows = await self.fetchall(
+            """
+            SELECT COALESCE(SUM(total_audio_duration_seconds), 0) FROM (
+                SELECT total_audio_duration_seconds FROM user_statistics
+                WHERE user_id = ?
+                UNION ALL
+                SELECT total_audio_duration_seconds FROM secretary_statistics
+                WHERE user_id = ?
+            )
+            """,
+            (user_id, user_id),
+        )
+        return int(rows[0][0])
+
+    async def get_summarization_cost(self, user_id: int) -> float:
+        rows = await self.fetchall(
+            "SELECT COALESCE(SUM(cost_usd), 0) FROM usage_events "
+            "WHERE user_id = ? AND kind = ?",
+            (user_id, KIND_SUMMARIZATION),
+        )
+        return float(rows[0][0])
+
+    # --- Donations ---
+
+    async def record_donation(
+        self, user_id: int, username: str | None, stars: int, charge_id: str | None
+    ) -> None:
+        assert self._db is not None
+        await self._db.execute(
+            "INSERT OR IGNORE INTO donations (user_id, username, stars, charge_id) "
+            "VALUES (?, ?, ?, ?)",
+            (user_id, username, stars, charge_id),
+        )
+        await self._db.commit()
+
+    async def get_donated_stars(self, user_id: int) -> int:
+        rows = await self.fetchall(
+            "SELECT COALESCE(SUM(stars), 0) FROM donations WHERE user_id = ?",
+            (user_id,),
+        )
+        return int(rows[0][0])
+
+    async def get_nudge_state(self, user_id: int) -> tuple[float | None, float]:
+        """Returns (seconds since the last nudge, cost at that nudge);
+        (None, 0) if the user was never nudged."""
+        rows = await self.fetchall(
+            "SELECT (julianday('now') - julianday(last_nudged_at)) * 86400, "
+            "cost_at_last_nudge FROM donation_nudges WHERE user_id = ?",
+            (user_id,),
+        )
+        if not rows:
+            return None, 0.0
+        return float(rows[0][0]), float(rows[0][1])
+
+    async def save_nudge(self, user_id: int, cost: float) -> None:
+        """Remember that the user was just nudged (or just donated) at `cost`."""
+        assert self._db is not None
+        await self._db.execute(
+            """
+            INSERT INTO donation_nudges (user_id, last_nudged_at, cost_at_last_nudge)
+            VALUES (?, CURRENT_TIMESTAMP, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                last_nudged_at = CURRENT_TIMESTAMP,
+                cost_at_last_nudge = ?
+            """,
+            (user_id, cost, cost),
+        )
+        await self._db.commit()

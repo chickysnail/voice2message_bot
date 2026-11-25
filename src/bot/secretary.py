@@ -20,8 +20,10 @@ from src.bot.keyboards import (
 from src.bot.locales import t
 from src.bot.services.audio import extract_audio, get_audio_duration
 from src.bot.services.notifier import AdminNotifier
+from src.bot.services.pricing import Pricing
 from src.bot.services.transcription import EmptyTranscriptionError, TranscriptionClient
-from src.bot.storage.statistics import StatisticsDB
+from src.bot.storage.statistics import KIND_TRANSCRIPTION, StatisticsDB, UsageEvent
+from src.bot.utils.files import file_size
 from src.bot.utils.retry import with_network_retry
 from src.bot.utils.text import format_duration, split_message
 
@@ -43,7 +45,9 @@ class SecretaryHandler:
         transcription_timeout: int = 900,
         ffmpeg_timeout: int = 120,
         file_download_timeout: int = 60,
+        pricing: Pricing | None = None,
     ) -> None:
+        self._pricing = pricing or Pricing()
         self._transcriber = transcriber
         self._notifier = notifier
         self._stats_db = stats_db
@@ -610,6 +614,18 @@ class SecretaryHandler:
             await self._stats_db.record_secretary_usage(
                 owner_user.id, owner_user.username, duration or 0
             )
+            billed = transcript.billed_seconds or duration or 0
+            await self._stats_db.record_event(UsageEvent(
+                user_id=owner_user.id,
+                username=owner_user.username,
+                kind=KIND_TRANSCRIPTION,
+                source="secretary",
+                audio_seconds=duration or billed,
+                download_bytes=file_size(file_path),
+                upload_bytes=file_size(audio_path),
+                output_chars=len(transcript.text),
+                cost_usd=self._pricing.transcription_cost(billed),
+            ))
 
             # Send transcription as a bare expandable blockquote so it
             # takes minimal visual space in the chat.

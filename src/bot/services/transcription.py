@@ -31,6 +31,8 @@ class TranscriptionResult:
 
     text: str
     words: list[WordData] = field(default_factory=list)
+    # Audio length ElevenLabs reports (and bills); None if it didn't say.
+    billed_seconds: float | None = None
 
 
 class TranscriptionClient(Protocol):
@@ -131,8 +133,13 @@ class ElevenLabsTranscriber:
                 for w in result.words  # type: ignore[union-attr]
             ]
 
+            billed = getattr(result, "audio_duration_secs", None)
             logger.info("Transcribed %s (%d chars)", file_path, len(text))
-            return TranscriptionResult(text=text, words=words)
+            return TranscriptionResult(
+                text=text,
+                words=words,
+                billed_seconds=float(billed) if isinstance(billed, int | float) else None,
+            )
         except RuntimeError:
             raise
         except Exception as e:
