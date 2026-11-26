@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 # usage_events.kind
 KIND_TRANSCRIPTION = "transcription"
 KIND_SUMMARIZATION = "summarization"
+# Text voiced in the bot author's voice; audio_seconds is the speech made.
+KIND_SPEECH = "speech"
 
 
 @dataclass(frozen=True)
@@ -456,6 +458,15 @@ class StatisticsDB:
             "SELECT COALESCE(SUM(cost_usd), 0) FROM usage_events "
             "WHERE user_id = ? AND kind = ?",
             (user_id, KIND_SUMMARIZATION),
+        )
+        return float(rows[0][0])
+
+    async def get_speech_seconds(self, user_id: int, days: int) -> float:
+        """Seconds of speech voiced for this user in the last ``days`` days."""
+        rows = await self.fetchall(
+            "SELECT COALESCE(SUM(audio_seconds), 0) FROM usage_events "
+            "WHERE user_id = ? AND kind = ? AND created_at >= datetime('now', ?)",
+            (user_id, KIND_SPEECH, f"-{days} days"),
         )
         return float(rows[0][0])
 

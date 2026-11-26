@@ -10,6 +10,7 @@ A Telegram bot that transcribes voice messages, audio files, and video notes usi
 - **Privacy-first** — transcriptions auto-expire after 10 minutes, never persisted to disk
 - **Usage statistics** — persistent stats via SQLite (Railway Volume compatible)
 - **Admin notifications** — get DM'd when something goes wrong
+- **Voiceover** — any text can be read out in the bot author's ElevenLabs voice
 
 ## Setup
 
@@ -100,6 +101,38 @@ how much audio they've transcribed and roughly what it cost, with Stars
 buttons. `/stats` shows the same estimate. Donations are recorded, reset the
 nudge, and are reported to admins.
 
+## Voiceover in the author's voice
+
+When someone sends plain text (no link), the bot gives its usual "I work with
+voice messages" reply plus a **🗣 Voice it** button; a `.txt`/`.md` file gets
+the button too. Tapping it reads the text out in the ElevenLabs voice
+`TTS_VOICE_ID` (the author's professional voice clone) with `TTS_MODEL`
+(`eleven_v4`, ElevenLabs' best model) and sends it back as a voice message.
+Long texts are voiced in pieces of up to 4,000 characters and joined into one
+voice message.
+
+Speech costs about $0.08 per 1,000 characters (`TTS_USD_PER_1K_CHARS`), and a
+minute of speech is roughly 900 characters, so a minute costs about $0.07 and
+one full Telegram message (4,096 characters) about $0.33.
+
+- **Everyone else** gets `TTS_USER_QUOTA_MINUTES` (10) minutes of speech per
+  `TTS_QUOTA_DAYS` (30) days, about $0.70. Admins get a DM about every
+  voiceover: who, how long, characters, credits and cost, and how much of the
+  quota is used. They never see the text. `TTS_NOTIFY_ADMINS=false` turns the
+  DMs off.
+- **Admins** have no quota. Each voiceover ends with its length, characters,
+  the credits ElevenLabs charged and the cost. A voiceover estimated above
+  `TTS_CONFIRM_USD` ($1, about 14 minutes, so only big `.txt` files) asks
+  first.
+
+Voiceovers are usage events of kind `speech`. They count in the dashboard's
+cost but not in its transcribed-audio minutes. An empty `TTS_VOICE_ID` turns
+the feature off.
+
+The professional clone sounds right only on models it has been fine-tuned
+for. If it sounds off on `eleven_v4`, check the voice's page in ElevenLabs and
+set `TTS_MODEL=eleven_multilingual_v2`.
+
 ## Deployment (Railway)
 
 1. Connect this repo to Railway
@@ -142,6 +175,7 @@ src/bot/
 ├── main.py              # Entry point
 ├── config.py            # Settings (pydantic-settings)
 ├── handlers.py          # Telegram handlers
+├── voiceover.py         # "Voice it": text read out in the author's voice
 ├── keyboards.py         # Inline keyboards
 ├── admin/
 │   ├── auth.py          # Mini App initData + signed browser links
@@ -151,6 +185,7 @@ src/bot/
 ├── services/
 │   ├── pricing.py       # API cost estimates
 │   ├── transcription.py # ElevenLabs Scribe v2
+│   ├── tts.py           # ElevenLabs text to speech
 │   ├── summarization.py # OpenAI GPT-4o-mini
 │   ├── audio.py         # ffmpeg audio extraction
 │   ├── local_bot_api.py # Local Bot API server for files over 20 MB

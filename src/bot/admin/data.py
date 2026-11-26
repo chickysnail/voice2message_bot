@@ -104,7 +104,8 @@ async def build_dashboard(
     rows = await db.fetchall(
         f"""
         SELECT strftime('{fmt}', created_at) AS b,
-               SUM(kind = ?), SUM(kind = ?), SUM(audio_seconds),
+               SUM(kind = ?), SUM(kind = ?),
+               SUM(CASE WHEN kind = ? THEN audio_seconds ELSE 0 END),
                SUM(download_bytes), SUM(upload_bytes), SUM(output_chars),
                SUM(prompt_tokens + completion_tokens), SUM(cost_usd),
                COUNT(DISTINCT user_id)
@@ -112,7 +113,7 @@ async def build_dashboard(
         WHERE created_at >= ?{user_filter}
         GROUP BY b
         """,
-        (KIND_TRANSCRIPTION, KIND_SUMMARIZATION, since, *user_params),
+        (KIND_TRANSCRIPTION, KIND_SUMMARIZATION, KIND_TRANSCRIPTION, since, *user_params),
     )
     for b, tr, su, sec, dl, ul, chars, tok, cost, users in rows:
         if b in series:
@@ -312,11 +313,12 @@ async def _users(
     for uid, name, tr, su, sec, nbytes, tok, cost in await db.fetchall(
         """
         SELECT user_id, MAX(username), SUM(kind = ?), SUM(kind = ?),
-               SUM(audio_seconds), SUM(download_bytes),
+               SUM(CASE WHEN kind = ? THEN audio_seconds ELSE 0 END),
+               SUM(download_bytes),
                SUM(prompt_tokens + completion_tokens), SUM(cost_usd)
         FROM usage_events WHERE created_at >= ? GROUP BY user_id
         """,
-        (KIND_TRANSCRIPTION, KIND_SUMMARIZATION, since),
+        (KIND_TRANSCRIPTION, KIND_SUMMARIZATION, KIND_TRANSCRIPTION, since),
     ):
         person(uid, name)["range"] = {
             "transcriptions": tr, "summaries": su, "audio_seconds": sec,

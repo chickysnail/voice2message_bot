@@ -332,6 +332,91 @@ _STRINGS: dict[str, dict[str, str]] = {
         "en": "Your support: ⭐{stars} — thank you!",
         "ru": "Ваша поддержка: ⭐{stars} — спасибо!",
     },
+    # --- Voiceover: text read out in the bot author's voice ---
+    "help_voiceover": {
+        "en": "✍️ Send me text or a .txt file — I can read it out in the bot author's voice.",
+        "ru": "✍️ Пришлите текст или .txt-файл — могу озвучить его голосом автора бота.",
+    },
+    "text_nudge_voiceover": {
+        "en": (
+            "I work with voice messages, audio, and video. Send or forward one and I'll transcribe it!\n"
+            "\n"
+            "And this text I can read out in the bot author's voice 🙂"
+        ),
+        "ru": (
+            "Я работаю с голосовыми, аудио и видео. Отправьте или перешлите — и я расшифрую!\n"
+            "\n"
+            "А этот текст могу озвучить голосом автора бота 🙂"
+        ),
+    },
+    "text_file_voiceover": {
+        "en": "I can read this file out in the bot author's voice 🙂",
+        "ru": "Этот файл могу озвучить голосом автора бота 🙂",
+    },
+    "btn_voiceover": {
+        "en": "🗣 Voice it",
+        "ru": "🗣 Озвучить",
+    },
+    "btn_voiceover_confirm": {
+        "en": "Yes, voice it",
+        "ru": "Да, озвучить",
+    },
+    "btn_voiceover_cancel": {
+        "en": "Cancel",
+        "ru": "Отмена",
+    },
+    "voiceover_working": {
+        "en": "🗣 Recording...",
+        "ru": "🗣 Озвучиваю...",
+    },
+    "voiceover_confirm": {
+        "en": (
+            "That's a big one: about {duration} of audio, {chars} characters, ≈ {cost}.\n"
+            "Voice it?"
+        ),
+        "ru": (
+            "Это много: примерно {duration} аудио, {chars} символов, ≈ {cost}.\n"
+            "Озвучить?"
+        ),
+    },
+    "voiceover_cancelled": {
+        "en": "OK, not voicing it.",
+        "ru": "Хорошо, не озвучиваю.",
+    },
+    "voiceover_done_admin": {
+        "en": "🗣 Done: {duration} of audio\nCharacters: {chars} · credits: {credits} · ≈ {cost}",
+        "ru": "🗣 Готово: {duration} аудио\nСимволов: {chars} · кредитов: {credits} · ≈ {cost}",
+    },
+    "voiceover_done": {
+        "en": "🗣 Done! You have ≈ {left} of {quota} min of voiceover left for the next {days} days.",
+        "ru": "🗣 Готово! Осталось ≈ {left} из {quota} мин озвучки на ближайшие {days} дней.",
+    },
+    "voiceover_limit": {
+        "en": (
+            "I voice up to {quota} min per person every {days} days. You have ≈ {left} min "
+            "left, and this text would take about {need} min. Send a shorter one, or try later."
+        ),
+        "ru": (
+            "Я озвучиваю до {quota} мин на человека за {days} дней. У вас осталось ≈ {left} мин, "
+            "а этот текст займёт около {need} мин. Пришлите текст покороче или попробуйте позже."
+        ),
+    },
+    "voiceover_no_text": {
+        "en": "I can't find the text to voice anymore — please send it again.",
+        "ru": "Не нахожу текст для озвучки — пришлите его ещё раз.",
+    },
+    "voiceover_file_unreadable": {
+        "en": "I couldn't read this file as text.",
+        "ru": "Не получилось прочитать этот файл как текст.",
+    },
+    "voiceover_file_too_large": {
+        "en": "This file is over {max_mb} MB — that's too much text to voice.",
+        "ru": "Файл больше {max_mb} МБ — это слишком много текста для озвучки.",
+    },
+    "voiceover_failed": {
+        "en": "Something went wrong while voicing this. Please try again a bit later.",
+        "ru": "Не получилось озвучить. Попробуйте чуть позже.",
+    },
 }
 
 

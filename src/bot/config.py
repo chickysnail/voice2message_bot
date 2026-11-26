@@ -39,6 +39,22 @@ class Settings(BaseSettings):
     heartbeat_url: str = ""
     heartbeat_interval_seconds: int = 60
 
+    # Voiceover: anyone who sends text (or a .txt file) can have it read out
+    # in this ElevenLabs voice. Empty TTS_VOICE_ID turns the feature off.
+    tts_voice_id: str = "WTn2eCRCpoFAC50VD351"
+    tts_model: str = "eleven_v4"
+    # USD per 1,000 voiced characters, for cost estimates.
+    tts_usd_per_1k_chars: float = 0.08
+    # Everyone but admins gets this many minutes of speech per TTS_QUOTA_DAYS.
+    tts_user_quota_minutes: float = 10
+    tts_quota_days: int = 30
+    # Admins have no limit, but are asked first when one voiceover would cost
+    # more than this.
+    tts_confirm_usd: float = 1.0
+    # DM admins whenever someone else uses the voice.
+    tts_notify_admins: bool = True
+    tts_timeout: int = 300
+
     # Self-hosted Telegram Bot API server. The cloud Bot API won't let bots
     # download files over 20 MB; with both credentials set (from
     # https://my.telegram.org), the bot starts telegram-bot-api --local next to

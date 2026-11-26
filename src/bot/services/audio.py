@@ -58,6 +58,52 @@ async def extract_audio(
     return audio_path
 
 
+async def encode_voice(parts: list[str], *, timeout: int = 120) -> str:
+    """Join audio files, in order, into one OGG/Opus voice message.
+
+    Returns the path to the new .ogg file; the caller deletes it.
+    Raises RuntimeError if ffmpeg fails.
+    """
+    fd, list_path = tempfile.mkstemp(suffix=".txt")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        for path in parts:
+            # ffmpeg accepts forward slashes on every OS; quotes keep spaces.
+            f.write(f"file '{path.replace(os.sep, '/')}'\n")
+    fd, voice_path = tempfile.mkstemp(suffix=".ogg")
+    os.close(fd)
+
+    process = await asyncio.create_subprocess_exec(
+        "ffmpeg",
+        "-f", "concat",
+        "-safe", "0",
+        "-i", list_path,
+        "-vn",
+        "-c:a", "libopus",
+        "-b:a", "64k",
+        "-y",
+        voice_path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        _, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+    except TimeoutError:
+        process.kill()
+        failure = f"ffmpeg timed out after {timeout}s"
+    else:
+        failure = (
+            f"ffmpeg failed: {stderr.decode(errors='replace')[-200:]}"
+            if process.returncode != 0 else ""
+        )
+    finally:
+        os.remove(list_path)
+
+    if failure or os.path.getsize(voice_path) == 0:
+        os.remove(voice_path)
+        raise RuntimeError(failure or "ffmpeg produced no audio")
+    return voice_path
+
+
 async def get_audio_duration(
     file_path: str, *, timeout: int = 30
 ) -> float | None:
