@@ -1,11 +1,14 @@
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Any, Protocol
 
 from elevenlabs.client import ElevenLabs
 from elevenlabs.types.speech_to_text_chunk_response_model import (
     SpeechToTextChunkResponseModel,
 )
+
+from src.bot.services.elevenlabs_keys import KeyFailover, describe_error
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +100,27 @@ class ElevenLabsTranscriber:
     """Transcription service using ElevenLabs Scribe v2."""
 
     def __init__(
-        self, api_key: str, *, timeout: int = 900
+        self, api_key: str, *, timeout: int = 900, backup_api_key: str = ""
     ) -> None:
-        self._client = ElevenLabs(api_key=api_key, timeout=timeout)
+        self.keys = KeyFailover(
+            ElevenLabs(api_key=api_key, timeout=timeout),
+            ElevenLabs(api_key=backup_api_key, timeout=timeout) if backup_api_key else None,
+            service="transcription",
+        )
         self._timeout = timeout
+
+    @staticmethod
+    def _request(file_path: str) -> Callable[[ElevenLabs], Any]:
+        def request(client: ElevenLabs) -> Any:
+            with open(file_path, "rb") as f:
+                return client.speech_to_text.convert(
+                    file=f,
+                    model_id="scribe_v2",
+                    tag_audio_events=False,
+                    diarize=True,
+                )
+
+        return request
 
     def transcribe(self, file_path: str) -> TranscriptionResult:
         """Transcribe an audio file and return text + word-level data.
@@ -111,14 +131,8 @@ class ElevenLabsTranscriber:
         Raises RuntimeError on API failure.
         """
         try:
-            with open(file_path, "rb") as f:
-                result = self._client.speech_to_text.convert(
-                    file=f,
-                    model_id="scribe_v2",
-                    tag_audio_events=False,
-                    diarize=True,
-                )
-            text = format_diarized_transcript(result)  # type: ignore[arg-type]
+            result = self.keys.call(self._request(file_path))
+            text = format_diarized_transcript(result)
             if not text.strip():
                 raise EmptyTranscriptionError("Transcription returned empty text")
 
@@ -130,7 +144,7 @@ class ElevenLabsTranscriber:
                     speaker_id=w.speaker_id,
                     type=w.type if isinstance(w.type, str) else "word",
                 )
-                for w in result.words  # type: ignore[union-attr]
+                for w in result.words
             ]
 
             billed = getattr(result, "audio_duration_secs", None)
@@ -143,4 +157,4 @@ class ElevenLabsTranscriber:
         except RuntimeError:
             raise
         except Exception as e:
-            raise RuntimeError(f"ElevenLabs transcription failed: {e}") from e
+            raise RuntimeError(f"ElevenLabs transcription failed: {describe_error(e)}") from e

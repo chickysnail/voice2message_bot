@@ -5,6 +5,9 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     telegram_bot_token: str
     elevenlabs_api_key: str
+    # Optional key from another ElevenLabs account, used while ElevenLabs
+    # refuses the main one (out of credits, plan expired, missing permission).
+    elevenlabs_backup_api_key: str = ""
     openai_api_key: str
 
     # Instagram reels are fetched with yt-dlp. Optional Netscape-format cookies
