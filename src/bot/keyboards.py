@@ -10,6 +10,10 @@ CALLBACK_SEC_TRANSCRIBE = "sec_transcribe"
 CALLBACK_SECRETARY_SETUP = "secretary_setup"
 CALLBACK_LINK_TRANSCRIBE = "link_transcribe"
 CALLBACK_LINK_AUDIO = "link_audio"
+# Voiceover buttons: offer, confirm a big one, cancel it.
+CALLBACK_VOICEOVER = "tts"
+CALLBACK_VOICEOVER_CONFIRM = "tts_yes"
+CALLBACK_VOICEOVER_CANCEL = "tts_no"
 
 
 def post_transcription_keyboard(
@@ -156,4 +160,27 @@ def admin_dashboard_keyboard(app_url: str, browser_url: str) -> InlineKeyboardMa
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📊 Open dashboard", web_app=WebAppInfo(url=app_url))],
         [InlineKeyboardButton("🌐 Open in browser (24 h link)", url=browser_url)],
+    ])
+
+
+def voiceover_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
+    """'Voice it' button under the reply to a text message or .txt file."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(t("btn_voiceover", lang), callback_data=CALLBACK_VOICEOVER)]
+    ])
+
+
+def voiceover_confirm_keyboard(lang: str = "en") -> InlineKeyboardMarkup:
+    """Yes / cancel, before an admin's expensive voiceover."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                t("btn_voiceover_confirm", lang),
+                callback_data=CALLBACK_VOICEOVER_CONFIRM,
+            ),
+            InlineKeyboardButton(
+                t("btn_voiceover_cancel", lang),
+                callback_data=CALLBACK_VOICEOVER_CANCEL,
+            ),
+        ]
     ])

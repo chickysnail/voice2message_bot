@@ -23,6 +23,7 @@ from src.bot.admin.data import build_dashboard
 from src.bot.admin.web import AdminDashboard
 from src.bot.services.pricing import Pricing
 from src.bot.storage.statistics import (
+    KIND_SPEECH,
     KIND_SUMMARIZATION,
     KIND_TRANSCRIPTION,
     StatisticsDB,
@@ -163,6 +164,22 @@ async def test_dashboard_totals_and_series(db: StatisticsDB) -> None:
     assert data["all_time"]["secretary_connections"] == 1
     assert {s["source"] for s in data["by_source"]} == {"voice", "instagram"}
     assert data["recent_errors"][0]["detail"] == "boom"
+
+
+async def test_voiceovers_count_in_cost_not_in_audio(db: StatisticsDB) -> None:
+    await _seed(db)
+    await db.record_event(UsageEvent(
+        user_id=2, username="bob", kind=KIND_SPEECH, source="text",
+        audio_seconds=300, output_chars=4500, cost_usd=0.36,
+    ))
+    data = await build_dashboard(db, Pricing(), "7d")
+
+    totals = data["totals"]
+    assert totals["audio_seconds"] == 660
+    assert totals["transcriptions"] == 2
+    assert totals["cost_usd"] == pytest.approx(0.0667 + 0.00027 + 0.0067 + 0.36)
+    bob = {u["user_id"]: u for u in data["users"]}[2]
+    assert bob["range"]["audio_seconds"] == 60
 
 
 async def test_dashboard_users(db: StatisticsDB) -> None:

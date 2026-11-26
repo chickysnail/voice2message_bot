@@ -37,6 +37,7 @@ from src.bot.keyboards import (
     secretary_settings_keyboard,
     secretary_setup_keyboard,
     strip_audio_button,
+    voiceover_keyboard,
 )
 from src.bot.locales import t
 from src.bot.services.audio import extract_audio, get_audio_duration
@@ -146,6 +147,7 @@ class BotHandlers:
         donation_nudge_usd: float = 1.0,
         donation_nudge_interval_seconds: int = 14 * 86400,
         dashboard_url: str | None = None,
+        voiceover: bool = False,
     ) -> None:
         self._transcriber = transcriber
         self._summarizer = summarizer
@@ -162,6 +164,8 @@ class BotHandlers:
         self._donation_nudge_usd = donation_nudge_usd
         self._donation_nudge_interval = donation_nudge_interval_seconds
         self._dashboard_url = dashboard_url
+        # Offer to voice plain text in the bot author's voice (see voiceover.py).
+        self._voiceover = voiceover
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not update.message or not update.effective_user:
@@ -195,7 +199,12 @@ class BotHandlers:
             if update.effective_user
             else "en"
         ) or "en"
-        await update.message.reply_text(t("help", lang))
+        text = t("help", lang)
+        if self._voiceover:
+            # Just before the closing privacy note.
+            body, _, privacy = text.rpartition("\n\n")
+            text = f"{body}\n\n{t('help_voiceover', lang)}\n\n{privacy}"
+        await update.message.reply_text(text)
 
     async def handle_text(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -207,6 +216,14 @@ class BotHandlers:
         link = find_link(update.message.text or "")
         if link:
             await self._handle_media_link(update.message, update.effective_user, link)
+            return
+        if self._voiceover:
+            # Quoting the text lets the button find it again when tapped.
+            await update.message.reply_text(
+                t("text_nudge_voiceover", lang),
+                reply_markup=voiceover_keyboard(lang),
+                do_quote=True,
+            )
             return
         await update.message.reply_text(t("text_nudge", lang))
 

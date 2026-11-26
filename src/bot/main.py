@@ -32,9 +32,11 @@ from src.bot.services.notifier import AdminNotifier
 from src.bot.services.pricing import Pricing
 from src.bot.services.summarization import OpenAISummarizer
 from src.bot.services.transcription import ElevenLabsTranscriber
+from src.bot.services.tts import ElevenLabsSpeech
 from src.bot.storage.media_audio_store import MediaAudioStore
 from src.bot.storage.statistics import StatisticsDB
 from src.bot.storage.transcription_store import TranscriptionStore
+from src.bot.voiceover import TEXT_FILE_EXTENSIONS, VoiceoverHandler
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +112,7 @@ def main() -> None:
     pricing = Pricing(
         elevenlabs_usd_per_hour=settings.elevenlabs_usd_per_hour,
         star_usd=settings.star_usd,
+        tts_usd_per_1k_chars=settings.tts_usd_per_1k_chars,
     )
 
     # Build application
@@ -131,6 +134,27 @@ def main() -> None:
 
     notifier = AdminNotifier(application.bot, settings.admin_user_ids)
 
+    voiceover: VoiceoverHandler | None = None
+    if settings.tts_voice_id:
+        voiceover = VoiceoverHandler(
+            speech=ElevenLabsSpeech(
+                settings.elevenlabs_api_key,
+                settings.tts_voice_id,
+                settings.tts_model,
+                timeout=settings.tts_timeout,
+            ),
+            notifier=notifier,
+            stats_db=stats_db,
+            admin_ids=settings.admin_user_ids,
+            pricing=pricing,
+            quota_minutes=settings.tts_user_quota_minutes,
+            quota_days=settings.tts_quota_days,
+            confirm_usd=settings.tts_confirm_usd,
+            notify_admins=settings.tts_notify_admins,
+            ffmpeg_timeout=settings.ffmpeg_timeout,
+            file_download_timeout=settings.file_download_timeout,
+        )
+
     handlers = BotHandlers(
         transcriber=transcriber,
         summarizer=summarizer,
@@ -147,6 +171,7 @@ def main() -> None:
         donation_nudge_usd=settings.donation_nudge_usd,
         donation_nudge_interval_seconds=settings.donation_nudge_interval_days * 86400,
         dashboard_url=settings.dashboard_url,
+        voiceover=voiceover is not None,
     )
 
     secretary = SecretaryHandler(
@@ -186,6 +211,16 @@ def main() -> None:
     ) & filters.UpdateType.MESSAGE
     application.add_handler(MessageHandler(audio_filter, handlers.handle_audio))
 
+    if voiceover is not None:
+        text_file_filter: filters.BaseFilter = filters.Document.MimeType("text/plain")
+        for ext in TEXT_FILE_EXTENSIONS:
+            text_file_filter |= filters.Document.FileExtension(ext.lstrip("."))
+        application.add_handler(
+            MessageHandler(
+                text_file_filter & filters.UpdateType.MESSAGE, voiceover.offer_for_file
+            )
+        )
+
     # Secretary (business) handlers
     application.add_handler(
         BusinessConnectionHandler(secretary.handle_business_connection)
@@ -212,6 +247,15 @@ def main() -> None:
             pattern=r"^donate:",
         )
     )
+    if voiceover is not None:
+        # Non-blocking: a long voiceover mustn't hold up everyone else's updates.
+        application.add_handler(
+            CallbackQueryHandler(
+                voiceover.handle_callback,
+                pattern=r"^tts(_yes|_no)?$",
+                block=False,
+            )
+        )
     application.add_handler(CallbackQueryHandler(handlers.handle_callback))
 
     # Payment handlers (Telegram Stars donations)
