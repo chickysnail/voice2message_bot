@@ -5,7 +5,7 @@ import shutil
 import subprocess
 import tempfile
 from collections.abc import Iterator
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from elevenlabs.core.api_error import ApiError
@@ -68,15 +68,22 @@ def test_estimate_and_price() -> None:
     assert Pricing(tts_usd_per_1k_chars=0.1).speech_cost(2500) == pytest.approx(0.25)
 
 
+def _speech_with(client: MagicMock, backup: MagicMock | None = None) -> ElevenLabsSpeech:
+    clients = [client] + ([backup] if backup is not None else [])
+    with patch("src.bot.services.tts.ElevenLabs", side_effect=clients):
+        return ElevenLabsSpeech(
+            "key", "voice123", "eleven_v4", backup_api_key="backup" if backup else ""
+        )
+
+
 def test_elevenlabs_speech_writes_audio_and_reads_cost() -> None:
-    speech = ElevenLabsSpeech("key", "voice123", "eleven_v4")
     response = MagicMock()
     response.headers = {"character-cost": "12"}
     response.data = iter([b"ID3", b"audio"])
-    convert = MagicMock()
+    client = MagicMock()
+    convert = client.text_to_speech.with_raw_response.convert
     convert.return_value.__enter__.return_value = response
-    speech._client = MagicMock()
-    speech._client.text_to_speech.with_raw_response.convert = convert
+    speech = _speech_with(client)
 
     fd, path = tempfile.mkstemp(suffix=".mp3")
     os.close(fd)
@@ -93,14 +100,14 @@ def test_elevenlabs_speech_writes_audio_and_reads_cost() -> None:
 
 
 def test_elevenlabs_speech_without_cost_header() -> None:
-    speech = ElevenLabsSpeech("key", "voice123", "eleven_v4")
     response = MagicMock()
     response.headers = {}
     response.data = iter([b"x"])
-    speech._client = MagicMock()
-    speech._client.text_to_speech.with_raw_response.convert.return_value.__enter__.return_value = (
+    client = MagicMock()
+    client.text_to_speech.with_raw_response.convert.return_value.__enter__.return_value = (
         response
     )
+    speech = _speech_with(client)
     fd, path = tempfile.mkstemp(suffix=".mp3")
     os.close(fd)
     try:
@@ -110,17 +117,16 @@ def test_elevenlabs_speech_without_cost_header() -> None:
 
 
 def test_elevenlabs_speech_failure_is_runtime_error() -> None:
-    speech = ElevenLabsSpeech("key", "voice123", "eleven_v4")
-    speech._client = MagicMock()
-    speech._client.text_to_speech.with_raw_response.convert.side_effect = ValueError("401")
+    client = MagicMock()
+    client.text_to_speech.with_raw_response.convert.side_effect = ValueError("401")
+    speech = _speech_with(client)
     with pytest.raises(RuntimeError, match="ElevenLabs speech failed"):
         speech.synthesize("Привет", "unused.mp3")
 
 
 def test_api_error_shows_status_and_reason_not_headers() -> None:
-    speech = ElevenLabsSpeech("key", "voice123", "eleven_v4")
-    speech._client = MagicMock()
-    speech._client.text_to_speech.with_raw_response.convert.side_effect = ApiError(
+    client = MagicMock()
+    client.text_to_speech.with_raw_response.convert.side_effect = ApiError(
         headers={"date": "Thu, 26 Nov 2026", "server": "uvicorn", "x-long": "x" * 400},
         status_code=401,
         body={"detail": {
@@ -128,6 +134,7 @@ def test_api_error_shows_status_and_reason_not_headers() -> None:
             "message": "The API key you used is missing the permission text_to_speech.",
         }},
     )
+    speech = _speech_with(client)
     with pytest.raises(RuntimeError) as info:
         speech.synthesize("Привет", "unused.mp3")
     message = str(info.value)
@@ -135,6 +142,26 @@ def test_api_error_shows_status_and_reason_not_headers() -> None:
         "ElevenLabs speech failed: HTTP 401 missing_permissions: "
         "The API key you used is missing the permission text_to_speech."
     )
+
+
+def test_voiceover_falls_back_to_backup_key() -> None:
+    main, backup = MagicMock(), MagicMock()
+    main.text_to_speech.with_raw_response.convert.side_effect = ApiError(
+        status_code=401, body={"detail": {"status": "quota_exceeded", "message": "No credits"}},
+    )
+    response = MagicMock(headers={"character-cost": "6"}, data=iter([b"audio"]))
+    backup.text_to_speech.with_raw_response.convert.return_value.__enter__.return_value = (
+        response
+    )
+    speech = _speech_with(main, backup)
+    fd, path = tempfile.mkstemp(suffix=".mp3")
+    os.close(fd)
+    try:
+        assert speech.synthesize("Привет", path) == 6
+        with open(path, "rb") as f:
+            assert f.read() == b"audio"
+    finally:
+        os.remove(path)
 
 
 def test_describe_error_other_shapes() -> None:

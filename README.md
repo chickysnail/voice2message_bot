@@ -147,6 +147,20 @@ set `TTS_MODEL=eleven_multilingual_v2`.
    - `OPENAI_API_KEY`
    - `DATABASE_PATH=/data/stats.db`
    - `ADMIN_USER_IDS=your_telegram_user_id`
+   - optionally `ELEVENLABS_BACKUP_API_KEY` (see below)
+
+### Backup ElevenLabs key
+
+`ELEVENLABS_BACKUP_API_KEY` can hold a key from a second ElevenLabs account.
+When ElevenLabs refuses the main key with HTTP 401, 402, 403 or 429 (out of
+credits, plan expired, missing permission, rate limited), the bot retries the
+same request with the backup key and uses the backup for the next hour.
+After that it tries the main key again. Transcription and voiceover switch
+independently. Admins get a DM when the bot switches to the backup key and
+when it's back on the main one.
+
+Give both keys the same permissions: Speech to Text, Text to Speech and
+User → Read. The dashboard's credits card shows the main key's account.
 
 ### Files over 20 MB
 

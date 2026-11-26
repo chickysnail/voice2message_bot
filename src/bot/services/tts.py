@@ -10,9 +10,9 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from elevenlabs.client import ElevenLabs
-from elevenlabs.core.api_error import ApiError
 
 from src.bot.services.audio import encode_voice, get_audio_duration
+from src.bot.services.elevenlabs_keys import KeyFailover, describe_error
 
 logger = logging.getLogger(__name__)
 
@@ -85,24 +85,6 @@ def split_text(text: str, limit: int = CHUNK_CHARS) -> list[str]:
     return chunks
 
 
-def describe_error(error: Exception) -> str:
-    """Status and reason of a failed ElevenLabs call, e.g.
-    "HTTP 401 missing_permissions: The API key ... text_to_speech ...".
-
-    The SDK's own message starts with every response header, which pushes
-    the reason out of any message that gets shortened.
-    """
-    if not isinstance(error, ApiError):
-        return str(error)
-    detail = error.body
-    if isinstance(detail, dict):
-        detail = detail.get("detail", detail)
-    if isinstance(detail, dict) and "message" in detail:
-        code = detail.get("status") or detail.get("code") or detail.get("type")
-        detail = f"{code}: {detail['message']}" if code else detail["message"]
-    return f"HTTP {error.status_code} {detail}"
-
-
 def _credits(headers: Mapping[str, str]) -> int | None:
     value = headers.get(_CREDITS_HEADER)
     try:
@@ -115,15 +97,25 @@ class ElevenLabsSpeech:
     """Speech synthesis with one fixed ElevenLabs voice."""
 
     def __init__(
-        self, api_key: str, voice_id: str, model_id: str, *, timeout: int = 300
+        self,
+        api_key: str,
+        voice_id: str,
+        model_id: str,
+        *,
+        timeout: int = 300,
+        backup_api_key: str = "",
     ) -> None:
-        self._client = ElevenLabs(api_key=api_key, timeout=timeout)
+        self.keys = KeyFailover(
+            ElevenLabs(api_key=api_key, timeout=timeout),
+            ElevenLabs(api_key=backup_api_key, timeout=timeout) if backup_api_key else None,
+            service="voiceover",
+        )
         self._voice_id = voice_id
         self._model_id = model_id
 
     def synthesize(self, text: str, mp3_path: str) -> int | None:
-        try:
-            with self._client.text_to_speech.with_raw_response.convert(
+        def request(client: ElevenLabs) -> int | None:
+            with client.text_to_speech.with_raw_response.convert(
                 self._voice_id,
                 text=text,
                 model_id=self._model_id,
@@ -132,7 +124,10 @@ class ElevenLabsSpeech:
                 with open(mp3_path, "wb") as f:
                     for chunk in response.data:
                         f.write(chunk)
-                credits = _credits(response.headers)
+                return _credits(response.headers)
+
+        try:
+            credits = self.keys.call(request)
         except Exception as e:
             raise RuntimeError(f"ElevenLabs speech failed: {describe_error(e)}") from e
         logger.info(

@@ -84,6 +84,7 @@ def main() -> None:
     transcriber = ElevenLabsTranscriber(
         settings.elevenlabs_api_key,
         timeout=settings.transcription_timeout,
+        backup_api_key=settings.elevenlabs_backup_api_key,
     )
     summarizer = OpenAISummarizer(
         settings.openai_api_key,
@@ -134,15 +135,18 @@ def main() -> None:
 
     notifier = AdminNotifier(application.bot, settings.admin_user_ids)
 
+    speech: ElevenLabsSpeech | None = None
     voiceover: VoiceoverHandler | None = None
     if settings.tts_voice_id:
+        speech = ElevenLabsSpeech(
+            settings.elevenlabs_api_key,
+            settings.tts_voice_id,
+            settings.tts_model,
+            timeout=settings.tts_timeout,
+            backup_api_key=settings.elevenlabs_backup_api_key,
+        )
         voiceover = VoiceoverHandler(
-            speech=ElevenLabsSpeech(
-                settings.elevenlabs_api_key,
-                settings.tts_voice_id,
-                settings.tts_model,
-                timeout=settings.tts_timeout,
-            ),
+            speech=speech,
             notifier=notifier,
             stats_db=stats_db,
             admin_ids=settings.admin_user_ids,
@@ -298,6 +302,17 @@ def main() -> None:
     async def post_init(app: Application) -> None:  # type: ignore[type-arg]
         nonlocal health_runner, cleanup_task, bot_api_cleanup_task
         await stats_db.initialize()
+
+        # DM admins when ElevenLabs refuses the main key and the bot switches
+        # to the backup one (and back). Key switches happen in worker threads.
+        loop = asyncio.get_running_loop()
+
+        def tell_admins(text: str) -> None:
+            asyncio.run_coroutine_threadsafe(notifier.notify_admins(text), loop)
+
+        transcriber.keys.notify = tell_admins
+        if speech is not None:
+            speech.keys.notify = tell_admins
 
         # Start health check server
         health_runner = await run_health_server(settings.health_port, dashboard)
