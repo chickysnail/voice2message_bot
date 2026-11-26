@@ -8,11 +8,13 @@ from collections.abc import Iterator
 from unittest.mock import MagicMock
 
 import pytest
+from elevenlabs.core.api_error import ApiError
 
 from src.bot.services.pricing import Pricing
 from src.bot.services.tts import (
     CHARS_PER_SECOND,
     ElevenLabsSpeech,
+    describe_error,
     estimate_seconds,
     split_text,
     synthesize_voice,
@@ -113,6 +115,36 @@ def test_elevenlabs_speech_failure_is_runtime_error() -> None:
     speech._client.text_to_speech.with_raw_response.convert.side_effect = ValueError("401")
     with pytest.raises(RuntimeError, match="ElevenLabs speech failed"):
         speech.synthesize("Привет", "unused.mp3")
+
+
+def test_api_error_shows_status_and_reason_not_headers() -> None:
+    speech = ElevenLabsSpeech("key", "voice123", "eleven_v4")
+    speech._client = MagicMock()
+    speech._client.text_to_speech.with_raw_response.convert.side_effect = ApiError(
+        headers={"date": "Thu, 26 Nov 2026", "server": "uvicorn", "x-long": "x" * 400},
+        status_code=401,
+        body={"detail": {
+            "status": "missing_permissions",
+            "message": "The API key you used is missing the permission text_to_speech.",
+        }},
+    )
+    with pytest.raises(RuntimeError) as info:
+        speech.synthesize("Привет", "unused.mp3")
+    message = str(info.value)
+    assert message == (
+        "ElevenLabs speech failed: HTTP 401 missing_permissions: "
+        "The API key you used is missing the permission text_to_speech."
+    )
+
+
+def test_describe_error_other_shapes() -> None:
+    assert describe_error(ApiError(status_code=422, body={"detail": "bad model"})) == (
+        "HTTP 422 bad model"
+    )
+    assert describe_error(ApiError(status_code=400, body={"detail": {
+        "type": "invalid_request", "code": "model_not_found", "message": "No such model",
+    }})) == "HTTP 400 model_not_found: No such model"
+    assert describe_error(ValueError("timeout")) == "timeout"
 
 
 @pytest.fixture
